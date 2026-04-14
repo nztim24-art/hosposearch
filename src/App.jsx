@@ -1,0 +1,2725 @@
+import { useState, useRef, useEffect } from "react";
+
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+const C = {
+  bg:"#FAFAF8", bgSoft:"#F4F0EB", border:"#EAE4DA", borderMid:"#D6CEBC",
+  terracotta:"#C4623A", terracottaL:"#F5EDE7", terracottaM:"#E8CFBF",
+  sage:"#6B8F71", sageL:"#EBF2EC", sageDark:"#4A6B50",
+  sand:"#C9A96E", sandL:"#FDF6E8",
+  clay:"#7A5C44", blue:"#3897F0", blueL:"#EBF4FE",
+  textDark:"#1A1A1A", textMid:"#555", textSoft:"#888", textFaint:"#BBB",
+  white:"#FFFFFF", error:"#E0392B",
+  featured:"#F5A623", featuredL:"#FFF8EE",
+};
+
+const G = `
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  html, body { height:100%; overflow:hidden; }
+  body { background:#fff; font-family:'DM Sans',sans-serif; -webkit-font-smoothing:antialiased; }
+  input,textarea,select { outline:none; font-family:'DM Sans',sans-serif; }
+  input::placeholder,textarea::placeholder { color:${C.textFaint}; }
+  input:focus,textarea:focus,select:focus { border-color:${C.terracotta}!important; box-shadow:0 0 0 3px ${C.terracottaL}; }
+  button { font-family:'DM Sans',sans-serif; cursor:pointer; }
+  ::-webkit-scrollbar { width:3px; } ::-webkit-scrollbar-track { background:transparent; } ::-webkit-scrollbar-thumb { background:${C.border}; border-radius:2px; }
+  .tap { transition:opacity 0.15s; } .tap:active { opacity:0.65; }
+  .btn-cta { transition:all 0.18s; } .btn-cta:hover { filter:brightness(1.07); transform:translateY(-1px); } .btn-cta:active { transform:translateY(0); filter:brightness(0.96); }
+  .file-zone:hover { border-color:${C.terracotta}!important; background:${C.terracottaL}!important; }
+  .story-new  { background:conic-gradient(${C.terracotta} 0%,${C.sand} 55%,${C.terracotta} 100%); }
+  .story-fol  { background:conic-gradient(${C.sage} 0%,#A8D4AE 55%,${C.sage} 100%); }
+  .story-seen { background:#D0C8BC; }
+  @keyframes fadeUp   { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes scaleIn  { from{opacity:0;transform:scale(0.96)} to{opacity:1;transform:scale(1)} }
+  .fade-up  { animation:fadeUp  0.2s ease forwards; }
+  .scale-in { animation:scaleIn 0.2s ease forwards; }
+  .chip { display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600; }
+`;
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const EMPLOYERS = [
+  { id:"emp1", email:"hire@attica.com.au", password:"pass123", name:"Attica", handle:"attica_melb", avatar:"🍽️", verified:true,  bio:"3-Hat fine dining · Ripponlea VIC", cuisine:"Modern Australian", size:"15–20 staff", awards:["3 Chef Hats","World's 50 Best #32"] },
+  { id:"emp2", email:"hire@tetsuyas.com",  password:"pass123", name:"Tetsuya's", handle:"tetsuyas_syd", avatar:"🌸", verified:true,  bio:"Sydney icon · Japanese-French", cuisine:"Japanese-French", size:"30–40 staff", awards:["2 Chef Hats","Sydney icon"] },
+  { id:"emp3", email:"hire@quay.com.au",   password:"pass123", name:"Quay Restaurant", handle:"quay_syd", avatar:"⚓", verified:false, bio:"Harbour views · Peter Gilmore", cuisine:"Contemporary", size:"40–50 staff", awards:["2 Chef Hats"] },
+  { id:"trial", email:"trial@hosposearch.com.au", password:"hospo_trial!", name:"HospoSearch", handle:"hosposearch", avatar:"🔍", verified:true, bio:"Official HospoSearch account", cuisine:"", size:"", awards:[], isTrial:true },
+];
+const EMPLOYEES = [
+  { id:"u1", email:"chef@gmail.com",  password:"pass123", name:"Jordan Lim", handle:"jordan_cooks", avatar:"👨‍🍳", role:"Chef de Partie", experience:"5 years", cuisine:["Modern Australian","French"], location:"Melbourne, VIC", bio:"Passionate CDP with fine dining background. Currently seeking Head Chef opportunities at hatted venues.", available:true,
+    skills:["Knife Skills","Sauce Work","Menu Development","Stock & Stocks","Pastry","Fire Cookery","Fermentation","Foraging"],
+    workHistory:[
+      { venue:"Attica", role:"Chef de Partie", dates:"2021 – Present", desc:"Leading entrée section at 3-hat venue. Helped develop three seasonal menus." },
+      { venue:"Brae", role:"Commis Chef", dates:"2019 – 2021", desc:"Worked across all sections. Specialised in fermentation and preservation program." },
+      { venue:"Vue de Monde", role:"Kitchen Hand / Stagiaire", dates:"2018 – 2019", desc:"Stage program under Shannon Bennett. Introduction to fine dining standards." },
+    ],
+    photos:[]
+  },
+  { id:"u2", email:"front@gmail.com", password:"pass123", name:"Mia Santos", handle:"mia_foh",      avatar:"👩‍🍳", role:"Front of House", experience:"3 years", cuisine:["European","Asian Fusion"], location:"Sydney, NSW", bio:"FOH specialist with sommelier training. Love building genuine guest experiences at the highest level.", available:true,
+    skills:["Sommelier","Guest Relations","Team Leadership","Wine Pairing","POS Systems","Reservations","Private Dining","Upselling"],
+    workHistory:[
+      { venue:"Tetsuya's", role:"Floor Manager", dates:"2022 – Present", desc:"Managing floor for 60-cover service. Responsible for wine program and staff training." },
+      { venue:"Quay Restaurant", role:"Senior Waiter", dates:"2020 – 2022", desc:"Fine dining service for Peter Gilmore's harbour restaurant. Wine certification achieved." },
+    ],
+    photos:[]
+  },
+];
+const ADMIN = { id:"admin", email:"admin@hosposearch.com.au", password:"hospo2024!", name:"HospoSearch Admin", handle:"admin", avatar:"🛡️" };
+const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
+const ROLE_TAGS = ["Chef Hat Venue","Fine Dining","Rooftop Bar","Resort","Group Venue","Michelin-Calibre","Hatted Restaurant","Waterfront","CBD","Regional","Award-Winning","Seasonal Menu"];
+const SALARY_BANDS = ["Under $50k","$50–70k","$70–90k","$90–110k","$110k+","Hourly Rate"];
+
+// ─── Location hierarchy ──────────────────────────────────────────────────────
+const LOCATIONS = {
+  // ── ANZ (primary markets) ────────────────────────────────────────────────
+  "Australia": {
+    "New South Wales":    ["Sydney","Newcastle","Wollongong","Coffs Harbour","Byron Bay","Orange","Dubbo","Tamworth"],
+    "Victoria":           ["Melbourne","Geelong","Ballarat","Bendigo","Mornington Peninsula","Yarra Valley","Phillip Island","Torquay"],
+    "Queensland":         ["Brisbane","Gold Coast","Sunshine Coast","Cairns","Townsville","Noosa","Whitsundays","Toowoomba"],
+    "Western Australia":  ["Perth","Fremantle","Margaret River","Broome","Busselton","Albany","Esperance"],
+    "South Australia":    ["Adelaide","Barossa Valley","McLaren Vale","Clare Valley","Kangaroo Island","Port Lincoln"],
+    "Tasmania":           ["Hobart","Launceston","Devonport","Cradle Mountain","Freycinet"],
+    "Northern Territory": ["Darwin","Alice Springs","Kakadu","Katherine"],
+    "ACT":                ["Canberra"],
+  },
+  "New Zealand": {
+    "Auckland":           ["Auckland CBD","North Shore","Waiheke Island","Queenstown"],
+    "Wellington":         ["Wellington CBD","Lower Hutt","Porirua","Kapiti Coast"],
+    "Canterbury":         ["Christchurch","Queenstown","Wanaka","Timaru"],
+    "Waikato":            ["Hamilton","Tauranga","Rotorua","Cambridge"],
+    "Otago":              ["Dunedin","Queenstown","Wanaka","Arrowtown","Alexandra"],
+    "Bay of Plenty":      ["Tauranga","Rotorua","Whakatāne","Mount Maunganui"],
+    "Marlborough":        ["Blenheim","Picton","Kaikōura"],
+    "Northland":          ["Whangarei","Paihia","Kerikeri"],
+  },
+  // ── Rest of World ────────────────────────────────────────────────────────
+  "United Kingdom": {
+    "England":            ["London","Manchester","Birmingham","Bristol","Liverpool","Leeds","Brighton","Oxford","Cambridge","Bath","Exeter","York"],
+    "Scotland":           ["Edinburgh","Glasgow","Aberdeen","Inverness","St Andrews","Dundee"],
+    "Wales":              ["Cardiff","Swansea","Newport","Brecon","Tenby"],
+    "Northern Ireland":   ["Belfast","Derry","Armagh"],
+  },
+  "United States": {
+    "New York":           ["New York City","Buffalo","Albany","Saratoga Springs","The Hamptons"],
+    "California":         ["Los Angeles","San Francisco","San Diego","Napa Valley","Sonoma","Santa Barbara","Monterey"],
+    "Florida":            ["Miami","Orlando","Tampa","Key West","Fort Lauderdale","Naples"],
+    "Texas":              ["Houston","Austin","Dallas","San Antonio","Fort Worth"],
+    "Illinois":           ["Chicago","Springfield","Naperville"],
+    "Nevada":             ["Las Vegas","Reno","Lake Tahoe"],
+    "Hawaii":             ["Honolulu","Maui","Kauai","Big Island"],
+    "Other":              ["Boston","Seattle","Portland","Denver","Nashville","New Orleans","Charleston"],
+  },
+  "Canada": {
+    "Ontario":            ["Toronto","Ottawa","Niagara Falls","Hamilton","Kingston"],
+    "British Columbia":   ["Vancouver","Victoria","Whistler","Kelowna","Tofino"],
+    "Quebec":             ["Montreal","Quebec City","Tremblant","Gatineau"],
+    "Alberta":            ["Calgary","Edmonton","Banff","Jasper","Canmore"],
+    "Other":              ["Halifax","Winnipeg","Saskatoon","Regina"],
+  },
+  "Ireland": {
+    "Leinster":           ["Dublin","Wicklow","Kilkenny","Wexford","Drogheda"],
+    "Munster":            ["Cork","Limerick","Kerry","Waterford","Tipperary"],
+    "Connacht":           ["Galway","Sligo","Mayo","Roscommon"],
+    "Ulster":             ["Donegal","Cavan","Monaghan"],
+  },
+  "France": {
+    "Île-de-France":      ["Paris","Versailles","Fontainebleau"],
+    "Provence":           ["Marseille","Nice","Cannes","Aix-en-Provence","Saint-Tropez"],
+    "Occitanie":          ["Toulouse","Montpellier","Nîmes"],
+    "Nouvelle-Aquitaine": ["Bordeaux","Biarritz","Périgueux"],
+    "Auvergne-Rhône-Alpes":["Lyon","Grenoble","Annecy","Chambéry"],
+    "Other":              ["Strasbourg","Lille","Nantes","Rennes"],
+  },
+  "Italy": {
+    "Lombardy":           ["Milan","Brescia","Bergamo","Como","Cremona"],
+    "Tuscany":            ["Florence","Siena","Pisa","Lucca","Arezzo","Cortona"],
+    "Lazio":              ["Rome","Tivoli","Ostia"],
+    "Campania":           ["Naples","Amalfi Coast","Positano","Sorrento","Capri"],
+    "Sicily":             ["Palermo","Catania","Taormina","Agrigento"],
+    "Veneto":             ["Venice","Verona","Padua","Treviso"],
+    "Other":              ["Bologna","Turin","Genoa","Bari","Trento"],
+  },
+  "Spain": {
+    "Catalonia":          ["Barcelona","Girona","Tarragona","Sitges"],
+    "Community of Madrid":["Madrid","Alcalá de Henares","Aranjuez"],
+    "Andalusia":          ["Seville","Málaga","Granada","Córdoba","Marbella"],
+    "Basque Country":     ["San Sebastián","Bilbao","Vitoria-Gasteiz"],
+    "Balearic Islands":   ["Palma de Mallorca","Ibiza","Menorca"],
+    "Other":              ["Valencia","Alicante","Zaragoza","Pamplona"],
+  },
+  "Japan": {
+    "Kanto":              ["Tokyo","Yokohama","Kamakura","Nikko","Hakone"],
+    "Kansai":             ["Osaka","Kyoto","Nara","Kobe","Hiroshima"],
+    "Hokkaido":           ["Sapporo","Niseko","Hakodate","Asahikawa"],
+    "Kyushu":             ["Fukuoka","Nagasaki","Kumamoto","Beppu","Kagoshima"],
+    "Other":              ["Nagoya","Sendai","Kanazawa","Matsumoto"],
+  },
+  "Singapore": {
+    "Central":            ["CBD","Marina Bay","Orchard","Tanjong Pagar","Chinatown"],
+    "East":               ["Katong","East Coast","Changi","Tampines"],
+    "West":               ["Jurong","Clementi","Holland Village","Dempsey Hill"],
+    "North":              ["Woodlands","Yishun","Sembawang"],
+  },
+  "UAE": {
+    "Dubai":              ["Downtown Dubai","Dubai Marina","Jumeirah","Palm Jumeirah","Business Bay","DIFC","JBR"],
+    "Abu Dhabi":          ["Abu Dhabi City","Yas Island","Saadiyat Island","Al Ain"],
+    "Sharjah":            ["Sharjah City","Al Majaz"],
+    "Other Emirates":     ["Ras Al Khaimah","Fujairah","Ajman"],
+  },
+  "Germany": {
+    "Bavaria":            ["Munich","Nuremberg","Augsburg","Regensburg","Garmisch-Partenkirchen"],
+    "Berlin":             ["Berlin Mitte","Prenzlauer Berg","Kreuzberg","Charlottenburg"],
+    "Hamburg":            ["Hamburg City","Blankenese","Altona"],
+    "Other":              ["Frankfurt","Düsseldorf","Cologne","Stuttgart","Dresden","Leipzig"],
+  },
+  "Greece": {
+    "Attica":             ["Athens","Piraeus","Glyfada"],
+    "South Aegean":       ["Santorini","Mykonos","Rhodes","Kos","Paros","Naxos"],
+    "Crete":              ["Heraklion","Chania","Rethymno","Agios Nikolaos"],
+    "Ionian Islands":     ["Corfu","Kefalonia","Zakynthos","Lefkada"],
+    "Other":              ["Thessaloniki","Halkidiki","Meteora","Delphi"],
+  },
+  "Thailand": {
+    "Bangkok":            ["Bangkok CBD","Sukhumvit","Silom","Ari","Thonglor"],
+    "Chiang Mai Province":["Chiang Mai","Chiang Rai","Pai"],
+    "Phuket":             ["Phuket Town","Patong","Kata","Karon","Rawai"],
+    "Koh Samui":          ["Chaweng","Bophut","Lamai","Mae Nam"],
+    "Other":              ["Pattaya","Krabi","Koh Phangan","Hua Hin"],
+  },
+  "Maldives": {
+    "North Malé Atoll":   ["Malé","Hulhumalé","Maafushi"],
+    "South Malé Atoll":   ["Guraidhoo","Biyadhoo"],
+    "Ari Atoll":          ["Rasdhoo","Mathiveri","Velidhoo"],
+    "Other Atolls":       ["Baa Atoll","Lhaviyani Atoll","Noonu Atoll"],
+  },
+  "Other": {
+    "Asia Pacific":       ["Bali","Hong Kong","Kuala Lumpur","Taipei","Seoul","Manila","Ho Chi Minh City","Hanoi"],
+    "Middle East":        ["Beirut","Doha","Riyadh","Muscat","Kuwait City","Amman"],
+    "Africa":             ["Cape Town","Johannesburg","Nairobi","Marrakech","Cairo","Mauritius"],
+    "Americas":           ["Mexico City","Buenos Aires","São Paulo","Lima","Bogotá","Santiago","Cancún"],
+    "Caribbean":          ["Barbados","Jamaica","St Lucia","Turks & Caicos","Cayman Islands","Antigua"],
+    "Europe Other":       ["Amsterdam","Lisbon","Vienna","Prague","Copenhagen","Stockholm","Zürich","Brussels","Budapest","Warsaw"],
+  },
+};
+
+// ─── Hospitality sectors ──────────────────────────────────────────────────────
+const SECTORS = [
+  "Restaurant","Bar & Nightclub","Hotel","Café","Catering","Events & Functions",
+  "Resort","Club","Pub","Fine Dining","Fast Casual","Food Truck","Bakery","Winery / Brewery",
+];
+
+// ─── Job roles by department ──────────────────────────────────────────────────
+const HOSPO_ROLES = {
+  "Kitchen": [
+    "Head Chef","Sous Chef","Chef de Partie","Commis Chef","Pastry Chef",
+    "Pastry Sous Chef","Demi Chef","Kitchen Hand","Apprentice Chef","Executive Chef","Catering Chef",
+  ],
+  "Front of House": [
+    "Restaurant Manager","Floor Manager","Maitre D'","Senior Waiter","Waiter / Wait Staff",
+    "Sommelier","Bar Manager","Bartender","Barista","Host / Hostess","Runner / Food Runner","Functions Coordinator",
+  ],
+  "Management": [
+    "General Manager","Operations Manager","Food & Beverage Manager","Venue Manager",
+    "Events Manager","Catering Manager","Hotel Manager","Executive Assistant Manager",
+  ],
+  "Hotel & Accommodation": [
+    "Concierge","Front Desk / Reception","Housekeeping","Room Service","Porter / Bellhop",
+    "Night Auditor","Reservations Manager",
+  ],
+  "Other": [
+    "Cellar Hand","Winemaker","Barback","Dishwasher","Delivery Driver","Marketing Coordinator","Purchasing Manager",
+  ],
+};
+const ALL_ROLES = Object.values(HOSPO_ROLES).flat();
+
+const INIT_JOBS = [
+  { id:"j1", empId:"emp1", title:"Head Chef", venue:"Attica", loc:"Ripponlea, VIC", country:"Australia", state:"Victoria", city:"Melbourne", sector:"Fine Dining", roleType:"Head Chef", salary:"$90–110k", salaryBand:"$90–110k", type:"Full-time", tags:["Chef Hat Venue","Fine Dining","Award-Winning"],
+    short:"Lead the kitchen at one of Australia's most celebrated fine dining venues. 3 hat experience preferred.",
+    full:"Attica is seeking an exceptional Head Chef to join Ben Shewry's legendary team. You'll lead a brigade of 18 in crafting one of the world's most talked-about tasting menus. Indigenous ingredients, boundary-pushing technique, and a deeply collaborative culture define us.\n\nYou'll be responsible for menu development, kitchen management, staff training, and maintaining our 3 Chef Hat standard.\n\nWe offer competitive salary, staff meals, genuine career progression, and the privilege of working alongside some of the world's most respected culinary talent.",
+    link:"https://attica.com.au/jobs", photos:[0,1,2,3,4], video:null, verified:true, featured:true, ts:Date.now()-3600000*2, apps:[], views:142 },
+  { id:"j2", empId:"emp2", title:"Sommelier", venue:"Tetsuya's", loc:"Sydney, NSW", country:"Australia", state:"New South Wales", city:"Sydney", sector:"Restaurant", roleType:"Sommelier", salary:"$70–85k", salaryBand:"$70–90k", type:"Full-time", tags:["Hatted Restaurant","Fine Dining","CBD"],
+    short:"Join Tetsuya's iconic front-of-house team as a passionate sommelier with a love for Japanese-French cuisine.",
+    full:"Tetsuya's is one of Sydney's most iconic fine dining destinations. We are seeking an experienced Sommelier to manage our exceptional cellar and guide guests through our award-winning wine program.\n\nYou will curate wine pairings for our 10-course degustation, manage cellar operations, mentor junior staff, and build supplier relationships.\n\nCourt of Master Sommeliers certification preferred. We offer world-class working environment and competitive remuneration.",
+    link:"https://tetsuyas.com/careers", photos:[1,2,3,0,4], video:null, verified:true, featured:false, ts:Date.now()-3600000*5, apps:[], views:87 },
+  { id:"j3", empId:"emp3", title:"Pastry Chef", venue:"Quay Restaurant", loc:"Sydney, NSW", country:"Australia", state:"New South Wales", city:"Sydney", sector:"Fine Dining", roleType:"Pastry Chef", salary:"$75–88k", salaryBand:"$70–90k", type:"Full-time", tags:["Hatted Restaurant","Waterfront","Contemporary"],
+    short:"Create extraordinary desserts at Peter Gilmore's harbour-front restaurant. Iconic venue, world-class team.",
+    full:"Quay is seeking a creative and technically skilled Pastry Chef under Executive Chef Peter Gilmore. You'll develop and execute our dessert menu with a focus on seasonal produce and contemporary technique.\n\nResponsibilities include daily pastry production, menu R&D, HACCP standards, and mentoring junior pastry staff.\n\nBenefits include competitive salary, chef whites, staff meals, and Sydney Harbour views.",
+    link:"https://quay.com.au/careers", photos:[2,3,4,1,0], video:null, verified:false, featured:false, ts:Date.now()-3600000*22, apps:[], views:63 },
+];
+
+const INIT_MESSAGES = {
+  "u1-emp1": [
+    { from:"emp1", text:"Hi Jordan, thanks for applying for the Head Chef role. Your experience looks great. When are you available for a chat?", ts:Date.now()-3600000*1 },
+    { from:"u1",   text:"Hi! Thanks so much. I'm available Monday to Wednesday this week. Happy to come in any time.", ts:Date.now()-3600000*0.5 },
+  ],
+};
+
+// ─── Sample references seed data ─────────────────────────────────────────────
+const INIT_REFERENCES = {
+  "u1": [
+    { id:"ref1", requestedFrom:"emp1", venue:"Attica", refName:"Ben Shewry", refRole:"Head Chef / Owner", status:"confirmed", text:"Jordan is one of the most technically gifted CDPs I've worked with. Exceptional palate, calm under pressure, and a genuine leader in the making. I would hire him again without hesitation.", ts:Date.now()-3600000*72, skills:["Fine Dining","Leadership","Menu Development","Pastry"] },
+  ],
+  "u2": [],
+};
+
+// ─── Sample notifications seed data ──────────────────────────────────────────
+const INIT_NOTIFS = {
+  "u1": [
+    { id:"n1", type:"message", text:"Attica sent you a message", sub:"Hi Jordan, thanks for applying…", ts:Date.now()-3600000*1, read:false, icon:"💬" },
+    { id:"n2", type:"application", text:"Application viewed", sub:"Attica viewed your Head Chef application", ts:Date.now()-3600000*3, read:false, icon:"👁️" },
+    { id:"n3", type:"listing", text:"New listing from Tetsuya's", sub:"Sous Chef · Sydney NSW · $80–95k", ts:Date.now()-3600000*8, read:true, icon:"🆕" },
+  ],
+  "u2": [
+    { id:"n4", type:"listing", text:"New listing from Quay Restaurant", sub:"Floor Manager · Sydney NSW", ts:Date.now()-3600000*2, read:false, icon:"🆕" },
+  ],
+};
+
+// ─── Skill endorsements data ─────────────────────────────────────────────────
+const INIT_ENDORSEMENTS = {
+  "u1": {
+    "Knife Skills":     [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*48 }],
+    "Menu Development": [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*48 }, { by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*24 }],
+    "Sauce Work":       [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*72 }],
+    "Pastry":           [{ by:"emp3", name:"Quay",      avatar:"⚓", ts:Date.now()-3600000*12 }],
+  },
+  "u2": {
+    "Sommelier":        [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }],
+    "Guest Relations":  [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }, { by:"emp3", name:"Quay", avatar:"⚓", ts:Date.now()-3600000*10 }],
+    "Wine Pairing":     [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }],
+  },
+};
+
+// ─── Discount codes ──────────────────────────────────────────────────────────
+// Format: CODE -> { pct: discount %, uses: max uses, used: times used, desc, expires }
+const INIT_CODES = {
+  "HOSPO25":    { pct:25, uses:100, used:0,  desc:"25% off — early partner offer",    expires:"2026-12-31", active:true },
+  "LAUNCH50":   { pct:50, uses:20,  used:3,  desc:"50% off — launch special",         expires:"2026-06-30", active:true },
+  "FEATURED20": { pct:20, uses:50,  used:7,  desc:"20% off featured listing upgrade", expires:"2026-09-30", active:true },
+  "FRIEND10":   { pct:10, uses:999, used:12, desc:"10% off — referral code",          expires:"2027-01-01", active:true },
+};
+
+// ─── Notification preferences ─────────────────────────────────────────────────
+const DEFAULT_NOTIF_PREFS = {
+  newListings:    true,
+  matchingAlerts: true,
+  appUpdates:     true,
+  messages:       true,
+  endorsements:   true,
+  weeklyDigest:   false,
+};
+
+const ago = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60) return `${d}s`; if(d<3600) return `${Math.floor(d/60)}m`; if(d<86400) return `${Math.floor(d/3600)}h`; return `${Math.floor(d/86400)}d`; };
+const fmtSize = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
+const isData  = s => typeof s==="string" && s.startsWith("data:");
+const isVid   = s => typeof s==="string" && s.startsWith("data:video");
+
+// ─── Icons ────────────────────────────────────────────────────────────────────
+const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
+  const p = {
+    home:     <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H14v-5h-4v5H4a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    search:   <><circle cx="11" cy="11" r="7" stroke={color} strokeWidth="1.6"/><path d="M16.5 16.5L21 21" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+    plus:     <><rect x="3" y="3" width="18" height="18" rx="4" stroke={color} strokeWidth="1.6"/><path d="M12 8v8M8 12h8" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+    person:   <><circle cx="12" cy="8" r="4" stroke={color} strokeWidth="1.6"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+    bookmark: <><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    more:     <><circle cx="5" cy="12" r="1.2" fill={color}/><circle cx="12" cy="12" r="1.2" fill={color}/><circle cx="19" cy="12" r="1.2" fill={color}/></>,
+    back:     <><path d="M19 12H5M12 19l-7-7 7-7" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></>,
+    check:    <><path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></>,
+    close:    <><path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="1.8" strokeLinecap="round"/></>,
+    grid:     <><rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/></>,
+    video:    <><polygon points="23,7 16,12 23,17" stroke={color} strokeWidth="1.6" fill={fill}/><rect x="1" y="5" width="15" height="14" rx="2" stroke={color} strokeWidth="1.6"/></>,
+    camera:   <><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="13" r="4" stroke={color} strokeWidth="1.6"/></>,
+    chat:     <><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    bell:     <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke={color} strokeWidth="1.6"/></>,
+    star:     <><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    eye:      <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.6"/></>,
+    send:     <><line x1="22" y1="2" x2="11" y2="13" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><polygon points="22,2 15,22 11,13 2,9" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    award:    <><circle cx="12" cy="8" r="6" stroke={color} strokeWidth="1.6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" stroke={color} strokeWidth="1.6"/></>,
+    briefcase:<><rect x="2" y="7" width="20" height="14" rx="2" stroke={color} strokeWidth="1.6"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke={color} strokeWidth="1.6"/></>,
+    filter:   <><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46" stroke={color} strokeWidth="1.6"/></>,
+    trending: <><polyline points="23,6 13.5,15.5 8.5,10.5 1,18" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><polyline points="17,6 23,6 23,12" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
+    users:    <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke={color} strokeWidth="1.6"/><circle cx="9" cy="7" r="4" stroke={color} strokeWidth="1.6"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" stroke={color} strokeWidth="1.6"/></>,
+    quote:    <><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z" stroke={color} strokeWidth="1.6"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z" stroke={color} strokeWidth="1.6"/></>,
+    shield:   <><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    zap:      <><polygon points="13,2 3,14 12,14 11,22 21,10 12,10" stroke={color} strokeWidth="1.6" fill={fill}/></>,
+    image:    <><rect x="3" y="3" width="18" height="18" rx="2" stroke={color} strokeWidth="1.6"/><circle cx="8.5" cy="8.5" r="1.5" stroke={color} strokeWidth="1.4"/><polyline points="21,15 16,10 5,21" stroke={color} strokeWidth="1.6" strokeLinejoin="round"/></>,
+    link:     <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+    thumbsup: <><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" stroke={color} strokeWidth="1.6" fill={fill}/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke={color} strokeWidth="1.6"/></>,
+    sliders:  <><line x1="4" y1="21" x2="4" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="4" y1="10" x2="4" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="21" x2="12" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="21" x2="20" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="12" x2="20" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="1" y1="14" x2="7" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="17" y1="16" x2="23" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none">{p[name]||null}</svg>;
+};
+
+// ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+function Avatar({ emp, size=36, fontSize=18 }) {
+  return <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0 }}>{emp?.avatar||"👤"}</div>;
+}
+
+function Chip({ label, color, bg, border }) {
+  return <span className="chip" style={{ color, background:bg||`${color}15`, border:`1px solid ${border||color+"30"}` }}>{label}</span>;
+}
+
+function TypeChip({ type }) {
+  const map = { "Full-time":[C.sage,C.sageL], "Part-time":[C.sand,C.sandL], "Casual":[C.terracotta,C.terracottaL], "Contract":[C.clay,"#F0E8E0"] };
+  const [col, bg] = map[type]||[C.textSoft,C.bgSoft];
+  return <Chip label={type} color={col} bg={bg}/>;
+}
+
+function FileZone({ label, icon, file, onFile, onRemove }) {
+  const ref = useRef();
+  return (
+    <div>
+      <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:6, fontWeight:600 }}>{label}</div>
+      {!file ? (
+        <div className="file-zone tap" onClick={()=>ref.current.click()} style={{ border:`1.5px dashed ${C.borderMid}`, borderRadius:11, padding:"14px", textAlign:"center", cursor:"pointer", background:C.bgSoft, transition:"all 0.18s" }}>
+          <div style={{ fontSize:20, marginBottom:4 }}>{icon}</div>
+          <div style={{ color:C.textMid, fontSize:13, fontWeight:500 }}>Upload {label}</div>
+          <div style={{ color:C.textFaint, fontSize:11, marginTop:1 }}>PDF, DOC or DOCX</div>
+          <input ref={ref} type="file" accept=".pdf,.doc,.docx" onChange={e=>{ const f=e.target.files[0]; if(f) onFile({name:f.name,size:f.size,uploadedAt:Date.now()}); }} style={{ display:"none" }}/>
+        </div>
+      ) : (
+        <div style={{ border:`1.5px solid ${C.sage}`, borderRadius:11, padding:"11px 13px", background:C.sageL, display:"flex", alignItems:"center", gap:9 }}>
+          <div style={{ width:34, height:34, borderRadius:9, background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, flexShrink:0 }}>📄</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ color:C.textDark, fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{file.name}</div>
+            <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>{fmtSize(file.size)}{file.fromProfile?" · From profile":""}</div>
+          </div>
+          <button className="tap" onClick={onRemove} style={{ background:"none", border:"none", color:C.textSoft, fontSize:18, lineHeight:1 }}>×</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Carousel ─────────────────────────────────────────────────────────────────
+function Carousel({ photos, video, height=380 }) {
+  const [cur, setCur] = useState(0);
+  const sx = useRef(null);
+  const slides = video ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))] : photos.map(s=>({ t:"photo", src:s }));
+  const s = slides[cur];
+  const prev = e => { e.stopPropagation(); setCur(c=>(c-1+slides.length)%slides.length); };
+  const next = e => { e.stopPropagation(); setCur(c=>(c+1)%slides.length); };
+  const pbg = PBG[typeof s?.src==="number" ? s.src%PBG.length : cur%PBG.length];
+  return (
+    <div style={{ position:"relative", width:"100%", height, background:C.bgSoft, overflow:"hidden" }}
+      onTouchStart={e=>{ sx.current=e.touches[0].clientX; }}
+      onTouchEnd={e=>{ if(!sx.current) return; const d=sx.current-e.changedTouches[0].clientX; if(Math.abs(d)>36) d>0?next(e):prev(e); sx.current=null; }}>
+      {s?.t==="video" ? (
+        <div style={{ position:"relative", width:"100%", height:"100%" }}>
+          <video src={s.src} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          <div style={{ position:"absolute", top:10, left:12, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)", borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:5 }}>
+            <Icon name="video" size={11} color="#fff" fill="#fff"/><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>Reel</span>
+          </div>
+        </div>
+      ) : s?.src && isData(s.src) ? (
+        <img src={s.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+      ) : (
+        <div style={{ width:"100%", height:"100%", background:pbg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10 }}>
+          <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
+          <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {cur+1}</span>
+        </div>
+      )}
+      {slides.length>1 && <>
+        <button onClick={prev} className="tap" style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.82)", border:"none", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 6px rgba(0,0,0,0.12)" }}><span style={{ color:C.clay, fontSize:16 }}>‹</span></button>
+        <button onClick={next} className="tap" style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.82)", border:"none", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 6px rgba(0,0,0,0.12)" }}><span style={{ color:C.clay, fontSize:16 }}>›</span></button>
+        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5 }}>
+          {slides.map((_,i)=><div key={i} onClick={e=>{e.stopPropagation();setCur(i);}} style={{ width:i===cur?18:6, height:6, borderRadius:3, background:i===cur?"#fff":"rgba(255,255,255,0.5)", transition:"all 0.25s", cursor:"pointer" }}/>)}
+        </div>
+        <div style={{ position:"absolute", top:10, right:12, background:"rgba(0,0,0,0.45)", borderRadius:20, padding:"3px 9px" }}>
+          <span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>{cur+1}/{slides.length}</span>
+        </div>
+      </>}
+    </div>
+  );
+}
+
+// ─── Story Viewer ─────────────────────────────────────────────────────────────
+// stories: array of { job, emp } — supports swipe left/right and tap zones
+function StoryViewer({ stories, startIndex=0, currentUser, onClose, onApply }) {
+  const [idx, setIdx] = useState(startIndex);
+  const [prog, setProg] = useState(0);
+  const [sliding, setSliding] = useState(null); // 'left' | 'right' | null
+  const timerRef = useRef();
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  const current = stories[idx] || stories[0];
+  const { job, emp } = current;
+  const total = stories.length;
+
+  const goTo = (newIdx) => {
+    if (newIdx < 0) { onClose(); return; }
+    if (newIdx >= total) { onClose(); return; }
+    setSliding(newIdx > idx ? 'left' : 'right');
+    setTimeout(() => { setIdx(newIdx); setProg(0); setSliding(null); }, 160);
+  };
+
+  const next = () => goTo(idx + 1);
+  const prev = () => goTo(idx - 1);
+
+  // Restart timer whenever idx changes
+  useEffect(() => {
+    clearInterval(timerRef.current);
+    setProg(0);
+    const start = Date.now();
+    timerRef.current = setInterval(() => {
+      const p = Math.min(((Date.now()-start)/7000)*100, 100);
+      setProg(p);
+      if (p >= 100) { clearInterval(timerRef.current); next(); }
+    }, 40);
+    return () => clearInterval(timerRef.current);
+  }, [idx]);
+
+  const onTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const onTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    const dy = Math.abs(touchStartY.current - e.changedTouches[0].clientY);
+    if (dy > 60) { touchStartX.current = null; return; } // vertical scroll — ignore
+    if (Math.abs(dx) > 44) {
+      dx > 0 ? next() : prev();
+    }
+    touchStartX.current = null;
+  };
+
+  // Tap left third → prev, tap right third → next (like Instagram)
+  const onTap = (e) => {
+    const x = e.clientX;
+    const w = window.innerWidth;
+    if (x < w * 0.33) prev();
+    else if (x > w * 0.66) next();
+  };
+
+  const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const first = job.video||job.photos[0];
+
+  return (
+    <div className="scale-in" style={{ position:"fixed", inset:0, background:"#000", zIndex:9000, display:"flex", flexDirection:"column",
+      opacity: sliding ? 0.5 : 1, transform: sliding==='left'?'translateX(-8px)':sliding==='right'?'translateX(8px)':'none',
+      transition: sliding ? 'opacity 0.15s, transform 0.15s' : 'none' }}
+      onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+      <style>{G}</style>
+
+      {/* Progress bars — one per story */}
+      <div style={{ position:"absolute", top:0, left:0, right:0, zIndex:2, padding:"10px 10px 0", display:"flex", gap:3 }}>
+        {stories.map((_, i) => (
+          <div key={i} style={{ flex:1, height:2.5, background:"rgba(255,255,255,0.3)", borderRadius:2, overflow:"hidden" }}>
+            <div style={{
+              height:"100%", borderRadius:2, background:"#fff",
+              width: i < idx ? "100%" : i === idx ? `${prog}%` : "0%",
+              transition: i === idx ? "width 0.04s linear" : "none"
+            }}/>
+          </div>
+        ))}
+      </div>
+
+      {/* Header */}
+      <div style={{ position:"absolute", top:18, left:0, right:0, zIndex:2, padding:"10px 14px", display:"flex", alignItems:"center", gap:10 }}>
+        <Avatar emp={emp} size={34} fontSize={17}/>
+        <div style={{ flex:1 }}>
+          <div style={{ color:"#fff", fontWeight:600, fontSize:14, textShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>
+            {emp.name} <span style={{ fontWeight:400, fontSize:12, opacity:0.7 }}>· {ago(job.ts)}</span>
+          </div>
+          <div style={{ color:"rgba(255,255,255,0.65)", fontSize:11 }}>
+            {idx+1} / {total} · New listing
+          </div>
+        </div>
+        <button onClick={onClose} className="tap" style={{ background:"none", border:"none", color:"#fff", padding:4 }}>
+          <Icon name="close" size={22} color="#fff"/>
+        </button>
+      </div>
+
+      {/* Media — tappable for prev/next */}
+      <div style={{ flex:1, position:"relative" }} onClick={onTap}>
+        {job.video&&isVid(job.video)
+          ? <video src={job.video} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          : first&&isData(first)&&!isVid(first)
+            ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            : <div style={{ width:"100%", height:"100%", background:PBG[idx%PBG.length], display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon name="camera" size={48} color="rgba(100,80,60,0.25)"/>
+              </div>
+        }
+        <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"60%", background:"linear-gradient(to top, rgba(0,0,0,0.85),transparent)" }}/>
+
+        {/* Invisible tap zones — visual hint arrows */}
+        {idx > 0 && (
+          <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", opacity:0.55 }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>‹</span>
+            </div>
+          </div>
+        )}
+        {idx < total-1 && (
+          <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", opacity:0.55 }}>
+            <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>›</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Job info */}
+      <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"16px 18px 36px", zIndex:2 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:5 }}>{job.title}</div>
+        <div style={{ color:"rgba(255,255,255,0.75)", fontSize:13, marginBottom:12 }}>{job.venue} · {job.loc}</div>
+        <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+          {[job.salary, job.type, ...(job.tags||[]).slice(0,2)].map(t=>(
+            <span key={t} style={{ background:"rgba(255,255,255,0.18)", backdropFilter:"blur(6px)", color:"#fff", fontSize:11, fontWeight:600, padding:"4px 11px", borderRadius:20, border:"1px solid rgba(255,255,255,0.25)" }}>{t}</span>
+          ))}
+        </div>
+        <button className="btn-cta tap" onClick={e=>{ e.stopPropagation(); onApply(job); onClose(); }} disabled={applied}
+          style={{ width:"100%", background:applied?"rgba(107,143,113,0.45)":C.terracotta, border:"none", borderRadius:14, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15 }}>
+          {applied ? "✓ Already Applied" : "Apply Now"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Story Bar ────────────────────────────────────────────────────────────────
+function StoryBar({ jobs, following, currentUser, onOpen }) {
+  // onOpen(stories, startIndex)
+  const cutoff = Date.now()-3600000*48;
+  const items = EMPLOYERS.filter(e=>!e.isTrial).map(emp => {
+    const empJobs = jobs.filter(j=>j.empId===emp.id&&j.ts>cutoff).sort((a,b)=>b.ts-a.ts);
+    return { emp, latest:empJobs[0], isFollowed:following.includes(emp.id), hasNew:empJobs.length>0 };
+  }).filter(x=>x.isFollowed||x.hasNew).sort((a,b)=>(b.isFollowed?1:0)-(a.isFollowed?1:0)||(b.latest?.ts||0)-(a.latest?.ts||0));
+  if (!items.length) return null;
+  return (
+    <div style={{ display:"flex", gap:16, overflowX:"auto", padding:"12px 14px 10px", background:"#fff", borderBottom:`1px solid ${C.border}`, scrollbarWidth:"none" }}>
+      {items.map(({ emp, latest, isFollowed, hasNew }) => (
+        <div key={emp.id} className="tap" onClick={()=>latest&&onOpen(items.map(x=>({ job:x.latest, emp:x.emp })).filter(x=>x.job), items.findIndex(x=>x.emp.id===emp.id))} style={{ flexShrink:0, textAlign:"center", cursor:"pointer" }}>
+          <div style={{ position:"relative", width:62, height:62, margin:"0 auto" }}>
+            <div className={!hasNew?"story-seen":isFollowed?"story-fol":"story-new"} style={{ position:"absolute", inset:0, borderRadius:"50%", padding:2.5 }}>
+              <div style={{ width:"100%", height:"100%", borderRadius:"50%", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Avatar emp={emp} size={50} fontSize={22}/>
+              </div>
+            </div>
+            {isFollowed && <div style={{ position:"absolute", bottom:0, right:0, width:18, height:18, borderRadius:"50%", background:C.sage, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="check" size={10} color="#fff"/></div>}
+          </div>
+          <div style={{ color:C.textSoft, fontSize:10, marginTop:5, maxWidth:64, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", fontWeight:isFollowed?600:400 }}>{emp.name}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Venue Profile Page ───────────────────────────────────────────────────────
+function VenueProfile({ emp, jobs, following, currentUser, onToggleFollow, onApply, onBack }) {
+  const empJobs = jobs.filter(j=>j.empId===emp.id).sort((a,b)=>b.ts-a.ts);
+  const isFollowed = following.includes(emp.id);
+  const [expanded, setExpanded] = useState(null);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
+  return (
+    <div style={{ position:"fixed", inset:0, background:C.bg, zIndex:2000, overflowY:"auto" }}>
+      <style>{G}</style>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
+        <button className="tap" onClick={onBack} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
+        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, flex:1 }}>@{emp.handle}</div>
+      </div>
+      {/* Profile header */}
+      <div style={{ padding:"20px 18px 0" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:20, marginBottom:14 }}>
+          <div style={{ width:80, height:80, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38, border:`3px solid ${C.border}` }}>{emp.avatar}</div>
+          <div style={{ flex:1 }}>
+            <div style={{ display:"flex", gap:18, marginBottom:4 }}>
+              {[[empJobs.length,"Listings"],[empJobs.reduce((s,j)=>s+(j.apps?.length||0),0),"Applications"],["—","Followers"]].map(([n,l])=>(
+                <div key={l} style={{ textAlign:"center" }}>
+                  <div style={{ fontWeight:700, fontSize:17, color:C.textDark }}>{n}</div>
+                  <div style={{ fontSize:11, color:C.textSoft }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginBottom:4 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:2 }}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>{emp.name}</div>
+            {emp.verified && <span style={{ color:C.blue, fontSize:13 }}>●</span>}
+          </div>
+          {emp.cuisine && <div style={{ color:C.textSoft, fontSize:13 }}>{emp.cuisine} · {emp.size} staff</div>}
+          <div style={{ color:C.textMid, fontSize:13, marginTop:3 }}>{emp.bio}</div>
+          {emp.awards?.length > 0 && (
+            <div style={{ display:"flex", gap:6, marginTop:8, flexWrap:"wrap" }}>
+              {emp.awards.map(a=><span key={a} style={{ background:C.featuredL, border:`1px solid ${C.featured}40`, color:C.featured, fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, display:"flex", alignItems:"center", gap:4 }}><Icon name="award" size={11} color={C.featured}/>  {a}</span>)}
+            </div>
+          )}
+        </div>
+        <div style={{ display:"flex", gap:8, margin:"14px 0 16px" }}>
+          <button className="btn-cta tap" onClick={()=>onToggleFollow(emp.id)}
+            style={{ flex:1, background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:9, padding:"8px 0", color:isFollowed?C.sage:C.textDark, fontSize:13, fontWeight:600, transition:"all 0.18s" }}>
+            {isFollowed ? "✓ Following" : "+ Follow"}
+          </button>
+          <button className="tap" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>Message</button>
+        </div>
+      </div>
+      {/* Listings grid */}
+      <div style={{ borderTop:`1px solid ${C.border}`, padding:"14px 4px" }}>
+        <div style={{ paddingLeft:14, marginBottom:10, fontWeight:600, fontSize:13, color:C.textSoft }}>ACTIVE LISTINGS</div>
+        {empJobs.length===0 && <div style={{ textAlign:"center", padding:"30px 20px", color:C.textFaint, fontSize:13 }}>No active listings</div>}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2 }}>
+          {empJobs.map((j,i)=>{ const first=j.video||j.photos[0]; const hm=isData(first); const pbg=PBG[typeof j.photos[0]==="number"?j.photos[0]%PBG.length:i%PBG.length]; return (
+            <div key={j.id} className="tap" onClick={()=>setExpanded(j)} style={{ position:"relative", aspectRatio:"1", cursor:"pointer", overflow:"hidden", background:pbg }}>
+              {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:hm?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", background:pbg, display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.4 }}>{emp.avatar}</span></div>}
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 55%)" }}/>
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"5px 6px" }}>
+                <div style={{ color:"#fff", fontSize:10, fontWeight:700, lineHeight:1.2 }}>{j.title}</div>
+              </div>
+              {j.featured && <div style={{ position:"absolute", top:4, left:4 }}><Icon name="star" size={13} color={C.featured} fill={C.featured}/></div>}
+            </div>
+          ); })}
+        </div>
+      </div>
+      {expanded && <JobDetail job={expanded} currentUser={currentUser} profile={{}} following={following} onClose={()=>setExpanded(null)} onApply={j=>{ onApply(j); setExpanded(null); }} onToggleFollow={onToggleFollow} onVenueClick={()=>{}}/>}
+    </div>
+  );
+}
+
+// ─── Messaging ────────────────────────────────────────────────────────────────
+function MessagesScreen({ currentUser, userType, messages, setMessages, jobs, onBack }) {
+  const [activeThread, setActiveThread] = useState(null);
+  const [draft, setDraft] = useState("");
+  const endRef = useRef();
+
+  // Build thread list
+  const threads = Object.entries(messages).filter(([key]) => key.includes(currentUser.id)).map(([key, msgs]) => {
+    const other = key.replace(currentUser.id+"-","").replace("-"+currentUser.id,"");
+    const otherUser = [...EMPLOYERS, ...EMPLOYEES].find(u=>u.id===other);
+    const relatedJob = jobs.find(j=>j.empId===other||j.empId===currentUser.id);
+    return { key, other, otherUser, msgs, last:msgs[msgs.length-1], relatedJob };
+  });
+
+  const send = () => {
+    if (!draft.trim() || !activeThread) return;
+    const newMsg = { from:currentUser.id, text:draft.trim(), ts:Date.now() };
+    setMessages(m=>({ ...m, [activeThread.key]: [...(m[activeThread.key]||[]), newMsg] }));
+    setDraft("");
+    setTimeout(()=>endRef.current?.scrollIntoView({ behavior:"smooth" }), 50);
+  };
+
+  if (activeThread) {
+    const msgs = messages[activeThread.key]||[];
+    return (
+      <div style={{ position:"fixed", inset:0, background:"#fff", zIndex:3000, display:"flex", flexDirection:"column" }}>
+        <style>{G}</style>
+        <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:"#fff" }}>
+          <button className="tap" onClick={()=>setActiveThread(null)} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
+          <Avatar emp={activeThread.otherUser} size={32} fontSize={16}/>
+          <div style={{ marginLeft:10, flex:1 }}>
+            <div style={{ fontWeight:600, fontSize:14, color:C.textDark }}>{activeThread.otherUser?.name}</div>
+            {activeThread.relatedJob && <div style={{ color:C.textSoft, fontSize:11 }}>Re: {activeThread.relatedJob.title}</div>}
+          </div>
+        </div>
+        <div style={{ flex:1, overflowY:"auto", padding:"16px 14px", display:"flex", flexDirection:"column", gap:10 }}>
+          {msgs.map((m,i)=>{
+            const mine = m.from===currentUser.id;
+            return (
+              <div key={i} style={{ display:"flex", justifyContent:mine?"flex-end":"flex-start" }}>
+                <div style={{ maxWidth:"78%", background:mine?C.terracotta:C.bgSoft, color:mine?"#fff":C.textDark, borderRadius:mine?"18px 18px 4px 18px":"18px 18px 18px 4px", padding:"10px 14px", fontSize:14, lineHeight:1.5 }}>
+                  {m.text}
+                  <div style={{ color:mine?"rgba(255,255,255,0.6)":C.textFaint, fontSize:10, marginTop:4, textAlign:mine?"right":"left" }}>{ago(m.ts)} ago</div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={endRef}/>
+        </div>
+        <div style={{ padding:"10px 12px 20px", borderTop:`1px solid ${C.border}`, display:"flex", gap:9, background:"#fff", flexShrink:0 }}>
+          <input value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Message…" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:24, padding:"10px 16px", color:C.textDark, fontSize:14 }}/>
+          <button className="btn-cta tap" onClick={send} style={{ width:42, height:42, borderRadius:"50%", background:C.terracotta, border:"none", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 2px 8px rgba(196,98,58,0.3)" }}><Icon name="send" size={16} color="#fff"/></button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ height:"100%", overflowY:"auto" }}>
+      <div style={{ padding:"16px 16px 10px", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark }}>Messages</div>
+      </div>
+      {threads.length===0 && (
+        <div style={{ textAlign:"center", padding:"60px 20px", color:C.textFaint }}>
+          <div style={{ fontSize:36, marginBottom:10 }}>💬</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:5 }}>No messages yet</div>
+          <div style={{ fontSize:13 }}>Apply for a role to start a conversation</div>
+        </div>
+      )}
+      {threads.map(t=>(
+        <div key={t.key} className="tap" onClick={()=>setActiveThread(t)} style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 16px", borderBottom:`1px solid ${C.border}`, cursor:"pointer" }}>
+          <Avatar emp={t.otherUser} size={46} fontSize={22}/>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:2 }}>{t.otherUser?.name}</div>
+            <div style={{ color:C.textSoft, fontSize:13, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{t.last?.text}</div>
+          </div>
+          <div style={{ color:C.textFaint, fontSize:11, flexShrink:0 }}>{ago(t.last?.ts)} ago</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Job Alerts ───────────────────────────────────────────────────────────────
+function JobAlertsScreen({ alerts, setAlerts, onBack }) {
+  const [newAlert, setNewAlert] = useState({ role:"", loc:"", type:"Any", salary:"Any", tags:[] });
+  const [saved, setSaved] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+  const save = () => {
+    if (!newAlert.role.trim()) return;
+    setAlerts(a=>[...a, { ...newAlert, id:"alert"+Date.now(), active:true, createdAt:Date.now() }]);
+    setNewAlert({ role:"", loc:"", type:"Any", salary:"Any", tags:[] });
+    setSaved(true); setTimeout(()=>setSaved(false), 2000);
+  };
+  return (
+    <div style={{ height:"100%", overflowY:"auto" }}>
+      <div style={{ padding:"16px 16px 10px", borderBottom:`1px solid ${C.border}` }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:3 }}>Job Alerts</div>
+        <div style={{ color:C.textSoft, fontSize:13 }}>Get notified when matching roles are posted</div>
+      </div>
+      <div style={{ padding:"16px" }}>
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:12 }}>Create Alert</div>
+          {[["Role / Job Title","role","e.g. Head Chef, Sommelier…"],["Location","loc","e.g. Sydney NSW, Melbourne VIC"]].map(([l,k,p])=>(
+            <div key={k} style={{ marginBottom:11 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
+              <input value={newAlert[k]} onChange={e=>setNewAlert(a=>({...a,[k]:e.target.value}))} placeholder={p} style={IS}/>
+            </div>
+          ))}
+          {[["Employment Type","type",["Any","Full-time","Part-time","Casual","Contract"]],["Salary Band","salary",["Any",...SALARY_BANDS]]].map(([l,k,opts])=>(
+            <div key={k} style={{ marginBottom:11 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
+              <select value={newAlert[k]} onChange={e=>setNewAlert(a=>({...a,[k]:e.target.value}))} style={IS}>{opts.map(o=><option key={o}>{o}</option>)}</select>
+            </div>
+          ))}
+          {saved
+            ? <div style={{ display:"flex", alignItems:"center", gap:9, padding:"13px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Alert saved!</span></div>
+            : <button className="btn-cta tap" onClick={save} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 4px 12px rgba(196,98,58,0.22)" }}>Save Alert</button>
+          }
+        </div>
+        {alerts.length>0 && (
+          <div>
+            <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:10 }}>Your Alerts ({alerts.length})</div>
+            {alerts.map(a=>(
+              <div key={a.id} style={{ background:"#fff", borderRadius:13, padding:"12px 14px", border:`1px solid ${C.border}`, marginBottom:8, display:"flex", alignItems:"center", gap:10 }}>
+                <div style={{ width:36, height:36, borderRadius:10, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="bell" size={18} color={C.terracotta}/></div>
+                <div style={{ flex:1 }}>
+                  <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{a.role}</div>
+                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>{[a.loc, a.type!=="Any"&&a.type, a.salary!=="Any"&&a.salary].filter(Boolean).join(" · ")}</div>
+                </div>
+                <button className="tap" onClick={()=>setAlerts(al=>al.filter(x=>x.id!==a.id))} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// ─── Notification Centre ──────────────────────────────────────────────────────
+function NotifCentre({ userId, notifs, setNotifs }) {
+  const mine = (notifs[userId]||[]).sort((a,b)=>b.ts-a.ts);
+  const unread = mine.filter(n=>!n.read).length;
+  const markAll = () => setNotifs(p=>({ ...p, [userId]: (p[userId]||[]).map(n=>({...n,read:true})) }));
+  const dismiss = id => setNotifs(p=>({ ...p, [userId]: (p[userId]||[]).filter(n=>n.id!==id) }));
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ padding:"16px 16px 10px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+        <div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark }}>Notifications</div>
+          {unread>0 && <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{unread} unread</div>}
+        </div>
+        {unread>0 && <button className="tap" onClick={markAll} style={{ background:"none", border:"none", color:C.terracotta, fontSize:13, fontWeight:600 }}>Mark all read</button>}
+      </div>
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {mine.length===0 && (
+          <div style={{ textAlign:"center", padding:"60px 20px", color:C.textFaint }}>
+            <div style={{ fontSize:36, marginBottom:10 }}>🔔</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>All caught up</div>
+            <div style={{ fontSize:13 }}>New activity will appear here</div>
+          </div>
+        )}
+        {mine.map(n=>(
+          <div key={n.id} className="tap" style={{ display:"flex", alignItems:"flex-start", gap:12, padding:"14px 16px", borderBottom:`1px solid ${C.border}`, background:n.read?"#fff":C.terracottaL, cursor:"pointer" }}
+            onClick={()=>setNotifs(p=>({ ...p, [userId]:(p[userId]||[]).map(x=>x.id===n.id?{...x,read:true}:x) }))}>
+            <div style={{ width:42, height:42, borderRadius:14, background:n.read?C.bgSoft:C.terracottaM, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{n.icon}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:n.read?500:700, fontSize:14, color:C.textDark, marginBottom:2 }}>{n.text}</div>
+              <div style={{ color:C.textSoft, fontSize:12, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{n.sub}</div>
+              <div style={{ color:C.textFaint, fontSize:11, marginTop:4 }}>{ago(n.ts)} ago</div>
+            </div>
+            {!n.read && <div style={{ width:8, height:8, borderRadius:"50%", background:C.terracotta, flexShrink:0, marginTop:6 }}/>}
+            <button className="tap" onClick={e=>{ e.stopPropagation(); dismiss(n.id); }} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, padding:"0 0 0 4px", flexShrink:0 }}>×</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── References & Endorsements ────────────────────────────────────────────────
+function ReferencesPanel({ userId, refs, setRefs }) {
+  const mine = refs[userId]||[];
+  const [showRequest, setShowRequest] = useState(false);
+  const [req, setReq] = useState({ venue:"", refName:"", refRole:"", email:"" });
+  const [sent, setSent] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13 };
+
+  const submitRequest = () => {
+    if (!req.venue.trim()||!req.refName.trim()) return;
+    const pending = { id:"ref"+Date.now(), requestedFrom:null, venue:req.venue, refName:req.refName, refRole:req.refRole, status:"pending", text:"", ts:Date.now(), skills:[] };
+    setRefs(p=>({ ...p, [userId]:[...(p[userId]||[]), pending] }));
+    setReq({ venue:"", refName:"", refRole:"", email:"" });
+    setSent(true); setShowRequest(false); setTimeout(()=>setSent(false), 2500);
+  };
+
+  return (
+    <div style={{ marginBottom:24 }}>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+        <div style={{ fontWeight:600, fontSize:14, color:C.textDark, display:"flex", alignItems:"center", gap:7 }}>
+          <Icon name="award" size={16} color={C.terracotta}/>
+          References & Endorsements
+          {mine.filter(r=>r.status==="confirmed").length>0 && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>✓ {mine.filter(r=>r.status==="confirmed").length} verified</span>}
+        </div>
+        <button className="tap" onClick={()=>setShowRequest(!showRequest)} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:20, padding:"5px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>+ Request</button>
+      </div>
+
+      {sent && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"11px 13px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Reference request sent!</span></div>}
+
+      {showRequest && (
+        <div style={{ background:"#fff", borderRadius:14, padding:16, border:`1px solid ${C.border}`, marginBottom:14, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+          <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:10 }}>Request a Reference</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+            {[["Venue / Company","venue","e.g. Attica, Noma…"],["Referee's Name","refName","e.g. Ben Shewry"],["Their Role","refRole","e.g. Head Chef, Manager"],["Their Email","email","optional — for direct request"]].map(([l,k,p])=>(
+              <div key={k}><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>{l}</div><input value={req[k]} onChange={e=>setReq(r=>({...r,[k]:e.target.value}))} placeholder={p} style={IS}/></div>
+            ))}
+            <div style={{ display:"flex", gap:9 }}>
+              <button className="tap" onClick={()=>setShowRequest(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 0", color:C.textMid, fontSize:13 }}>Cancel</button>
+              <button className="btn-cta tap" onClick={submitRequest} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Send Request</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mine.length===0 && !showRequest && (
+        <div style={{ background:C.bgSoft, borderRadius:12, padding:"16px", textAlign:"center", border:`1px dashed ${C.border}` }}>
+          <div style={{ fontSize:28, marginBottom:6 }}>⭐</div>
+          <div style={{ color:C.textMid, fontSize:13, fontWeight:500, marginBottom:3 }}>No references yet</div>
+          <div style={{ color:C.textFaint, fontSize:12 }}>Request a reference from a past employer to build trust with future venues</div>
+        </div>
+      )}
+
+      {mine.map(ref=>(
+        <div key={ref.id} style={{ background:"#fff", borderRadius:14, border:`1px solid ${ref.status==="confirmed"?C.sage+"50":C.border}`, padding:"14px 16px", marginBottom:10, boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
+          <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:ref.text?10:0 }}>
+            <div style={{ width:40, height:40, borderRadius:13, background:ref.status==="confirmed"?C.sageL:C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
+              {ref.status==="confirmed" ? "✅" : ref.status==="pending" ? "⏳" : "❌"}
+            </div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>{ref.refName}</div>
+              <div style={{ color:C.textSoft, fontSize:12 }}>{ref.refRole} · {ref.venue}</div>
+              <div style={{ marginTop:4 }}>
+                {ref.status==="confirmed" && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>✓ Verified Reference</span>}
+                {ref.status==="pending"   && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.sand, fontSize:11, fontWeight:600, padding:"2px 9px", borderRadius:20 }}>⏳ Awaiting response</span>}
+              </div>
+            </div>
+          </div>
+          {ref.text && (
+            <div style={{ background:C.bgSoft, borderRadius:10, padding:"11px 13px", borderLeft:`3px solid ${C.sage}`, marginBottom:ref.skills?.length>0?10:0 }}>
+              <div style={{ color:C.textSoft, fontSize:11, marginBottom:5, display:"flex", alignItems:"center", gap:5 }}><Icon name="quote" size={13} color={C.textSoft}/> Reference</div>
+              <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6, fontStyle:"italic" }}>"{ref.text}"</div>
+            </div>
+          )}
+          {ref.skills?.length>0 && (
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+              {ref.skills.map(s=><span key={s} style={{ background:C.sageL, border:`1px solid ${C.sage}30`, color:C.sage, fontSize:11, fontWeight:600, padding:"2px 9px", borderRadius:20 }}>{s}</span>)}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Candidate Discovery (Employer) ──────────────────────────────────────────
+function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, endorsements, setEndorsements }) {
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("All");
+  const [locFilter, setLocFilter] = useState("All");
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [msgDraft, setMsgDraft] = useState("");
+  const [msgSent, setMsgSent] = useState(false);
+
+  const [discCountry, setDiscCountry] = useState("");
+  const [discState, setDiscState]     = useState("");
+  const [discSector, setDiscSector]   = useState("");
+
+  const discStates = discCountry ? Object.keys(LOCATIONS[discCountry]||{}) : [];
+
+  const candidates = EMPLOYEES.filter(e=>{
+    const q = search.toLowerCase();
+    const matchQ = !q || e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || (e.location||"").toLowerCase().includes(q) || (e.bio||"").toLowerCase().includes(q) || (e.skills||[]).some(s=>s.toLowerCase().includes(q));
+    const matchR = roleFilter==="All" || e.role===roleFilter || e.role.toLowerCase().includes(roleFilter.toLowerCase());
+    const matchL = !discCountry || (e.location||"").toLowerCase().includes(discCountry.toLowerCase()) || (e.location||"").toLowerCase().includes((discState||"").toLowerCase());
+    const matchA = !availableOnly || e.available;
+    return matchQ && matchR && matchL && matchA;
+  });
+
+  const activeDiscFilters = [discCountry, discState, discSector, roleFilter!=="All"?roleFilter:"", locFilter!=="All"?locFilter:""].filter(Boolean).length;
+
+  const sendMessage = () => {
+    if (!msgDraft.trim()||!selected) return;
+    const key = `${selected.id}-${currentUser.id}`;
+    setMessages(m=>({ ...m, [key]:[...(m[key]||[]), { from:currentUser.id, text:msgDraft.trim(), ts:Date.now() }] }));
+    setMsgDraft(""); setMsgSent(true); setTimeout(()=>{ setMsgSent(false); setSelected(null); },2000);
+  };
+
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13 };
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Search + Filters */}
+      <div style={{ padding:"10px 12px 8px", background:"#fff", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <div style={{ background:C.bgSoft, borderRadius:10, padding:"9px 13px", display:"flex", alignItems:"center", gap:8, border:`1px solid ${C.border}`, marginBottom:8 }}>
+          <Icon name="search" size={15} color={C.textSoft}/>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Name, role, skill, location…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:13 }}/>
+          {search && <button className="tap" onClick={()=>setSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>}
+        </div>
+        {/* Location dropdowns */}
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:6, marginBottom:7 }}>
+          {[
+            ["Country", discCountry, v=>{setDiscCountry(v);setDiscState("");}, ["", ...Object.keys(LOCATIONS)]],
+            ["State",   discState,   v=>setDiscState(v),  ["", ...discStates]],
+            ["Sector",  discSector,  v=>setDiscSector(v), ["", ...SECTORS]],
+          ].map(([lbl,val,setter,opts])=>(
+            <div key={lbl}>
+              <div style={{ color:C.textFaint, fontSize:9, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:2 }}>{lbl}</div>
+              <select value={val} onChange={e=>setter(e.target.value)} disabled={lbl==="State"&&!discCountry}
+                style={{ width:"100%", background:"#fff", border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 8px", color:val?C.textDark:C.textFaint, fontSize:11 }}>
+                <option value="">Any</option>
+                {opts.filter(Boolean).map(o=><option key={o}>{o}</option>)}
+              </select>
+            </div>
+          ))}
+        </div>
+        {/* Role filter chips — scrollable */}
+        <div style={{ display:"flex", gap:6, overflowX:"auto", scrollbarWidth:"none", marginBottom:7 }}>
+          {["All","Head Chef","Sous Chef","Chef de Partie","Pastry Chef","Kitchen Hand","Commis Chef","Front of House","Floor Manager","Sommelier","Bartender","Barista","Bar Manager","Restaurant Manager","General Manager","Concierge","Housekeeping"].map(r=>(
+            <button key={r} className="tap" onClick={()=>setRoleFilter(r)}
+              style={{ flexShrink:0, background:roleFilter===r?C.textDark:"#fff", border:`1.5px solid ${roleFilter===r?C.textDark:C.border}`, borderRadius:20, padding:"4px 11px", color:roleFilter===r?"#fff":C.textDark, fontSize:11, fontWeight:roleFilter===r?600:400 }}>{r}</button>
+          ))}
+        </div>
+        {/* Available toggle */}
+        <div className="tap" onClick={()=>setAvailableOnly(!availableOnly)}
+          style={{ display:"inline-flex", alignItems:"center", gap:6, background:availableOnly?C.sageL:"#fff", border:`1.5px solid ${availableOnly?C.sage:C.border}`, borderRadius:20, padding:"5px 13px", cursor:"pointer" }}>
+          <div style={{ width:8, height:8, borderRadius:"50%", background:availableOnly?C.sage:C.border }}/>
+          <span style={{ color:availableOnly?C.sage:C.textSoft, fontSize:11, fontWeight:availableOnly?600:400 }}>Open to work only</span>
+        </div>
+      </div>
+      {candidates.length>0 && (discCountry||discState||discSector||roleFilter!=="All"||search) && (
+        <div style={{ padding:"6px 14px", background:C.terracottaL, borderBottom:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:600, flexShrink:0 }}>
+          {candidates.length} candidate{candidates.length!==1?"s":""} match your filters
+        </div>
+      )}
+
+      {/* Results */}
+      <div style={{ flex:1, overflowY:"auto", padding:"10px 12px" }}>
+        <div style={{ color:C.textFaint, fontSize:11, marginBottom:10 }}>{candidates.length} candidate{candidates.length!==1?"s":""} found</div>
+        {candidates.map(cand=>{
+          const candRefs = (refs[cand.id]||[]).filter(r=>r.status==="confirmed");
+          return (
+            <div key={cand.id} className="tap" onClick={()=>setSelected(cand)} style={{ background:"#fff", borderRadius:14, padding:"14px 15px", border:`1px solid ${C.border}`, marginBottom:10, boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
+              <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
+                <div style={{ width:52, height:52, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, border:`2px solid ${C.border}` }}>{cand.avatar}</div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
+                    <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>{cand.name}</div>
+                    {cand.available && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}><span style={{ width:5, height:5, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
+                  </div>
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:3 }}>{cand.role} · {cand.experience}</div>
+                  {cand.location && <div style={{ color:C.textFaint, fontSize:12, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}>📍 {cand.location}</div>}
+                  {cand.bio && <div style={{ color:C.textMid, fontSize:12, lineHeight:1.5, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{cand.bio}</div>}
+                  {cand.cuisine?.length>0 && (
+                    <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
+                      {cand.cuisine.map(c=><span key={c} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{c}</span>)}
+                    </div>
+                  )}
+                  {candRefs.length>0 && (
+                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
+                      <Icon name="shield" size={13} color={C.sage} fill={C.sageL}/>
+                      <span style={{ color:C.sage, fontSize:11, fontWeight:600 }}>{candRefs.length} verified reference{candRefs.length!==1?"s":""}</span>
+                      {candRefs[0]?.skills?.slice(0,2).map(s=><span key={s} style={{ background:C.sageL, color:C.sage, fontSize:10, padding:"1px 7px", borderRadius:20, border:`1px solid ${C.sage}30` }}>{s}</span>)}
+                    </div>
+                  )}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
+                  <button className="btn-cta tap" onClick={e=>{ e.stopPropagation(); setSelected(cand); }} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:8, padding:"7px 13px", color:"#fff", fontSize:12, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.2)" }}>View</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        {candidates.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>👥</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No candidates found</div><div style={{ fontSize:13 }}>Try adjusting your filters</div></div>}
+      </div>
+
+      {/* Candidate detail modal */}
+      {selected && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:4000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(2px)" }}>
+          <div style={{ width:"100%", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 20px 40px", maxHeight:"88vh", overflowY:"auto" }}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 18px" }}/>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
+              <div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, border:`3px solid ${C.border}`, flexShrink:0 }}>{selected.avatar}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{selected.name}</div>
+                  {selected.available && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}><span style={{ width:5, height:5, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
+                </div>
+                <div style={{ color:C.textSoft, fontSize:13 }}>{selected.role} · {selected.experience}</div>
+                {selected.location && <div style={{ color:C.textFaint, fontSize:12, marginTop:3 }}>📍 {selected.location}</div>}
+              </div>
+            </div>
+            {selected.bio && <div style={{ color:C.textMid, fontSize:14, lineHeight:1.65, marginBottom:16, background:C.bgSoft, borderRadius:11, padding:"12px 14px" }}>{selected.bio}</div>}
+            {selected.cuisine?.length>0 && (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:7 }}>Cuisine Specialties</div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                  {selected.cuisine.map(c=><span key={c} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{c}</span>)}
+                </div>
+              </div>
+            )}
+            {/* Endorsements on candidate */}
+            {selected.skills?.length>0 && (
+              <div style={{ marginBottom:16 }}>
+                <SkillEndorsements candidateId={selected.id} skills={selected.skills} endorsements={endorsements} setEndorsements={()=>{}} currentUser={currentUser} isOwnProfile={false}/>
+              </div>
+            )}
+            {/* References on candidate */}
+            {(refs[selected.id]||[]).filter(r=>r.status==="confirmed").length>0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:9 }}>Verified References</div>
+                {(refs[selected.id]||[]).filter(r=>r.status==="confirmed").map(ref=>(
+                  <div key={ref.id} style={{ background:C.sageL, borderRadius:12, padding:"12px 14px", border:`1px solid ${C.sage}40`, marginBottom:9 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:1 }}>{ref.refName} <span style={{ color:C.textSoft, fontWeight:400 }}>· {ref.refRole}</span></div>
+                    <div style={{ color:C.sage, fontSize:11, fontWeight:600, marginBottom:8 }}>{ref.venue} · ✓ Verified</div>
+                    {ref.text && <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6, fontStyle:"italic" }}>"{ref.text}"</div>}
+                    {ref.skills?.length>0 && <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8 }}>{ref.skills.map(s=><span key={s} style={{ background:"#fff", border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{s}</span>)}</div>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {/* Message */}
+            <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+              <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:9 }}>Send a message</div>
+              {msgSent ? (
+                <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Message sent to {selected.name}!</span></div>
+              ) : (
+                <>
+                  <textarea value={msgDraft} onChange={e=>setMsgDraft(e.target.value)} placeholder={`Hi ${selected.name}, we'd love to chat about a role…`} rows={3} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:13, resize:"none" }}/>
+                  <div style={{ display:"flex", gap:9, marginTop:10 }}>
+                    <button className="tap" onClick={()=>setSelected(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13 }}>Close</button>
+                    <button className="btn-cta tap" onClick={sendMessage} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Send Message</button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ─── Skill Endorsements widget ────────────────────────────────────────────────
+function SkillEndorsements({ candidateId, skills, endorsements, setEndorsements, currentUser, isOwnProfile }) {
+  const myEndorsements = endorsements[candidateId]||{};
+
+  const endorse = (skill) => {
+    if (!currentUser || isOwnProfile) return;
+    const existing = myEndorsements[skill]||[];
+    const alreadyDone = existing.some(e=>e.by===currentUser.id);
+    if (alreadyDone) return; // can't double-endorse
+    const newEntry = { by:currentUser.id, name:currentUser.name, avatar:currentUser.avatar, ts:Date.now() };
+    setEndorsements(prev=>({ ...prev, [candidateId]:{ ...(prev[candidateId]||{}), [skill]:[...(prev[candidateId]?.[skill]||[]), newEntry] } }));
+  };
+
+  if (!skills?.length) return null;
+  return (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:10, display:"flex", alignItems:"center", gap:7 }}>
+        <Icon name="thumbsup" size={15} color={C.terracotta}/>
+        Skills & Endorsements
+        {Object.values(myEndorsements).flat().length>0 && (
+          <span style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>
+            {Object.values(myEndorsements).flat().length} total
+          </span>
+        )}
+      </div>
+      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+        {skills.map(skill=>{
+          const endorsers = myEndorsements[skill]||[];
+          const alreadyEndorsed = endorsers.some(e=>e.by===currentUser?.id);
+          const canEndorse = !isOwnProfile && currentUser && !alreadyEndorsed;
+          return (
+            <div key={skill} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", background:endorsers.length>0?C.terracottaL:"#fff", borderRadius:12, border:`1px solid ${endorsers.length>0?C.terracottaM:C.border}`, transition:"all 0.2s" }}>
+              <div style={{ flex:1 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:endorsers.length>0?4:0 }}>
+                  <span style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{skill}</span>
+                  {endorsers.length>0 && <span style={{ background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20 }}>{endorsers.length}</span>}
+                </div>
+                {endorsers.length>0 && (
+                  <div style={{ display:"flex", alignItems:"center", gap:-4 }}>
+                    {endorsers.slice(0,4).map((e,i)=>(
+                      <div key={i} title={e.name} style={{ width:20, height:20, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, marginLeft:i>0?-6:0, zIndex:endorsers.length-i }}>{e.avatar}</div>
+                    ))}
+                    {endorsers.length>4 && <span style={{ color:C.textSoft, fontSize:10, marginLeft:6 }}>+{endorsers.length-4} more</span>}
+                    <span style={{ color:C.textSoft, fontSize:11, marginLeft:6 }}>endorsed this</span>
+                  </div>
+                )}
+              </div>
+              {canEndorse && (
+                <button className="tap" onClick={()=>endorse(skill)} style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.textMid, fontSize:11, fontWeight:600, flexShrink:0, display:"flex", alignItems:"center", gap:4 }}>
+                  <Icon name="thumbsup" size={12} color={C.textSoft}/>Endorse
+                </button>
+              )}
+              {alreadyEndorsed && <span style={{ color:C.sage, fontSize:11, fontWeight:600, flexShrink:0 }}>✓ Endorsed</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Portfolio & Work History ─────────────────────────────────────────────────
+function PortfolioSection({ user, profile, setProfile }) {
+  const [addingWork, setAddingWork] = useState(false);
+  const [newWork, setNewWork] = useState({ venue:"", role:"", dates:"", desc:"" });
+  const [addingLink, setAddingLink] = useState(false);
+  const [newLink, setNewLink] = useState({ label:"", url:"" });
+  const [workSaved, setWorkSaved] = useState(false);
+  const photoRef = useRef();
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
+
+  const workHistory = profile?.workHistory || user.workHistory || [];
+  const portfolioLinks = profile?.portfolioLinks || [];
+  const portfolioPhotos = profile?.portfolioPhotos || [];
+
+  const saveWork = () => {
+    if (!newWork.venue.trim()) return;
+    setProfile(p=>({ ...p, workHistory:[{ ...newWork, id:"wh"+Date.now() }, ...(p?.workHistory||user.workHistory||[])] }));
+    setNewWork({ venue:"", role:"", dates:"", desc:"" }); setAddingWork(false); setWorkSaved(true);
+    setTimeout(()=>setWorkSaved(false), 2000);
+  };
+
+  const saveLink = () => {
+    if (!newLink.url.trim()) return;
+    setProfile(p=>({ ...p, portfolioLinks:[...(p?.portfolioLinks||[]), { ...newLink, id:"lk"+Date.now() }] }));
+    setNewLink({ label:"", url:"" }); setAddingLink(false);
+  };
+
+  const addPhoto = () => {
+    const r = document.createElement("input"); r.type="file"; r.accept="image/*";
+    r.onchange = e => {
+      const f = e.target.files[0]; if (!f) return;
+      const rd = new FileReader();
+      rd.onload = ev => setProfile(p=>({ ...p, portfolioPhotos:[...(p?.portfolioPhotos||[]), { src:ev.target.result, caption:"", id:"ph"+Date.now() }] }));
+      rd.readAsDataURL(f);
+    };
+    r.click();
+  };
+
+  return (
+    <div style={{ marginBottom:20 }}>
+      {/* Work History */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <div style={{ fontWeight:600, fontSize:14, color:C.textDark, display:"flex", alignItems:"center", gap:7 }}>
+          <Icon name="briefcase" size={15} color={C.terracotta}/>Work History
+        </div>
+        <button className="tap" onClick={()=>setAddingWork(!addingWork)} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:20, padding:"4px 11px", color:C.terracotta, fontSize:11, fontWeight:600 }}>+ Add</button>
+      </div>
+
+      {workSaved && <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40`, marginBottom:10 }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:12 }}>Work history added!</span></div>}
+
+      {addingWork && (
+        <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:12 }}>
+          <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:10 }}>Add Work Experience</div>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {[["Venue / Employer","venue","e.g. Attica"],["Role","role","e.g. Chef de Partie"],["Dates","dates","e.g. 2021 – Present"]].map(([l,k,p])=>(
+              <div key={k}><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3, fontWeight:600 }}>{l}</div><input value={newWork[k]} onChange={e=>setNewWork(w=>({...w,[k]:e.target.value}))} placeholder={p} style={IS}/></div>
+            ))}
+            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3, fontWeight:600 }}>Description</div><textarea value={newWork.desc} onChange={e=>setNewWork(w=>({...w,desc:e.target.value}))} placeholder="Key responsibilities and achievements…" rows={2} style={{...IS,resize:"none"}}/></div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button className="tap" onClick={()=>setAddingWork(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 0", color:C.textMid, fontSize:12 }}>Cancel</button>
+              <button className="btn-cta tap" onClick={saveWork} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"10px 0", color:"#fff", fontWeight:700, fontSize:12, boxShadow:"0 2px 8px rgba(196,98,58,0.22)" }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workHistory.length===0 && !addingWork && (
+        <div style={{ background:C.bgSoft, borderRadius:11, padding:"14px", textAlign:"center", border:`1px dashed ${C.border}`, marginBottom:12 }}>
+          <div style={{ color:C.textFaint, fontSize:13 }}>Add your work history to stand out</div>
+        </div>
+      )}
+
+      <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
+        {workHistory.map((w,i)=>(
+          <div key={w.id||i} style={{ background:"#fff", borderRadius:13, padding:"13px 14px", border:`1px solid ${C.border}` }}>
+            <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+              <div style={{ width:36, height:36, borderRadius:11, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}><Icon name="briefcase" size={16} color={C.terracotta}/></div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:13, color:C.textDark }}>{w.role}</div>
+                <div style={{ color:C.terracotta, fontSize:12, fontWeight:600, marginBottom:1 }}>{w.venue}</div>
+                <div style={{ color:C.textFaint, fontSize:11, marginBottom:w.desc?6:0 }}>{w.dates}</div>
+                {w.desc && <div style={{ color:C.textMid, fontSize:12, lineHeight:1.55 }}>{w.desc}</div>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Portfolio Photos */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <div style={{ fontWeight:600, fontSize:14, color:C.textDark, display:"flex", alignItems:"center", gap:7 }}>
+          <Icon name="image" size={15} color={C.terracotta}/>Portfolio Photos
+        </div>
+        <button className="tap" onClick={addPhoto} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:20, padding:"4px 11px", color:C.terracotta, fontSize:11, fontWeight:600 }}>+ Photo</button>
+      </div>
+
+      {portfolioPhotos.length===0 && (
+        <div className="file-zone tap" onClick={addPhoto} style={{ border:`1.5px dashed ${C.borderMid}`, borderRadius:12, padding:"20px", textAlign:"center", cursor:"pointer", background:C.bgSoft, marginBottom:12 }}>
+          <Icon name="image" size={28} color={C.borderMid}/>
+          <div style={{ color:C.textMid, fontSize:13, fontWeight:500, marginTop:6 }}>Upload dish photos, certificates, or venue shots</div>
+          <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>JPG, PNG — show employers your work</div>
+        </div>
+      )}
+
+      {portfolioPhotos.length>0 && (
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:3, marginBottom:16, borderRadius:12, overflow:"hidden" }}>
+          {portfolioPhotos.map((ph,i)=>(
+            <div key={ph.id||i} style={{ position:"relative", aspectRatio:"1", overflow:"hidden" }}>
+              <img src={ph.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+              <button className="tap" onClick={()=>setProfile(p=>({ ...p, portfolioPhotos:(p?.portfolioPhotos||[]).filter((_,j)=>j!==i) }))}
+                style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+            </div>
+          ))}
+          <div className="file-zone tap" onClick={addPhoto} style={{ aspectRatio:"1", background:C.bgSoft, border:`1.5px dashed ${C.borderMid}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+            <span style={{ color:C.textFaint, fontSize:22 }}>+</span>
+          </div>
+        </div>
+      )}
+
+      {/* Portfolio Links */}
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+        <div style={{ fontWeight:600, fontSize:14, color:C.textDark, display:"flex", alignItems:"center", gap:7 }}>
+          <Icon name="link" size={15} color={C.terracotta}/>Links
+          <span style={{ color:C.textFaint, fontSize:11, fontWeight:400 }}>LinkedIn, portfolio site…</span>
+        </div>
+        <button className="tap" onClick={()=>setAddingLink(!addingLink)} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:20, padding:"4px 11px", color:C.terracotta, fontSize:11, fontWeight:600 }}>+ Link</button>
+      </div>
+
+      {addingLink && (
+        <div style={{ background:"#fff", borderRadius:12, padding:13, border:`1px solid ${C.border}`, marginBottom:10 }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3, fontWeight:600 }}>Label</div><input value={newLink.label} onChange={e=>setNewLink(l=>({...l,label:e.target.value}))} placeholder="e.g. LinkedIn, Portfolio, Instagram" style={IS}/></div>
+            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:3, fontWeight:600 }}>URL</div><input value={newLink.url} onChange={e=>setNewLink(l=>({...l,url:e.target.value}))} placeholder="https://…" style={IS}/></div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button className="tap" onClick={()=>setAddingLink(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 0", color:C.textMid, fontSize:12 }}>Cancel</button>
+              <button className="btn-cta tap" onClick={saveLink} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"9px 0", color:"#fff", fontWeight:700, fontSize:12, boxShadow:"0 2px 8px rgba(196,98,58,0.22)" }}>Add Link</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {portfolioLinks.map((l,i)=>(
+        <div key={l.id||i} style={{ display:"flex", alignItems:"center", gap:9, padding:"10px 13px", background:"#fff", borderRadius:11, border:`1px solid ${C.border}`, marginBottom:7 }}>
+          <Icon name="link" size={15} color={C.textSoft}/>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{l.label||"Link"}</div>
+            <div style={{ color:C.textSoft, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.url}</div>
+          </div>
+          <button className="tap" onClick={()=>setProfile(p=>({ ...p, portfolioLinks:(p?.portfolioLinks||[]).filter((_,j)=>j!==i) }))} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Notification Preferences ─────────────────────────────────────────────────
+function NotifPrefsPanel({ prefs, setPrefs }) {
+  const settings = [
+    ["newListings",    "🆕", "New job listings",        "Get notified when new roles matching your profile are posted"],
+    ["matchingAlerts", "🎯", "Alert matches",           "Notifications when a listing matches one of your job alerts"],
+    ["appUpdates",     "📋", "Application updates",     "When employers view or update the status of your application"],
+    ["messages",       "💬", "Messages",                "New messages from employers"],
+    ["endorsements",   "⭐", "Skill endorsements",      "When an employer endorses one of your skills"],
+    ["weeklyDigest",   "📰", "Weekly digest",           "A weekly summary of new roles and activity"],
+  ];
+  return (
+    <div style={{ marginBottom:20 }}>
+      <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:4, display:"flex", alignItems:"center", gap:7 }}>
+        <Icon name="sliders" size={15} color={C.terracotta}/>Notification Preferences
+      </div>
+      <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>Choose what you hear about</div>
+      <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+        {settings.map(([key, icon, label, sub], i)=>(
+          <div key={key} className="tap" onClick={()=>setPrefs(p=>({...p,[key]:!p[key]}))}
+            style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 14px", background:"#fff", borderBottom:i<settings.length-1?`1px solid ${C.border}`:"none", borderRadius:i===0?"12px 12px 0 0":i===settings.length-1?"0 0 12px 12px":"0", cursor:"pointer", border:`1px solid ${C.border}`, marginBottom:i<settings.length-1?-1:0 }}>
+            <div style={{ fontSize:18, width:28, textAlign:"center", flexShrink:0 }}>{icon}</div>
+            <div style={{ flex:1, minWidth:0 }}>
+              <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{label}</div>
+              <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>{sub}</div>
+            </div>
+            {/* Toggle */}
+            <div style={{ width:44, height:24, borderRadius:12, background:prefs[key]?C.terracotta:C.border, position:"relative", flexShrink:0, transition:"background 0.2s" }}>
+              <div style={{ width:18, height:18, borderRadius:"50%", background:"#fff", position:"absolute", top:3, left:prefs[key]?23:3, transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}/>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Candidate Profile ────────────────────────────────────────────────────────
+function CandidateProfile({ user, profile, setProfile, following, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState({ ...user });
+  const [resume, setResume] = useState(profile?.resume||null);
+  const [cover, setCover] = useState(profile?.coverLetter||null);
+  const [saved, setSaved] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+
+  const save = () => {
+    setProfile(p=>({ ...p, resume, coverLetter:cover, bio:draft.bio, location:draft.location, experience:draft.experience }));
+    setSaved(true); setEditing(false); setTimeout(()=>setSaved(false), 2000);
+  };
+
+  return (
+    <div style={{ height:"100%", overflowY:"auto", background:"#fff" }}>
+      {/* IG-style header */}
+      <div style={{ padding:"20px 18px 0" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:18, marginBottom:14 }}>
+          <div style={{ width:82, height:82, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, border:`3px solid ${C.border}`, flexShrink:0 }}>{user.avatar}</div>
+          <div style={{ flex:1 }}>
+            <div style={{ display:"flex", gap:18, marginBottom:4 }}>
+              {[[applications.length,"Applied"],[bookmarks.length,"Saved"],["—","Views"]].map(([n,l])=>(
+                <div key={l} style={{ textAlign:"center" }}>
+                  <div style={{ fontWeight:700, fontSize:17, color:C.textDark }}>{n}</div>
+                  <div style={{ fontSize:11, color:C.textSoft }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div style={{ marginBottom:6 }}>
+          <div style={{ fontWeight:700, fontSize:16, color:C.textDark }}>{user.name}</div>
+          <div style={{ color:C.textSoft, fontSize:13 }}>{user.role}</div>
+          <div style={{ color:C.textFaint, fontSize:12 }}>@{user.handle}</div>
+          {user.location && <div style={{ color:C.textMid, fontSize:13, marginTop:3 }}>📍 {user.location}</div>}
+          {(profile?.bio||user.bio) && <div style={{ color:C.textMid, fontSize:13, marginTop:4, lineHeight:1.5 }}>{profile?.bio||user.bio}</div>}
+          {user.available && <div style={{ display:"inline-flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:20, marginTop:6 }}><span style={{ width:6, height:6, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
+        </div>
+        <div style={{ display:"flex", gap:8, margin:"12px 0 16px" }}>
+          <button className="tap" onClick={()=>setEditing(!editing)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textDark, fontSize:13, fontWeight:600 }}>{editing ? "Cancel" : "Edit profile"}</button>
+          <button className="tap" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>Share profile</button>
+        </div>
+      </div>
+
+      <div style={{ borderTop:`1px solid ${C.border}`, padding:"16px 18px" }}>
+        {/* Edit form */}
+        {editing && (
+          <div style={{ marginBottom:20 }}>
+            {[["Bio","bio","Tell employers about yourself…"],["Location","location","e.g. Sydney NSW"],["Experience","experience","e.g. 5 years fine dining"]].map(([l,k,p])=>(
+              <div key={k} style={{ marginBottom:11 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
+                {k==="bio" ? <textarea value={draft[k]||""} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))} placeholder={p} rows={3} style={{...IS,resize:"none"}}/> : <input value={draft[k]||""} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))} placeholder={p} style={IS}/>}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Saved docs */}
+        <div style={{ marginBottom:20 }}>
+          <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+            📎 Documents
+            {(resume&&cover) && <span style={{ color:C.sage, fontSize:11, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:20, padding:"2px 8px" }}>Both saved · auto-attach</span>}
+          </div>
+          <div style={{ display:"flex", gap:8, marginBottom:14 }}>
+            {[["Résumé",resume,"📋"],["Cover Letter",cover,"✉️"]].map(([l,f,ic])=>(
+              <div key={l} style={{ flex:1, padding:"10px 10px", borderRadius:11, background:f?C.sageL:C.bgSoft, border:`1px solid ${f?C.sage+"50":C.border}`, textAlign:"center" }}>
+                <div style={{ fontSize:18, marginBottom:2 }}>{ic}</div>
+                <div style={{ color:f?C.sage:C.textFaint, fontSize:11, fontWeight:600 }}>{f?"Saved":"Not set"}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume({...f,fromProfile:true})} onRemove={()=>setResume(null)}/>
+            <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover({...f,fromProfile:true})} onRemove={()=>setCover(null)}/>
+          </div>
+        </div>
+
+        {/* Following */}
+        {following.length>0 && (
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:10 }}>Following · {following.length}</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {following.map(id=>{ const emp=EMPLOYERS.find(e=>e.id===id); return emp?(<div key={id} style={{ display:"flex", alignItems:"center", gap:7, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:20, padding:"5px 11px" }}><span style={{ fontSize:14 }}>{emp.avatar}</span><span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>{emp.name}</span></div>):null; })}
+            </div>
+          </div>
+        )}
+
+        {(editing||resume||cover) && (
+          saved
+            ? <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40`, marginBottom:14 }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Profile saved!</span></div>
+            : editing && <button className="btn-cta tap" onClick={save} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 4px 12px rgba(196,98,58,0.22)", marginBottom:14 }}>Save Changes</button>
+        )}
+
+        <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
+
+        <SkillEndorsements candidateId={user.id} skills={user.skills||[]} endorsements={endorsements} setEndorsements={setEndorsements} currentUser={user} isOwnProfile={true}/>
+
+        <ReferencesPanel userId={user.id} refs={refs} setRefs={setRefs}/>
+
+        <NotifPrefsPanel prefs={notifPrefs} setPrefs={setNotifPrefs}/>
+
+        <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"12px 0", color:C.textMid, fontSize:14, fontWeight:500, marginTop:8 }}>Sign Out</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── My Applications Screen ───────────────────────────────────────────────────
+function MyApplications({ userId, jobs, bookmarks, onExpand }) {
+  const [tab, setTab] = useState("applied");
+  const applied = jobs.filter(j=>j.apps?.some(a=>a.uid===userId)).map(j=>({ job:j, app:j.apps.find(a=>a.uid===userId) }));
+  const saved = jobs.filter(j=>bookmarks.includes(j.id));
+  const statusColor = { "Sent":C.textSoft, "Viewed":C.blue, "Shortlisted":C.sage, "No thanks":C.error };
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        {[["applied",`Applied (${applied.length})`],["saved",`Saved (${saved.length})`]].map(([t,l])=>(
+          <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:13, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
+        ))}
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px" }}>
+        {tab==="applied" && (
+          applied.length===0
+            ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No applications yet</div><div style={{ fontSize:13 }}>Apply for a role to track it here</div></div>
+            : applied.map(({ job, app })=>{ const emp=EMPLOYERS.find(e=>e.id===job.empId); const status=app.status||"Sent"; const sc=statusColor[status]||C.textSoft; const first=job.photos[0]; const isd=isData(first); return (
+              <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
+                <div style={{ display:"flex", height:70 }}>
+                  <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
+                    {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.4 }}>{emp?.avatar}</span></div>}
+                  </div>
+                  <div style={{ flex:1, padding:"10px 12px" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1 }}>{job.title}</div>
+                    <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{job.venue} · {job.type}</div>
+                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                      <span style={{ width:7, height:7, borderRadius:"50%", background:sc, display:"inline-block" }}/>
+                      <span style={{ color:sc, fontSize:11, fontWeight:600 }}>{status}</span>
+                      <span style={{ color:C.textFaint, fontSize:11 }}>· Applied {ago(app.ts)} ago</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ); })
+        )}
+        {tab==="saved" && (
+          saved.length===0
+            ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>🔖</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No saved jobs yet</div><div style={{ fontSize:13 }}>Tap the bookmark icon on any listing</div></div>
+            : saved.map(job=>{ const emp=EMPLOYERS.find(e=>e.id===job.empId); const first=job.photos[0]; const isd=isData(first); return (
+              <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
+                <div style={{ display:"flex", height:70 }}>
+                  <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
+                    {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.4 }}>{emp?.avatar}</span></div>}
+                  </div>
+                  <div style={{ flex:1, padding:"10px 12px" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1 }}>{job.title}</div>
+                    <div style={{ color:C.textSoft, fontSize:11, marginBottom:5 }}>{job.venue} · {job.type}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:12 }}>{job.salary}</div>
+                  </div>
+                </div>
+              </div>
+            ); })
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Explore Grid ─────────────────────────────────────────────────────────────
+function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggleFollow }) {
+  const [search, setSearch] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+  const [country, setCountry]     = useState("");
+  const [state, setState]         = useState("");
+  const [city, setCity]           = useState("");
+  const [sector, setSector]       = useState("");
+  const [roleType, setRoleType]   = useState("");
+  const [empType, setEmpType]     = useState("");
+  const [salaryBand, setSalaryBand] = useState("");
+
+  const states = country ? Object.keys(LOCATIONS[country]||{}) : [];
+  const cities = (country && state) ? (LOCATIONS[country]?.[state]||[]) : [];
+
+  const activeFilters = [country,state,city,sector,roleType,empType,salaryBand].filter(Boolean).length;
+
+  const filtered = jobs.filter(j=>{
+    const q = search.toLowerCase();
+    const matchQ = !q || j.title.toLowerCase().includes(q) || j.venue.toLowerCase().includes(q) || j.loc.toLowerCase().includes(q) || (j.roleType||"").toLowerCase().includes(q) || (j.sector||"").toLowerCase().includes(q) || (j.tags||[]).some(t=>t.toLowerCase().includes(q));
+    const matchCountry  = !country  || j.country===country;
+    const matchState    = !state    || j.state===state;
+    const matchCity     = !city     || j.city===city;
+    const matchSector   = !sector   || j.sector===sector;
+    const matchRole     = !roleType || j.roleType===roleType || j.title.toLowerCase().includes(roleType.toLowerCase());
+    const matchEmpType  = !empType  || j.type===empType;
+    const matchSalary   = !salaryBand || j.salaryBand===salaryBand;
+    return matchQ && matchCountry && matchState && matchCity && matchSector && matchRole && matchEmpType && matchSalary;
+  });
+
+  const clearAll = () => { setCountry(""); setState(""); setCity(""); setSector(""); setRoleType(""); setEmpType(""); setSalaryBand(""); setSearch(""); };
+  const SS = { width:"100%", background:"#fff", border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", height:"100%", overflow:"hidden" }}>
+      {/* Search bar */}
+      <div style={{ padding:"10px 12px 8px", background:"#fff", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <div style={{ display:"flex", gap:8, marginBottom:showFilters?8:0 }}>
+          <div style={{ flex:1, background:C.bgSoft, borderRadius:10, padding:"9px 13px", display:"flex", alignItems:"center", gap:8, border:`1px solid ${C.border}` }}>
+            <Icon name="search" size={15} color={C.textSoft}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search roles, venues, sectors…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:13 }}/>
+            {search && <button className="tap" onClick={()=>setSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>}
+          </div>
+          <button className="tap" onClick={()=>setShowFilters(!showFilters)}
+            style={{ background:showFilters||activeFilters>0?C.terracotta:C.bgSoft, border:`1px solid ${showFilters||activeFilters>0?C.terracotta:C.border}`, borderRadius:10, padding:"9px 13px", color:showFilters||activeFilters>0?"#fff":C.textDark, display:"flex", alignItems:"center", gap:5, position:"relative" }}>
+            <Icon name="filter" size={14} color={showFilters||activeFilters>0?"#fff":C.textDark}/>
+            <span style={{ fontSize:13, fontWeight:600 }}>Filter</span>
+            {activeFilters>0 && <span style={{ background:"#fff", color:C.terracotta, borderRadius:"50%", width:16, height:16, fontSize:10, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{activeFilters}</span>}
+          </button>
+        </div>
+
+        {showFilters && (
+          <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+            {/* Location row */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:7 }}>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Country</div>
+                <select value={country} onChange={e=>{setCountry(e.target.value);setState("");setCity("");}} style={SS}>
+                  <option value="">Any</option>
+                  {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>State</div>
+                <select value={state} onChange={e=>{setState(e.target.value);setCity("");}} style={SS} disabled={!country}>
+                  <option value="">Any</option>
+                  {states.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>City</div>
+                <select value={city} onChange={e=>setCity(e.target.value)} style={SS} disabled={!state}>
+                  <option value="">Any</option>
+                  {cities.map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            {/* Sector + Role type */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7 }}>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Sector</div>
+                <select value={sector} onChange={e=>setSector(e.target.value)} style={SS}>
+                  <option value="">Any sector</option>
+                  {SECTORS.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Role Type</div>
+                <select value={roleType} onChange={e=>setRoleType(e.target.value)} style={SS}>
+                  <option value="">Any role</option>
+                  {Object.entries(HOSPO_ROLES).map(([dept,roles])=><optgroup key={dept} label={dept}>{roles.map(r=><option key={r}>{r}</option>)}</optgroup>)}
+                </select>
+              </div>
+            </div>
+            {/* Employment type + Salary */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:7 }}>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Employment</div>
+                <select value={empType} onChange={e=>setEmpType(e.target.value)} style={SS}>
+                  <option value="">Any</option>
+                  {["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textFaint, fontSize:10, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:3 }}>Salary Band</div>
+                <select value={salaryBand} onChange={e=>setSalaryBand(e.target.value)} style={SS}>
+                  <option value="">Any</option>
+                  {SALARY_BANDS.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            {activeFilters>0 && (
+              <button className="tap" onClick={clearAll} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"7px 0", color:C.textMid, fontSize:12, fontWeight:500 }}>
+                Clear all filters ({activeFilters})
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+      {(search||activeFilters>0) && (
+        <div style={{ padding:"7px 14px", background:"#fff", borderBottom:`1px solid ${C.border}`, color:C.textSoft, fontSize:12, flexShrink:0, display:"flex", alignItems:"center", gap:6 }}>
+          <span>{filtered.length} result{filtered.length!==1?"s":""}</span>
+          {[country,state,city,sector,roleType,empType,salaryBand].filter(Boolean).map(f=>(
+            <span key={f} style={{ background:C.terracottaL, color:C.terracotta, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20, border:`1px solid ${C.terracottaM}` }}>{f}</span>
+          ))}
+        </div>
+      )}
+      <div style={{ flex:1, overflowY:"auto", padding:2 }}>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2 }}>
+          {filtered.map((j,i)=>{ const first=j.video||j.photos[0]; const hm=isData(first); const pbg=PBG[typeof j.photos[0]==="number"?j.photos[0]%PBG.length:i%PBG.length]; const emp=EMPLOYERS.find(e=>e.id===j.empId); const bk=bookmarks.includes(j.id); return (
+            <div key={j.id} className="tap" onClick={()=>onOpen(j)} style={{ position:"relative", aspectRatio:"1", cursor:"pointer", overflow:"hidden", background:pbg }}>
+              {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:hm?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", background:pbg, display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.45 }}>{emp?.avatar}</span></div>}
+              <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 52%)" }}/>
+              <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"5px 6px" }}>
+                <div style={{ color:"#fff", fontSize:10, fontWeight:700, lineHeight:1.2, textShadow:"0 1px 2px rgba(0,0,0,0.6)" }}>{j.title}</div>
+                <div style={{ color:"rgba(255,255,255,0.7)", fontSize:9 }}>{j.venue}</div>
+              </div>
+              {j.featured && <div style={{ position:"absolute", top:4, left:4 }}><Icon name="star" size={12} color={C.featured} fill={C.featured}/></div>}
+              {j.video && <div style={{ position:"absolute", top:4, right:4 }}><Icon name="video" size={12} color="#fff" fill="#fff"/></div>}
+              {bk && <div style={{ position:"absolute", top:j.video?20:4, right:4 }}><Icon name="bookmark" size={12} color="#fff" fill="#fff"/></div>}
+            </div>
+          ); })}
+        </div>
+        {filtered.length===0 && <div style={{ textAlign:"center", padding:"60px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>🔍</div><div style={{ color:C.textMid, fontSize:14 }}>No roles match your search</div></div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Job Card ─────────────────────────────────────────────────────────────────
+function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
+  const emp = EMPLOYERS.find(e=>e.id===job.empId);
+  const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const isFollowed = following.includes(job.empId);
+  const isBookmarked = bookmarks.includes(job.id);
+  return (
+    <div style={{ background:"#fff", marginBottom:8, borderBottom:`1px solid ${C.border}` }}>
+      {job.featured && (
+        <div style={{ background:C.featuredL, borderBottom:`1px solid ${C.featured}30`, padding:"5px 14px", display:"flex", alignItems:"center", gap:6 }}>
+          <Icon name="star" size={12} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:11, fontWeight:700 }}>Featured Listing</span>
+        </div>
+      )}
+      <div style={{ display:"flex", alignItems:"center", padding:"11px 14px", gap:10 }}>
+        <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}>
+          <Avatar emp={emp} size={36} fontSize={18}/>
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+            <span className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ color:C.textDark, fontWeight:600, fontSize:14, cursor:"pointer" }}>{emp?.handle}</span>
+            {job.verified && <span style={{ color:C.blue, fontSize:13 }}>●</span>}
+          </div>
+          <div style={{ color:C.textSoft, fontSize:11 }}>{job.loc}</div>
+        </div>
+        <button className="tap" onClick={e=>{e.stopPropagation();onToggleFollow(job.empId);}}
+          style={{ background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:8, padding:"5px 12px", color:isFollowed?C.sage:C.textDark, fontSize:12, fontWeight:600, transition:"all 0.18s" }}>
+          {isFollowed ? "Following" : "Follow"}
+        </button>
+        <button className="tap" style={{ background:"none", border:"none", padding:"2px 0 2px 4px" }}><Icon name="more" size={20} color={C.textSoft}/></button>
+      </div>
+      <div onClick={()=>onExpand(job)} style={{ cursor:"pointer" }}>
+        <Carousel photos={job.photos} video={job.video}/>
+      </div>
+      <div style={{ padding:"10px 14px 4px", display:"flex", alignItems:"center", gap:12 }}>
+        <button className="btn-cta tap" onClick={e=>{e.stopPropagation();onApply(job);}}
+          style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:9, padding:"7px 16px", color:applied?C.sage:"#fff", fontWeight:700, fontSize:13, boxShadow:applied?"none":"0 2px 10px rgba(196,98,58,0.2)" }}>
+          {applied ? "✓ Applied" : "Apply Now"}
+        </button>
+        <div style={{ flex:1 }}/>
+        {job.video && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.clay, fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:20, display:"flex", alignItems:"center", gap:3 }}><Icon name="video" size={10} color={C.clay}/>Reel</span>}
+        <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>
+        <button className="tap" onClick={e=>{e.stopPropagation();onToggleBookmark(job.id);}} style={{ background:"none", border:"none", padding:2 }}>
+          <Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/>
+        </button>
+      </div>
+      <div style={{ padding:"4px 14px 14px" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap" }}>
+          <span style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:C.textDark }}>{job.title}</span>
+          <TypeChip type={job.type}/>
+        </div>
+        <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:5 }}>{job.salary}</div>
+        {(job.tags||[]).length>0 && (
+          <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:7 }}>
+            {job.tags.slice(0,3).map(t=><span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{t}</span>)}
+          </div>
+        )}
+        <div style={{ color:C.textMid, fontSize:13, lineHeight:1.55 }}><span style={{ fontWeight:600, color:C.textDark }}>{emp?.handle} </span>{job.short}</div>
+        <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.textSoft, fontSize:13, marginTop:6, cursor:"pointer" }}>View full role →</div>
+        <div style={{ color:C.textFaint, fontSize:11, marginTop:5, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Job Detail ───────────────────────────────────────────────────────────────
+function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick }) {
+  const emp = EMPLOYERS.find(e=>e.id===job.empId);
+  const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const isFollowed = following.includes(job.empId);
+  const isBookmarked = bookmarks?.includes(job.id);
+  const [showForm, setShowForm] = useState(false);
+  const [fd, setFd] = useState({ name:currentUser?.name||"", msg:"" });
+  const [resume, setResume] = useState(profile?.resume||null);
+  const [cover, setCover] = useState(profile?.coverLetter||null);
+  const [done, setDone] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
+  const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
+  const submit = () => {
+    if (!fd.name.trim()) return;
+    onApply(job, {...fd, resume, cover}); setDone(true);
+    setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
+  };
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(2px)" }}>
+      <div style={{ maxWidth:560, margin:"0 auto", background:C.bg, minHeight:"100vh" }}>
+        <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
+          <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
+          <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, flex:1 }}>{job.title}</div>
+          <button className="tap" onClick={()=>onToggleFollow&&onToggleFollow(job.empId)}
+            style={{ background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:8, padding:"5px 12px", color:isFollowed?C.sage:C.textDark, fontSize:12, fontWeight:600 }}>
+            {isFollowed ? "Following" : "Follow"}
+          </button>
+          {onToggleBookmark && <button className="tap" onClick={()=>onToggleBookmark(job.id)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/></button>}
+        </div>
+        <Carousel photos={job.photos} video={job.video} height={255}/>
+        <div style={{ padding:"18px 18px 50px" }}>
+          <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+            <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={44} fontSize={20}/></div>
+            <div style={{ cursor:"pointer" }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
+              <div style={{ color:C.textDark, fontWeight:600, fontSize:14, display:"flex", alignItems:"center", gap:5 }}>{emp?.handle} {job.verified&&<span style={{ color:C.blue, fontSize:12 }}>●</span>}</div>
+              <div style={{ color:C.textSoft, fontSize:12 }}>{emp?.bio}</div>
+            </div>
+            {job.verified && <span style={{ marginLeft:"auto", color:C.sage, fontSize:11, border:`1px solid ${C.sage}`, borderRadius:20, padding:"3px 9px", fontWeight:600 }}>Verified</span>}
+          </div>
+          {job.featured && <div style={{ display:"flex", alignItems:"center", gap:6, background:C.featuredL, border:`1px solid ${C.featured}30`, borderRadius:10, padding:"8px 12px", marginBottom:14 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontWeight:600, fontSize:13 }}>Featured Listing</span></div>}
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark, lineHeight:1.2, marginBottom:6 }}>{job.title}</div>
+          <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10, flexWrap:"wrap" }}>
+            <span style={{ color:C.sand, fontWeight:700, fontSize:14 }}>{job.salary}</span>
+            <span style={{ width:3, height:3, borderRadius:"50%", background:C.textFaint, display:"inline-block" }}/>
+            <TypeChip type={job.type}/>
+            <span style={{ color:C.textFaint, fontSize:12 }}>· {job.loc}</span>
+          </div>
+          {(job.tags||[]).length>0 && (
+            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
+              {job.tags.map(t=><span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>)}
+            </div>
+          )}
+          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
+            <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
+            <span style={{ color:C.textFaint }}>·</span>
+            <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
+          </div>
+          <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, whiteSpace:"pre-line", borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }}>{job.full}</div>
+          {!showForm && !done && (
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {(profile?.resume||profile?.coverLetter)&&!applied && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}><span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach</div></div>}
+              <button className="btn-cta tap" onClick={openForm} disabled={applied}
+                style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:13, padding:"15px 0", color:applied?C.sage:"#fff", fontWeight:700, fontSize:15, boxShadow:applied?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
+                {applied ? "✓ Already Applied" : "Apply via HospoSearch"}
+              </button>
+              <a href={job.link} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", padding:"13px 0", borderRadius:13, border:`1px solid ${C.border}`, color:C.textMid, textDecoration:"none", fontSize:15, fontWeight:500, background:"#fff" }}>Apply on venue website ↗</a>
+            </div>
+          )}
+          {showForm && !done && (
+            <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Your Application</div>
+              <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>For <strong style={{ color:C.textDark }}>{job.title}</strong> at {job.venue}</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+                <input value={fd.name} onChange={e=>setFd(f=>({...f,name:e.target.value}))} placeholder="Your full name" style={IS}/>
+                <textarea value={fd.msg} onChange={e=>setFd(f=>({...f,msg:e.target.value}))} placeholder="Quick cover note (optional)…" rows={3} style={{...IS,resize:"none"}}/>
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:11 }}>
+                  <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:9 }}>📎 Documents</div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                    <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume(f)} onRemove={()=>setResume(null)}/>
+                    <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover(f)} onRemove={()=>setCover(null)}/>
+                  </div>
+                </div>
+                <div style={{ display:"flex", gap:9 }}>
+                  <button className="tap" onClick={()=>setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                  <button className="btn-cta tap" onClick={submit} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Submit</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {done && (
+            <div style={{ textAlign:"center", padding:"28px 0" }}>
+              <div style={{ width:66, height:66, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, margin:"0 auto 14px", border:`2px solid ${C.sage}` }}>🎉</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700, marginBottom:5 }}>Application Sent!</div>
+              <div style={{ color:C.textSoft, fontSize:14 }}>{job.venue} will be in touch.</div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Login ────────────────────────────────────────────────────────────────────
+function Login({ onLogin }) {
+  const [mode, setMode] = useState("employee");
+  const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
+  const go = () => {
+    setErr("");
+    if (email===ADMIN.email&&pass===ADMIN.password) { onLogin(ADMIN,"admin"); return; }
+    const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
+    if (trial) { onLogin(trial,"employer"); return; }
+    const pool = mode==="employer"?EMPLOYERS:EMPLOYEES;
+    const u = pool.find(u=>u.email===email&&u.password===pass);
+    if (!u) { setErr("Incorrect email or password."); return; }
+    onLogin(u,mode);
+  };
+  const demo = t => { if(t==="employer"){setEmail("hire@attica.com.au");setPass("pass123");setMode("employer");}else{setEmail("chef@gmail.com");setPass("pass123");setMode("employee");} };
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 14px", color:C.textDark, fontSize:15 };
+  return (
+    <div style={{ minHeight:"100vh", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", overflow:"auto" }}>
+      <style>{G}</style>
+      <div style={{ position:"fixed", top:-80, right:-80, width:240, height:240, borderRadius:"50%", background:`radial-gradient(circle,${C.terracottaM},transparent 70%)`, opacity:0.5, pointerEvents:"none" }}/>
+      <div style={{ position:"fixed", bottom:-60, left:-60, width:200, height:200, borderRadius:"50%", background:`radial-gradient(circle,${C.sageL},transparent 70%)`, pointerEvents:"none" }}/>
+      <div style={{ width:"100%", maxWidth:380, position:"relative" }}>
+        <div style={{ textAlign:"center", marginBottom:32 }}>
+          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px", boxShadow:`0 6px 18px ${C.terracottaM}` }}>🍽️</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:700, color:C.textDark, letterSpacing:-0.5 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
+          <div style={{ color:C.textFaint, fontSize:11, marginTop:5, letterSpacing:2.5, textTransform:"uppercase", fontWeight:500 }}>Hospitality Jobs · ANZ</div>
+        </div>
+        <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
+          <div style={{ display:"flex", background:C.bgSoft, borderRadius:12, padding:3, marginBottom:20, border:`1px solid ${C.border}` }}>
+            {[["employee","Job Seeker"],["employer","Employer"]].map(([m,l])=>(
+              <button key={m} onClick={()=>setMode(m)} style={{ flex:1, padding:"9px 0", border:"none", borderRadius:9, background:mode===m?"#fff":"transparent", color:mode===m?C.terracotta:C.textSoft, fontWeight:mode===m?600:400, fontSize:14, boxShadow:mode===m?"0 1px 5px rgba(0,0,0,0.07)":"none", transition:"all 0.18s" }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+            <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" style={IS}/>
+            <input value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" type="password" onKeyDown={e=>e.key==="Enter"&&go()} style={IS}/>
+            {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{err}</div>}
+            <button className="btn-cta tap" onClick={go} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Log In</button>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:10, margin:"16px 0" }}><div style={{ flex:1, height:1, background:C.border }}/><span style={{ color:C.textFaint, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:C.border }}/></div>
+          <div style={{ display:"flex", gap:9 }}>
+            {[["employee","👨‍🍳","Job Seeker"],["employer","🍽️","Employer"]].map(([t,ic,l])=>(
+              <button key={t} className="tap" onClick={()=>demo(t)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textMid, fontSize:13, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}><span>{ic}</span>{l}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:12 }}>Don't have an account? <span style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span></div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stripe Checkout ──────────────────────────────────────────────────────────
+function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured }) {
+  const basePrice = isFeatured ? 70 : 50;
+  const [step, setStep] = useState("review");
+  const [card, setCard] = useState({ number:"", expiry:"", cvc:"", name:"" });
+  const [errs, setErrs] = useState({});
+  const [prog, setProg] = useState(0);
+  const [codeInput, setCodeInput] = useState("");
+  const [appliedCode, setAppliedCode] = useState(null);
+  const [codeErr, setCodeErr] = useState("");
+  const txId = useRef("ch_"+Math.random().toString(36).slice(2,10).toUpperCase());
+
+  const discount = appliedCode ? Math.round(basePrice * (appliedCode.pct/100)) : 0;
+  const finalPrice = basePrice - discount;
+
+  const applyCode = () => {
+    const code = codeInput.trim().toUpperCase();
+    if (!code) return;
+    const found = codes?.[code];
+    if (!found) { setCodeErr("Code not found."); return; }
+    if (!found.active) { setCodeErr("This code is no longer active."); return; }
+    if (found.used >= found.uses) { setCodeErr("This code has reached its usage limit."); return; }
+    const exp = new Date(found.expires);
+    if (exp < new Date()) { setCodeErr("This code has expired."); return; }
+    setAppliedCode({ ...found, code });
+    setCodeErr("");
+  };
+
+  const removeCode = () => { setAppliedCode(null); setCodeInput(""); setCodeErr(""); };
+
+  const fmt4 = v => v.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim();
+  const fmtE = v => { const d=v.replace(/\D/g,"").slice(0,4); return d.length>2?d.slice(0,2)+"/"+d.slice(2):d; };
+  const validate = () => {
+    const e={};
+    if(card.number.replace(/\s/g,"").length<16) e.number="Enter 16-digit number";
+    if(card.expiry.length<5) e.expiry="MM/YY required";
+    if(card.cvc.length<3) e.cvc="3 digits";
+    if(!card.name.trim()) e.name="Required";
+    setErrs(e); return !Object.keys(e).length;
+  };
+  const pay = () => {
+    if(!validate()) return;
+    // Mark code as used
+    if (appliedCode && setCodes) {
+      setCodes(prev => ({ ...prev, [appliedCode.code]: { ...prev[appliedCode.code], used: prev[appliedCode.code].used + 1 } }));
+    }
+    setStep("paying");
+    let p=0; const t=setInterval(()=>{ p+=Math.random()*15+8; if(p>=100){p=100;clearInterval(t);setTimeout(()=>setStep("success"),350);} setProg(Math.min(p,100)); },160);
+  };
+  const IS = f => ({ width:"100%", background:C.bgSoft, border:`1.5px solid ${errs[f]?C.error:C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14, transition:"all 0.18s" });
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:8000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(3px)" }}>
+      <div style={{ width:"100%", maxWidth:520, background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 22px 40px", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 -6px 32px rgba(0,0,0,0.12)" }}>
+        <div style={{ width:38, height:4, background:C.border, borderRadius:2, margin:"10px auto 20px" }}/>
+        {step==="review" && <>
+          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
+            <div style={{ width:44, height:44, borderRadius:13, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>💳</div>
+            <div><div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700 }}>Complete Payment</div><div style={{ color:C.textSoft, fontSize:12 }}>Secured by Stripe</div></div>
+          </div>
+          {/* Order summary */}
+          <div style={{ background:C.bgSoft, borderRadius:13, padding:"13px 15px", marginBottom:14, border:`1px solid ${C.border}` }}>
+            <div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:9 }}>Order Summary</div>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
+              <div><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>Job Listing — {jobDraft?.title||"New Role"}</div><div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{jobDraft?.venue} · {jobDraft?.type}{isFeatured?" · Featured":""}</div></div>
+              <div style={{ fontFamily:"'Fraunces',serif", color:appliedCode?C.textSoft:C.terracotta, fontWeight:700, fontSize:22, textDecoration:appliedCode?"line-through":"none" }}>${basePrice}</div>
+            </div>
+            {appliedCode && (
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 10px", background:C.sageL, borderRadius:8, marginBottom:8, border:`1px solid ${C.sage}40` }}>
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <span style={{ fontSize:14 }}>🎟️</span>
+                  <div><div style={{ color:C.sage, fontWeight:700, fontSize:12 }}>{appliedCode.code} — {appliedCode.pct}% off</div><div style={{ color:C.textSoft, fontSize:10 }}>{appliedCode.desc}</div></div>
+                </div>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <span style={{ color:C.sage, fontWeight:700, fontSize:14 }}>−${discount}</span>
+                  <button className="tap" onClick={removeCode} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>
+                </div>
+              </div>
+            )}
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:`1px solid ${C.border}`, paddingTop:9, marginTop:4 }}>
+              <div>
+                <span style={{ color:C.textFaint, fontSize:11 }}>Total · Includes GST · AUD</span>
+              </div>
+              <div style={{ fontFamily:"'Fraunces',serif", color:C.terracotta, fontWeight:700, fontSize:22 }}>${finalPrice}</div>
+            </div>
+          </div>
+          {/* Discount code input */}
+          {!appliedCode && (
+            <div style={{ marginBottom:14 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:6, fontWeight:600 }}>Discount Code</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <input value={codeInput} onChange={e=>setCodeInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&applyCode()} placeholder="Enter code…" style={{ flex:1, background:C.bgSoft, border:`1.5px solid ${codeErr?C.error:C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14, textTransform:"uppercase", letterSpacing:1 }}/>
+                <button className="btn-cta tap" onClick={applyCode} style={{ background:C.textDark, border:"none", borderRadius:10, padding:"11px 18px", color:"#fff", fontWeight:700, fontSize:13 }}>Apply</button>
+              </div>
+              {codeErr && <div style={{ color:C.error, fontSize:12, marginTop:4 }}>{codeErr}</div>}
+            </div>
+          )}
+          <div style={{ display:"flex", flexDirection:"column", gap:11, marginBottom:14 }}>
+            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Card Number</div><input value={card.number} onChange={e=>setCard(c=>({...c,number:fmt4(e.target.value)}))} placeholder="1234 5678 9012 3456" style={IS("number")}/>{errs.number&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.number}</div>}</div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+              <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Expiry</div><input value={card.expiry} onChange={e=>setCard(c=>({...c,expiry:fmtE(e.target.value)}))} placeholder="MM/YY" style={IS("expiry")}/>{errs.expiry&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.expiry}</div>}</div>
+              <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>CVC</div><input value={card.cvc} onChange={e=>setCard(c=>({...c,cvc:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="•••" style={IS("cvc")}/>{errs.cvc&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.cvc}</div>}</div>
+            </div>
+            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Cardholder Name</div><input value={card.name} onChange={e=>setCard(c=>({...c,name:e.target.value}))} placeholder="Name on card" style={IS("name")}/>{errs.name&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.name}</div>}</div>
+          </div>
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:C.sageL, borderRadius:10, marginBottom:14, border:`1px solid ${C.sage}25` }}><span>🔒</span><div style={{ color:C.textMid, fontSize:12 }}>256-bit SSL · Card details never stored</div></div>
+          <div style={{ display:"flex", gap:10 }}>
+            <button className="tap" onClick={onCancel} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+            <button className="btn-cta tap" onClick={pay} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 13px rgba(196,98,58,0.25)" }}>Pay $50.00 AUD</button>
+          </div>
+        </>}
+        {step==="paying" && <div style={{ textAlign:"center", padding:"44px 0 16px" }}><div style={{ width:60, height:60, borderRadius:"50%", background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, margin:"0 auto 15px" }}>💳</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700, marginBottom:4 }}>Processing…</div><div style={{ color:C.textSoft, fontSize:13, marginBottom:22 }}>Just a moment</div><div style={{ background:C.border, borderRadius:100, height:5, overflow:"hidden", maxWidth:210, margin:"0 auto" }}><div style={{ height:"100%", background:`linear-gradient(90deg,${C.terracotta},${C.sand})`, borderRadius:100, width:`${prog}%`, transition:"width 0.18s" }}/></div></div>}
+        {step==="success" && <div style={{ textAlign:"center", padding:"20px 0 8px" }}><div style={{ width:70, height:70, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, margin:"0 auto 15px", border:`2px solid ${C.sage}` }}>✅</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.textDark, fontWeight:700, marginBottom:5 }}>Payment Confirmed!</div><div style={{ color:C.textMid, fontSize:14, marginBottom:3 }}>$50.00 AUD charged</div><div style={{ color:C.textFaint, fontSize:12, marginBottom:20 }}>Receipt sent to your email</div><div style={{ background:C.sageL, border:`1px solid ${C.sage}30`, borderRadius:12, padding:"12px 15px", marginBottom:18, textAlign:"left" }}><div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Receipt</div><div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}><span style={{ color:C.textMid, fontSize:13 }}>Job Listing</span><span style={{ color:C.textDark, fontSize:13, fontWeight:600 }}>$50.00</span></div><div style={{ display:"flex", justifyContent:"space-between" }}><span style={{ color:C.textMid, fontSize:13 }}>Transaction ID</span><span style={{ color:C.textFaint, fontSize:11, fontFamily:"monospace" }}>{txId.current}</span></div></div><button className="btn-cta tap" onClick={onSuccess} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 13px rgba(196,98,58,0.22)" }}>Publish Listing →</button></div>}
+      </div>
+    </div>
+  );
+}
+
+// ─── Employer Dashboard ───────────────────────────────────────────────────────
+function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout }) {
+  const [tab, setTab] = useState("browse");
+  const [expandedJob, setExpandedJob] = useState(null);
+  const [venueProfile, setVenueProfile] = useState(null);
+  const [sel, setSel] = useState(null);
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false });
+  const [photos, setPhotos] = useState([null,null,null,null,null]);
+  const [videoFile, setVideoFile] = useState(null);
+  const [posted, setPosted] = useState(false);
+  const [checkoutJob, setCheckoutJob] = useState(null);
+  const mine = jobs.filter(j=>j.empId===user.id);
+  const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
+
+  const buildJob = () => { const fp=photos.filter(Boolean); const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ")||"Australia"; return { id:"j"+Date.now(), empId:user.id, title:nj.title, venue:user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:fp.length>0?fp:[0,1,2], video:videoFile||null, verified:user.verified, featured:nj.featured, ts:Date.now(), apps:[], views:0 }; };
+  const post = () => {
+    if(!nj.title.trim()) return;
+    if(user.isTrial) { setJobs(p=>[buildJob(),...p]); setPosted(true); setTimeout(()=>{ setPosted(false); setTab("feed"); setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false}); setPhotos([null,null,null,null,null]); setVideoFile(null); },2200); }
+    else setCheckoutJob(buildJob());
+  };
+  const publishAfterPayment = () => { setJobs(p=>[checkoutJob,...p]); setCheckoutJob(null); setPosted(true); setTimeout(()=>{ setPosted(false); setTab("feed"); setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false}); setPhotos([null,null,null,null,null]); setVideoFile(null); },2200); };
+  const uploadVideo = () => { const r=document.createElement("input"); r.type="file"; r.accept="video/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; if(f.size>50*1048576){alert("Keep reel under 50MB.");return;} const rd=new FileReader(); rd.onload=ev=>setVideoFile(ev.target.result); rd.readAsDataURL(f); }; r.click(); };
+  const fmtS = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
+
+  const NavBtn = ({ t, ic, l, badge }) => (
+    <button className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
+      <Icon name={ic} size={24} color={tab===t?C.terracotta:C.textSoft} fill={tab===t&&ic==="person"?C.terracottaL:"none"}/>
+      {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
+      <span style={{ fontSize:10, color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400 }}>{l}</span>
+    </button>
+  );
+
+  return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
+      <style>{G}</style>
+      <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.96)", backdropFilter:"blur(10px)", flexShrink:0 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, flex:1 }}>{user.avatar} {user.name}</div>
+        {user.isTrial
+          ? <span style={{ background:C.sageL, color:C.sage, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.sage}50`, marginRight:10 }}>TRIAL</span>
+          : <span style={{ background:C.terracottaL, color:C.terracotta, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.terracottaM}`, marginRight:10 }}>EMPLOYER</span>
+        }
+        <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", marginRight:6, padding:2, position:"relative" }}><Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textSoft}/></button>
+        <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
+      </div>
+
+      <div style={{ flex:1, overflow:"hidden" }}>
+        {/* Browse */}
+        {tab==="browse" && (
+          <div style={{ height:"100%", overflowY:"auto" }}>
+            {jobs.sort((a,b)=>b.ts-a.ts).map(j=>(
+              <JobCard key={j.id} job={j} currentUser={user} following={[]} bookmarks={[]} onApply={setExpandedJob} onExpand={setExpandedJob} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>
+            ))}
+            <div style={{ textAlign:"center", padding:"28px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:22, marginBottom:6 }}>🌿</div>All listings shown</div>
+          </div>
+        )}
+
+        {/* Mine */}
+        {tab==="feed" && (
+          <div style={{ height:"100%", overflowY:"auto" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, background:C.border, flexShrink:0 }}>
+              {[["Listings",mine.length],["Applications",apps],["Followers","—"]].map(([l,v])=>(
+                <div key={l} style={{ background:"#fff", padding:"14px 10px", textAlign:"center" }}>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>{v}</div>
+                  <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ padding:"12px" }}>
+              {mine.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:40, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:5 }}>No listings yet</div></div>}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                {mine.map(j=>{ const first=j.photos[0]; const isd=isData(first); return (
+                  <div key={j.id} style={{ borderRadius:14, overflow:"hidden", border:`1px solid ${C.border}`, background:"#fff", boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
+                    {j.featured && <div style={{ background:C.featuredL, padding:"3px 10px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={10} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    <div style={{ height:90, overflow:"hidden", position:"relative", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
+                      {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.35 }}>{user.avatar}</span></div>}
+                      {j.video && <div style={{ position:"absolute", top:5, right:5 }}><Icon name="video" size={13} color="#fff" fill="#fff"/></div>}
+                    </div>
+                    <div style={{ padding:"10px 11px" }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:2 }}>{j.title}</div>
+                      <div style={{ color:C.textSoft, fontSize:11, marginBottom:8 }}>{j.type} · {j.salary}</div>
+                      <div style={{ display:"flex", gap:5, marginBottom:7 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:3, color:C.textFaint, fontSize:10 }}><Icon name="eye" size={11} color={C.textFaint}/>{j.views||0}</div>
+                        <div style={{ display:"flex", alignItems:"center", gap:3, color:C.textFaint, fontSize:10 }}><Icon name="briefcase" size={11} color={C.textFaint}/>{j.apps?.length||0}</div>
+                      </div>
+                      <button className="tap" onClick={()=>{ setSel(j); setTab("apps"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:7, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600, width:"100%" }}>
+                        {j.apps?.length||0} application{j.apps?.length!==1?"s":""}
+                      </button>
+                    </div>
+                  </div>
+                ); })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Post */}
+        {tab==="post" && !posted && (
+          <div style={{ height:"100%", overflowY:"auto", padding:"16px" }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700, marginBottom:16 }}>New Job Listing</div>
+            <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
+              <div style={{ display:"flex", justifyContent:"space-between", marginBottom:9 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Photos</div>
+                <div style={{ color:C.textFaint, fontSize:11 }}>{photos.filter(Boolean).length}/5</div>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:5 }}>
+                {Array.from({length:5},(_,i)=>{ const f=photos[i]; return (
+                  <div key={i} style={{ position:"relative" }}>
+                    {f ? (
+                      <div style={{ position:"relative", aspectRatio:"1", borderRadius:9, overflow:"hidden", border:`1.5px solid ${C.sage}` }}>
+                        <img src={f} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        <button className="tap" onClick={()=>{ const a=[...photos]; a[i]=null; setPhotos(a); }} style={{ position:"absolute", top:2, right:2, width:18, height:18, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+                      </div>
+                    ) : (
+                      <div className="file-zone tap" onClick={()=>{ const r=document.createElement("input"); r.type="file"; r.accept="image/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=ev=>{ const a=[...photos]; a[i]=ev.target.result; setPhotos(a); }; rd.readAsDataURL(f); }; r.click(); }}
+                        style={{ aspectRatio:"1", borderRadius:9, border:`1.5px dashed ${C.borderMid}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
+                        <Icon name="camera" size={16} color={C.textFaint}/><span style={{ color:C.textFaint, fontSize:8, textTransform:"uppercase", letterSpacing:1 }}>{i+1}</span>
+                      </div>
+                    )}
+                  </div>
+                ); })}
+              </div>
+            </div>
+            <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:9 }}>Reel <span style={{ color:C.textFaint, fontWeight:400, letterSpacing:0, textTransform:"none", fontSize:11 }}>(optional · max 50MB)</span></div>
+              {!videoFile ? (
+                <div className="file-zone tap" onClick={uploadVideo} style={{ border:`1.5px dashed ${C.borderMid}`, borderRadius:11, padding:"16px 14px", textAlign:"center", cursor:"pointer", background:C.bgSoft }}>
+                  <div style={{ fontSize:26, marginBottom:5 }}>🎬</div>
+                  <div style={{ color:C.textMid, fontSize:13, fontWeight:500 }}>Upload a short reel</div>
+                  <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>MP4, MOV or WebM</div>
+                </div>
+              ) : (
+                <div style={{ borderRadius:11, overflow:"hidden", border:`1.5px solid ${C.sage}`, position:"relative" }}>
+                  <video src={videoFile} autoPlay muted loop playsInline style={{ width:"100%", maxHeight:160, objectFit:"cover", display:"block" }}/>
+                  <button className="tap" onClick={()=>setVideoFile(null)} style={{ position:"absolute", top:7, right:7, width:24, height:24, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"none", color:"#fff", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"6px 10px", background:"linear-gradient(to top,rgba(0,0,0,0.5),transparent)" }}><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>▶ Reel ready</span></div>
+                </div>
+              )}
+            </div>
+            {[["Job Title *","title","e.g. Head Chef…"],["Salary / Rate","salary","e.g. $70k–$85k"],["Apply Link","link","https://…"]].map(([l,k,p])=>(
+              <div key={k} style={{ marginBottom:12 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>{l}</div>
+                <input value={nj[k]} onChange={e=>setNj(j=>({...j,[k]:e.target.value}))} placeholder={p} style={IS}/>
+              </div>
+            ))}
+            {[["Employment Type","type",["Full-time","Part-time","Casual","Contract"]],["Salary Band","salaryBand",SALARY_BANDS]].map(([l,k,opts])=>(
+              <div key={k} style={{ marginBottom:12 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>{l}</div>
+                <select value={nj[k]} onChange={e=>setNj(j=>({...j,[k]:e.target.value}))} style={IS}>{opts.map(o=><option key={o}>{o}</option>)}</select>
+              </div>
+            ))}
+            {/* Location */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Country</div>
+              <select value={nj.country} onChange={e=>setNj(j=>({...j,country:e.target.value,state:"",city:""}))} style={IS}>
+                {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>State / Region</div>
+                <select value={nj.state} onChange={e=>setNj(j=>({...j,state:e.target.value,city:""}))} style={IS}>
+                  <option value="">All states</option>
+                  {Object.keys(LOCATIONS[nj.country]||{}).map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>City</div>
+                <select value={nj.city} onChange={e=>setNj(j=>({...j,city:e.target.value}))} style={IS}>
+                  <option value="">All cities</option>
+                  {(LOCATIONS[nj.country]?.[nj.state]||[]).map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+            </div>
+            {/* Sector + Role Type */}
+            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Sector</div>
+                <select value={nj.sector} onChange={e=>setNj(j=>({...j,sector:e.target.value}))} style={IS}>
+                  <option value="">Select…</option>
+                  {SECTORS.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Role Type</div>
+                <select value={nj.roleType} onChange={e=>setNj(j=>({...j,roleType:e.target.value}))} style={IS}>
+                  <option value="">Select…</option>
+                  {Object.entries(HOSPO_ROLES).map(([dept,roles])=><optgroup key={dept} label={dept}>{roles.map(r=><option key={r}>{r}</option>)}</optgroup>)}
+                </select>
+              </div>
+            </div>
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Role Tags <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(tap to add)</span></div>
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                {ROLE_TAGS.map(t=><button key={t} className="tap" onClick={()=>setNj(j=>({ ...j, tags:j.tags.includes(t)?j.tags.filter(x=>x!==t):[...j.tags,t] }))} style={{ background:nj.tags.includes(t)?C.terracottaL:C.bgSoft, border:`1px solid ${nj.tags.includes(t)?C.terracottaM:C.border}`, borderRadius:20, padding:"5px 12px", color:nj.tags.includes(t)?C.terracotta:C.textSoft, fontSize:12, fontWeight:nj.tags.includes(t)?600:400, transition:"all 0.15s" }}>{t}</button>)}
+              </div>
+            </div>
+            {!user.isTrial && (
+              <div style={{ marginBottom:12 }}>
+                <div className="tap" onClick={()=>setNj(j=>({...j,featured:!j.featured}))} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:nj.featured?C.featuredL:C.bgSoft, borderRadius:12, border:`1px solid ${nj.featured?C.featured+"40":C.border}`, cursor:"pointer" }}>
+                  <div style={{ width:20, height:20, borderRadius:5, background:nj.featured?C.featured:C.border, display:"flex", alignItems:"center", justifyContent:"center" }}>{nj.featured&&<Icon name="check" size={12} color="#fff"/>}</div>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:nj.featured?C.featured:C.textMid }}>⭐ Feature this listing (+$20)</div>
+                    <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Pin to top of feed for 7 days · More visibility</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Short Description</div>
+              <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
+            </div>
+            <div style={{ marginBottom:16 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
+              <textarea value={nj.full} onChange={e=>setNj(j=>({...j,full:e.target.value}))} placeholder="Full details, requirements, benefits…" rows={5} style={{...IS,resize:"vertical"}}/>
+            </div>
+            {!user.isTrial && (
+              <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sandL, borderRadius:12, border:`1px solid ${C.sand}40`, marginBottom:12 }}>
+                <span style={{ fontSize:20 }}>💳</span>
+                <div style={{ flex:1 }}>
+                  <div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>${nj.featured?70:50}.00 AUD {nj.featured?"(listing + featured)":"per listing"}</div>
+                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>One-time · GST included · Powered by Stripe</div>
+                </div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>${nj.featured?70:50}</div>
+              </div>
+            )}
+            {user.isTrial && <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>🎁</span><div style={{ flex:1 }}><div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>HospoSearch Trial — Free Post</div><div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Posting on behalf of a new venue</div></div><span style={{ color:C.sage, fontWeight:700 }}>FREE</span></div>}
+            <button className="btn-cta tap" onClick={post} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
+              {user.isTrial ? "Publish Free Listing" : "Continue to Payment →"}
+            </button>
+          </div>
+        )}
+
+        {posted && <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 20px" }}><div style={{ width:74, height:74, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38, marginBottom:16, border:`2px solid ${C.sage}` }}>🎉</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:24, color:C.textDark, fontWeight:700, marginBottom:6 }}>Listing Published!</div><div style={{ color:C.textMid }}>Your role is now live</div></div>}
+
+        {/* Applications */}
+        {tab==="apps" && (
+          <div style={{ height:"100%", overflowY:"auto", padding:"14px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              {sel && <button className="tap" onClick={()=>setSel(null)} style={{ background:"none", border:"none", padding:2 }}><Icon name="back" size={20} color={C.textDark}/></button>}
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700 }}>{sel?sel.title:"All Applications"}</div>
+            </div>
+            {(sel?[sel]:mine).map(j=>(
+              <div key={j.id}>
+                {!sel && <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:6, marginTop:10 }}>{j.title}</div>}
+                {(!j.apps||j.apps.length===0)
+                  ? <div style={{ padding:"16px", background:"#fff", borderRadius:11, color:C.textFaint, fontSize:13, textAlign:"center", border:`1px dashed ${C.border}` }}>No applications yet</div>
+                  : j.apps.map((a,i)=>(
+                    <div key={i} style={{ background:"#fff", borderRadius:13, padding:"12px 14px", border:`1px solid ${C.border}`, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:a.msg||a.resume||a.cover?9:0 }}>
+                        <div style={{ width:36, height:36, borderRadius:11, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>👤</div>
+                        <div style={{ flex:1 }}><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>{a.name}</div><div style={{ color:C.textFaint, fontSize:11 }}>{ago(a.ts)} ago</div></div>
+                        <div style={{ display:"flex", gap:6 }}>
+                          <select value={a.status||"Sent"} onChange={e=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:e.target.value}:ap)}:jj)); }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:C.textMid, fontSize:11, cursor:"pointer" }}>
+                            {["Sent","Viewed","Shortlisted","No thanks"].map(s=><option key={s}>{s}</option>)}
+                          </select>
+                          <button className="tap" onClick={()=>{ const key=`${a.uid}-${user.id}`; setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${j.title}. We'd love to have a chat.`, ts:Date.now() }] })); setTab("messages"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Message</button>
+                        </div>
+                      </div>
+                      {a.msg && <div style={{ color:C.textMid, fontSize:13, background:C.bgSoft, padding:"9px 11px", borderRadius:8, lineHeight:1.55, marginBottom:7 }}>{a.msg}</div>}
+                      {(a.resume||a.cover) && <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                        {a.resume&&<div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"4px 9px" }}><span style={{ fontSize:12 }}>📋</span><span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span><span style={{ color:C.textFaint, fontSize:10 }}>{fmtS(a.resume?.size)}</span></div>}
+                        {a.cover&&<div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"4px 9px" }}><span style={{ fontSize:12 }}>✉️</span><span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover</span></div>}
+                      </div>}
+                    </div>
+                  ))
+                }
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Talent discovery */}
+        {tab==="talent" && <CandidateDiscovery jobs={jobs} messages={messages} setMessages={setMessages} currentUser={user} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements}/>}
+
+        {/* Messages */}
+        {tab==="messages" && <MessagesScreen currentUser={user} userType="employer" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("feed")}/>}
+
+        {/* Analytics */}
+        {tab==="analytics" && (
+          <div style={{ height:"100%", overflowY:"auto", padding:"16px" }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700, marginBottom:16 }}>Analytics</div>
+            {mine.length===0 ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📊</div><div>Post a listing to see analytics</div></div> : (
+              mine.map(j=>(
+                <div key={j.id} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, padding:"14px 16px", marginBottom:12, boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:10 }}>{j.title}</div>
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8, marginBottom:10 }}>
+                    {[["Views",j.views||0,"👁️"],["Applications",j.apps?.length||0,"📋"],["Conv. Rate",j.views?(((j.apps?.length||0)/j.views)*100).toFixed(1)+"%":"—","📈"]].map(([l,v,ic])=>(
+                      <div key={l} style={{ background:C.bgSoft, borderRadius:10, padding:"10px 8px", textAlign:"center" }}>
+                        <div style={{ fontSize:16, marginBottom:2 }}>{ic}</div>
+                        <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.terracotta, fontWeight:700 }}>{v}</div>
+                        <div style={{ color:C.textFaint, fontSize:10 }}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ height:4, background:C.border, borderRadius:2, overflow:"hidden" }}>
+                    <div style={{ height:"100%", background:`linear-gradient(90deg,${C.terracotta},${C.sand})`, width:`${Math.min((j.apps?.length||0)/Math.max(j.views||1,1)*100*10,100)}%`, borderRadius:2 }}/>
+                  </div>
+                  <div style={{ color:C.textFaint, fontSize:11, marginTop:4 }}>Application rate vs views</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* Profile */}
+        {tab==="profile" && (
+          <div style={{ height:"100%", overflowY:"auto", padding:"20px 18px 40px" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:14 }}>
+              <div style={{ width:76, height:76, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, border:`3px solid ${C.border}` }}>{user.avatar}</div>
+              <div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{user.name}</div>
+                <div style={{ color:C.textSoft, fontSize:13 }}>@{user.handle}</div>
+                {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginTop:3, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:16, padding:"14px 0", borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, marginBottom:16 }}>
+              {[["Listings",mine.length],["Applications",apps],["Views",mine.reduce((s,j)=>s+(j.views||0),0)]].map(([l,v])=>(
+                <div key={l} style={{ textAlign:"center", flex:1 }}><div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{v}</div><div style={{ color:C.textSoft, fontSize:12 }}>{l}</div></div>
+              ))}
+            </div>
+            <div style={{ color:C.textSoft, fontSize:13, lineHeight:1.6, marginBottom:24 }}>{user.bio||"Your venue bio will appear here."}</div>
+            <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom nav */}
+      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <NavBtn t="browse" ic="home" l="Browse"/>
+        <NavBtn t="feed" ic="grid" l="Mine"/>
+        <NavBtn t="post" ic="plus" l="Post"/>
+        <NavBtn t="talent" ic="users" l="Talent"/>
+        <NavBtn t="apps" ic="briefcase" l="Applications" badge={apps}/>
+        <NavBtn t="profile" ic="person" l="Profile"/>
+      </div>
+
+      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured}/>}
+      {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
+      {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
+    </div>
+  );
+}
+
+// ─── Employee App ─────────────────────────────────────────────────────────────
+function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+  const [tab, setTab] = useState("home");
+  const [expandedJob, setExpandedJob] = useState(null);
+  const [venueProfile, setVenueProfile] = useState(null);
+  const [storyJob, setStoryJob] = useState(null);
+  const [bookmarks, setBookmarks] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [notifOpen, setNotifOpen] = useState(false);
+
+  const toggleFollow = id => setFollowing(f=>f.includes(id)?f.filter(x=>x!==id):[...f,id]);
+  const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
+  const handleApply = (job,fd) => setJobs(p=>p.map(j=>j.id===job.id?{...j,views:(j.views||0)+1,apps:[...(j.apps||[]),{uid:user.id,name:fd.name,msg:fd.msg,resume:fd.resume,cover:fd.cover,ts:Date.now(),status:"Sent"}]}:j));
+
+  const followedJobs = jobs.filter(j=>following.includes(j.empId)).sort((a,b)=>b.ts-a.ts);
+  const featuredJobs = jobs.filter(j=>j.featured);
+  const otherJobs = jobs.filter(j=>!following.includes(j.empId)).sort((a,b)=>(b.featured?1:0)-(a.featured?1:0)||b.ts-a.ts);
+  const sortedJobs = [...followedJobs,...otherJobs];
+  const hasDocs = profile?.resume||profile?.coverLetter;
+  const unreadMessages = Object.values(messages).filter(msgs=>msgs.some(m=>m.from!==user.id)).length;
+
+  const NavBtn = ({ t, ic, l, badge }) => (
+    <button className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
+      <Icon name={ic} size={24} color={tab===t?C.terracotta:C.textSoft} fill={tab===t&&ic==="person"?C.terracottaL:"none"}/>
+      {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
+      <span style={{ fontSize:10, color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400 }}>{l}</span>
+    </button>
+  );
+
+  return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
+      <style>{G}</style>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", padding:"10px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.97)", backdropFilter:"blur(10px)", flexShrink:0, zIndex:50 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:24, color:C.textDark, flex:1, letterSpacing:-0.3 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
+        <div style={{ display:"flex", gap:8, alignItems:"center" }}>
+          <button className="tap" onClick={()=>setNotifOpen(true)} style={{ background:"none", border:"none", padding:2, position:"relative" }}>
+            <Icon name="bell" size={22} color={C.textDark}/>
+            {(notifs[user.id]||[]).filter(n=>!n.read).length>0 && <div style={{ position:"absolute", top:0, right:0, width:8, height:8, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff" }}/>}
+          </button>
+          <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", padding:2, position:"relative" }}>
+            <Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textDark}/>
+            {unreadMessages>0 && <div style={{ position:"absolute", top:0, right:0, width:8, height:8, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff" }}/>}
+          </button>
+          <button className="tap" onClick={()=>setTab("profile")} style={{ position:"relative", width:32, height:32, borderRadius:10, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>
+            {user.avatar}
+            {hasDocs && <div style={{ position:"absolute", top:-2, right:-2, width:9, height:9, borderRadius:"50%", background:C.sage, border:"2px solid #fff" }}/>}
+          </button>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{ flex:1, overflow:"hidden" }}>
+        {tab==="home" && (
+          <div style={{ height:"100%", overflowY:"auto" }}>
+            <StoryBar jobs={jobs} following={following} currentUser={user} onOpen={(stories, startIndex)=>setStoryJob({ stories, startIndex })}/>
+            {featuredJobs.length>0 && (
+              <div style={{ background:C.featuredL, padding:"9px 16px", borderBottom:`1px solid ${C.featured}30`, display:"flex", alignItems:"center", gap:8 }}>
+                <Icon name="star" size={14} color={C.featured} fill={C.featured}/>
+                <span style={{ color:C.featured, fontSize:13, fontWeight:600 }}>{featuredJobs.length} featured listing{featuredJobs.length!==1?"s":""} this week</span>
+              </div>
+            )}
+            {following.length>0&&followedJobs.length>0 && <div style={{ background:`linear-gradient(135deg,${C.sageL},#F4F9F4)`, padding:"9px 16px", borderBottom:`1px solid ${C.sage}25`, display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:14 }}>⭐</span><span style={{ color:C.textMid, fontSize:13 }}><strong style={{ color:C.sage }}>{followedJobs.length}</strong> {followedJobs.length===1?"role":"roles"} from venues you follow</span></div>}
+            {!hasDocs && <div className="tap" onClick={()=>setTab("profile")} style={{ background:`linear-gradient(135deg,${C.sandL},${C.terracottaL})`, padding:"11px 16px", borderBottom:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}><span style={{ fontSize:17 }}>💡</span><div style={{ flex:1 }}><div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>Speed up your applications</div><div style={{ color:C.textSoft, fontSize:12 }}>Save résumé & cover letter to auto-attach</div></div><span style={{ color:C.terracotta, fontSize:13, fontWeight:600 }}>Set up →</span></div>}
+            {sortedJobs.map((j,i)=>(
+              <div key={j.id}>
+                {i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 16px 4px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
+                <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>
+              </div>
+            ))}
+            <div style={{ textAlign:"center", padding:"32px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:24, marginBottom:7 }}>🌿</div>You're all caught up!</div>
+          </div>
+        )}
+        {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow}/>}
+        {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
+        {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("home")}/>}
+        {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={()=>setTab("home")}/>}
+        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
+      </div>
+
+      {/* Bottom Nav */}
+      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <NavBtn t="home"     ic="home"      l="Home"/>
+        <NavBtn t="explore"  ic="search"    l="Explore"/>
+        <NavBtn t="activity" ic="briefcase" l="Activity"/>
+        <NavBtn t="messages" ic="chat"      l="Messages" badge={unreadMessages}/>
+        <NavBtn t="profile"  ic="person"    l="Profile"/>
+      </div>
+
+      {notifOpen && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:4000, display:"flex", flexDirection:"column", backdropFilter:"blur(2px)" }} onClick={()=>setNotifOpen(false)}>
+          <div style={{ flex:1, maxHeight:"15vh" }}/>
+          <div style={{ background:"#fff", borderRadius:"22px 22px 0 0", maxHeight:"85vh", overflow:"hidden", display:"flex", flexDirection:"column" }} onClick={e=>e.stopPropagation()}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 0", flexShrink:0 }}/>
+            <div style={{ flex:1, overflow:"hidden" }}>
+              <NotifCentre userId={user.id} notifs={notifs} setNotifs={setNotifs}/>
+            </div>
+          </div>
+        </div>
+      )}
+      {tab==="alerts" && null}
+      {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+      {storyJob && <StoryViewer stories={storyJob.stories} startIndex={storyJob.startIndex} currentUser={user} onClose={()=>setStoryJob(null)} onApply={setExpandedJob}/>}
+      {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={following} currentUser={user} onToggleFollow={toggleFollow} onApply={setExpandedJob} onBack={()=>setVenueProfile(null)}/>}
+    </div>
+  );
+}
+
+// ─── Admin Dashboard ──────────────────────────────────────────────────────────
+function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
+  const [tab, setTab] = useState("listings");
+  const [editJob, setEditJob] = useState(null);
+  const [editUser, setEditUser] = useState(null);
+  const [newCode, setNewCode] = useState({ code:"", pct:10, uses:50, desc:"", expires:"" });
+  const [codeSaved, setCodeSaved] = useState(false);
+  const allUsers = [...EMPLOYERS.filter(e=>!e.isTrial).map(e=>({...e,type:"employer"})), ...EMPLOYEES.map(e=>({...e,type:"employee"}))];
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
+  return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
+      <style>{G}</style>
+      <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:19, color:C.textDark, flex:1 }}>🛡️ Admin Panel</div>
+        <span style={{ background:"#FEF2F0", color:C.error, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.error}30`, marginRight:10 }}>ADMIN</span>
+        <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
+      </div>
+      <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        {[["listings","📋 Listings"],["users","👥 Users"],["codes","🎟️ Codes"]].map(([t,l])=>(
+          <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:13, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
+        ))}
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:14 }}>
+        {tab==="listings" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{jobs.length} total listing{jobs.length!==1?"s":""}</div>
+            {jobs.map(j=>{ const emp=EMPLOYERS.find(e=>e.id===j.empId); const first=j.photos[0]; const isd=isData(first); return (
+              <div key={j.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
+                <div style={{ display:"flex", height:72 }}>
+                  <div style={{ width:72, flexShrink:0, background:isd?"transparent":PBG[(typeof first==="number"?first:0)%PBG.length], overflow:"hidden" }}>
+                    {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.35 }}>{emp?.avatar||"📷"}</span></div>}
+                  </div>
+                  <div style={{ flex:1, padding:"10px 12px" }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{j.title}</div>
+                    <div style={{ color:C.textSoft, fontSize:11, marginBottom:5 }}>{j.venue} · {j.type} · {ago(j.ts)} ago</div>
+                    <div style={{ display:"flex", gap:6 }}>
+                      <button className="tap" onClick={()=>setEditJob({...j})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:7, padding:"4px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Edit</button>
+                      <button className="tap" onClick={()=>{ if(window.confirm("Delete this listing?")) setJobs(p=>p.filter(x=>x.id!==j.id)); }} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>Delete</button>
+                      <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>{j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
+                      {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ); })}
+            {jobs.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div>No listings yet</div>}
+          </div>
+        )}
+        {/* Discount Codes */}
+        {tab==="codes" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:4 }}>Discount Codes</div>
+            <div style={{ color:C.textSoft, fontSize:13, marginBottom:16 }}>Create and manage codes to give employers discounted listings.</div>
+
+            {/* Create new code */}
+            <div style={{ background:"#fff", borderRadius:14, padding:"14px 16px", border:`1px solid ${C.border}`, marginBottom:16, boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
+              <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:12 }}>Create New Code</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
+                  <div>
+                    <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Code</div>
+                    <input value={newCode.code} onChange={e=>setNewCode(c=>({...c,code:e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,"")}))} placeholder="e.g. HOSPO25" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13, textTransform:"uppercase", letterSpacing:1 }}/>
+                  </div>
+                  <div>
+                    <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Discount %</div>
+                    <input type="number" min="1" max="100" value={newCode.pct} onChange={e=>setNewCode(c=>({...c,pct:parseInt(e.target.value)||0}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                  </div>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
+                  <div>
+                    <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Max Uses</div>
+                    <input type="number" min="1" value={newCode.uses} onChange={e=>setNewCode(c=>({...c,uses:parseInt(e.target.value)||1}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                  </div>
+                  <div>
+                    <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Expires</div>
+                    <input type="date" value={newCode.expires} onChange={e=>setNewCode(c=>({...c,expires:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Description</div>
+                  <input value={newCode.desc} onChange={e=>setNewCode(c=>({...c,desc:e.target.value}))} placeholder="e.g. 25% off — early partner offer" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                </div>
+                {codeSaved && <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:C.sageL, borderRadius:9, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:12 }}>Code created!</span></div>}
+                <button className="btn-cta tap" onClick={()=>{
+                  if(!newCode.code.trim()||newCode.pct<1) return;
+                  setCodes(p=>({ ...p, [newCode.code]: { pct:newCode.pct, uses:newCode.uses, used:0, desc:newCode.desc, expires:newCode.expires||"2099-12-31", active:true } }));
+                  setNewCode({ code:"", pct:10, uses:50, desc:"", expires:"" });
+                  setCodeSaved(true); setTimeout(()=>setCodeSaved(false), 2000);
+                }} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Create Code</button>
+              </div>
+            </div>
+
+            {/* Existing codes */}
+            <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:10 }}>Active Codes ({Object.keys(codes).length})</div>
+            {Object.entries(codes).map(([code, data])=>{
+              const usagePct = Math.round((data.used/data.uses)*100);
+              const expired = new Date(data.expires) < new Date();
+              return (
+                <div key={code} style={{ background:"#fff", borderRadius:13, padding:"12px 14px", border:`1px solid ${expired||!data.active?C.error+"30":C.border}`, marginBottom:9, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                  <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+                    <div style={{ width:44, height:44, borderRadius:13, background:expired||!data.active?C.bgSoft:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>🎟️</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+                        <span style={{ fontFamily:"monospace", fontWeight:700, fontSize:15, color:C.textDark, letterSpacing:1 }}>{code}</span>
+                        <span style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>{data.pct}% off</span>
+                        {(expired||!data.active) && <span style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, color:C.error, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>{expired?"EXPIRED":"INACTIVE"}</span>}
+                      </div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginBottom:6 }}>{data.desc}</div>
+                      {/* Usage bar */}
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4 }}>
+                        <div style={{ flex:1, height:5, background:C.border, borderRadius:3, overflow:"hidden" }}>
+                          <div style={{ height:"100%", width:usagePct+"%", background:usagePct>80?C.error:C.terracotta, borderRadius:3, transition:"width 0.3s" }}/>
+                        </div>
+                        <span style={{ color:C.textFaint, fontSize:11, whiteSpace:"nowrap" }}>{data.used}/{data.uses} uses</span>
+                      </div>
+                      <div style={{ color:C.textFaint, fontSize:11 }}>Expires: {data.expires}</div>
+                    </div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:5, flexShrink:0 }}>
+                      <button className="tap" onClick={()=>setCodes(p=>({ ...p, [code]:{ ...p[code], active:!p[code].active } }))}
+                        style={{ background:data.active?C.sageL:"#fff", border:`1px solid ${data.active?C.sage:C.border}`, borderRadius:7, padding:"4px 10px", color:data.active?C.sage:C.textSoft, fontSize:11, fontWeight:600 }}>
+                        {data.active?"Active":"Paused"}
+                      </button>
+                      <button className="tap" onClick={()=>{ if(window.confirm("Delete code "+code+"?")) setCodes(p=>{ const n={...p}; delete n[code]; return n; }); }}
+                        style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            {Object.keys(codes).length===0 && <div style={{ textAlign:"center", padding:"30px 20px", color:C.textFaint }}><div style={{ fontSize:32, marginBottom:8 }}>🎟️</div><div>No codes yet</div></div>}
+          </div>
+        )}
+
+        {tab==="users" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+            <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{allUsers.length} registered users</div>
+            {allUsers.map(u=>(
+              <div key={u.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, padding:"12px 14px", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <div style={{ width:40, height:40, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{u.avatar}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:14, color:C.textDark }}>{u.name}</div>
+                    <div style={{ color:C.textSoft, fontSize:11 }}>{u.email}</div>
+                    <div style={{ display:"flex", gap:6, marginTop:4 }}>
+                      <span style={{ background:u.type==="employer"?C.terracottaL:C.sageL, border:`1px solid ${u.type==="employer"?C.terracottaM:C.sage+"40"}`, color:u.type==="employer"?C.terracotta:C.sage, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>{u.type.toUpperCase()}</span>
+                      {u.verified && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>VERIFIED</span>}
+                    </div>
+                  </div>
+                  <button className="tap" onClick={()=>setEditUser({...u})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"6px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>Edit</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {editJob && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(2px)" }}>
+          <div style={{ width:"100%", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"6px 20px 40px", maxHeight:"90vh", overflowY:"auto" }}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 18px" }}/>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>Edit Listing</div>
+              <button className="tap" onClick={()=>setEditJob(null)} style={{ background:"none", border:"none" }}><Icon name="close" size={20} color={C.textSoft}/></button>
+            </div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {[["Title","title"],["Venue","venue"],["Location","loc"],["Salary","salary"],["Short Description","short"],["Apply Link","link"]].map(([l,k])=>(
+                <div key={k}>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>{l}</div>
+                  {k==="short"?<textarea value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} rows={3} style={{...IS,resize:"none"}}/>:<input value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} style={IS}/>}
+                </div>
+              ))}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Type</div>
+                <select value={editJob.type} onChange={e=>setEditJob(j=>({...j,type:e.target.value}))} style={IS}>{["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}</select>
+              </div>
+              <div className="tap" onClick={()=>setEditJob(j=>({...j,featured:!j.featured}))} style={{ display:"flex", alignItems:"center", gap:9, padding:"10px 12px", background:editJob.featured?C.featuredL:C.bgSoft, borderRadius:10, border:`1px solid ${editJob.featured?C.featured+"40":C.border}`, cursor:"pointer" }}>
+                <div style={{ width:18, height:18, borderRadius:4, background:editJob.featured?C.featured:C.border, display:"flex", alignItems:"center", justifyContent:"center" }}>{editJob.featured&&<Icon name="check" size={11} color="#fff"/>}</div>
+                <span style={{ color:editJob.featured?C.featured:C.textMid, fontSize:13, fontWeight:500 }}>⭐ Featured listing</span>
+              </div>
+              <div style={{ display:"flex", gap:9, marginTop:4 }}>
+                <button className="tap" onClick={()=>setEditJob(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                <button className="btn-cta tap" onClick={()=>{ setJobs(p=>p.map(j=>j.id===editJob.id?editJob:j)); setEditJob(null); }} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {editUser && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(2px)" }}>
+          <div style={{ width:"100%", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"6px 20px 40px", maxHeight:"80vh", overflowY:"auto" }}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 18px" }}/>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>Edit User</div>
+              <button className="tap" onClick={()=>setEditUser(null)} style={{ background:"none", border:"none" }}><Icon name="close" size={20} color={C.textSoft}/></button>
+            </div>
+            <div style={{ background:C.bgSoft, borderRadius:10, padding:"10px 12px", marginBottom:14, border:`1px solid ${C.border}` }}><div style={{ color:C.textFaint, fontSize:11 }}>Note: In production, changes persist to your database.</div></div>
+            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+              {[["Name","name"],["Email","email"],["Handle","handle"],editUser.type==="employer"?["Bio","bio"]:["Role","role"]].map(([l,k])=>(
+                <div key={k}><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>{l}</div><input value={editUser[k]||""} onChange={e=>setEditUser(u=>({...u,[k]:e.target.value}))} style={IS}/></div>
+              ))}
+              <div className="tap" onClick={()=>setEditUser(u=>({...u,verified:!u.verified}))} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", background:editUser.verified?C.sageL:C.bgSoft, borderRadius:10, border:`1px solid ${editUser.verified?C.sage+"40":C.border}`, cursor:"pointer" }}>
+                <div style={{ width:18, height:18, borderRadius:4, background:editUser.verified?C.sage:C.border, display:"flex", alignItems:"center", justifyContent:"center" }}>{editUser.verified&&<Icon name="check" size={11} color="#fff"/>}</div>
+                <span style={{ color:C.textMid, fontSize:13 }}>Verified {editUser.type}</span>
+              </div>
+              <div style={{ display:"flex", gap:9, marginTop:4 }}>
+                <button className="tap" onClick={()=>setEditUser(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                <button className="btn-cta tap" onClick={()=>setEditUser(null)} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Root ─────────────────────────────────────────────────────────────────────
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [type, setType] = useState(null);
+  const [jobs, setJobs] = useState(INIT_JOBS);
+  const [profile, setProfile] = useState({ resume:null, coverLetter:null });
+  const [following, setFollowing] = useState([]);
+  const [messages, setMessages] = useState(INIT_MESSAGES);
+  const [refs, setRefs]         = useState(INIT_REFERENCES);
+  const [notifs, setNotifs]     = useState(INIT_NOTIFS);
+  const [endorsements, setEndorsements] = useState(INIT_ENDORSEMENTS);
+  const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS);
+  const [codes, setCodes]               = useState(INIT_CODES);
+  const logout = () => { setUser(null); setType(null); };
+  if (!user) return <Login onLogin={(u,t)=>{ setUser(u); setType(t); }}/>;
+  if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
+  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout}/>;
+  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout}/>;
+}
