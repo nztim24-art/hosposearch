@@ -1870,6 +1870,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 function Login({ onLogin }) {
   const [mode, setMode] = useState("employee");
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
+  const [logoTaps, setLogoTaps] = useState(0);
   const go = () => {
     setErr("");
     if (email===ADMIN.email&&pass===ADMIN.password) { onLogin(ADMIN,"admin"); return; }
@@ -1889,7 +1890,7 @@ function Login({ onLogin }) {
       <div style={{ position:"fixed", bottom:-60, left:-60, width:200, height:200, borderRadius:"50%", background:`radial-gradient(circle,${C.sageL},transparent 70%)`, pointerEvents:"none" }}/>
       <div style={{ width:"100%", maxWidth:380, position:"relative" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
-          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px", boxShadow:`0 6px 18px ${C.terracottaM}` }}>🍽️</div>
+          <div onClick={()=>setLogoTaps(t=>t+1)} style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px", boxShadow:`0 6px 18px ${C.terracottaM}`, cursor:"default", userSelect:"none" }}>🍽️</div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:700, color:C.textDark, letterSpacing:-0.5 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
           <div style={{ color:C.textFaint, fontSize:11, marginTop:5, letterSpacing:2.5, textTransform:"uppercase", fontWeight:500 }}>Hospitality Jobs · ANZ</div>
         </div>
@@ -1905,14 +1906,25 @@ function Login({ onLogin }) {
             {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{err}</div>}
             <button className="btn-cta tap" onClick={go} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Log In</button>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:10, margin:"16px 0" }}><div style={{ flex:1, height:1, background:C.border }}/><span style={{ color:C.textFaint, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:C.border }}/></div>
-          <div style={{ display:"flex", gap:9 }}>
-            {[["employee","👨‍🍳","Job Seeker"],["employer","🍽️","Employer"]].map(([t,ic,l])=>(
-              <button key={t} className="tap" onClick={()=>demo(t)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textMid, fontSize:13, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:6 }}><span>{ic}</span>{l}</button>
-            ))}
-          </div>
         </div>
-        <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:12 }}>Don't have an account? <span style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span></div>
+        <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:12 }}>
+          Don't have an account? <span style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span>
+        </div>
+        {/* Hidden dev access — tap logo 5x to reveal demo buttons */}
+        {logoTaps>=5 && (
+          <div style={{ marginTop:16, background:C.bgSoft, borderRadius:14, padding:"14px 16px", border:`1px dashed ${C.border}` }}>
+            <div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:10, textAlign:"center" }}>Dev Access</div>
+            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+              {[["employee","👨‍🍳","Job Seeker"],["employer","🍽️","Employer"],["admin","🛡️","Admin"],["trial","🔍","Trial"]].map(([t,ic,l])=>(
+                <button key={t} className="tap" onClick={()=>{
+                  if(t==="admin"){setEmail(ADMIN.email);setPass(ADMIN.password);}
+                  else if(t==="trial"){setEmail("trial@hosposearch.com.au");setPass("hospo_trial!");}
+                  else demo(t);
+                }} style={{ flex:1, minWidth:70, background:"#fff", border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textMid, fontSize:12, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}><span>{ic}</span>{l}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
