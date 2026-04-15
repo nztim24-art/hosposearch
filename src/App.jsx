@@ -1990,14 +1990,34 @@ function Login({ onLogin }) {
     // Check hardcoded trial account
     const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
     if (trial) { onLogin(trial,"employer"); return; }
-    // Check demo accounts
+    // Check demo accounts — detect wrong account type and give helpful message
+    const wrongPool = mode==="employer"?EMPLOYEES:EMPLOYERS;
+    const wrongType = wrongPool.find(u=>u.email===email&&u.password===pass);
+    if (wrongType) {
+      const correctType = mode==="employer"?"Job Seeker":"Employer";
+      setErr(`This account is registered as a ${correctType}. Please switch the toggle above.`);
+      return;
+    }
     const pool = mode==="employer"?EMPLOYERS:EMPLOYEES;
     const demoUser = pool.find(u=>u.email===email&&u.password===pass);
     if (demoUser) { onLogin(demoUser, mode); return; }
-    // Try Supabase auth
+    // Try Supabase auth — logs in regardless of mode toggle, uses account's actual type
     try {
       const { profile } = await signIn(email, pass);
-      if (profile) { onLogin(profile, profile.type === 'employer' ? 'employer' : 'employee'); return; }
+      if (profile) {
+        const accountType = profile.type === 'employer' ? 'employer' : 'employee';
+        // If they picked the wrong toggle, show helpful message
+        if (mode === 'employer' && accountType === 'employee') {
+          setErr("This account is registered as a Job Seeker. Switch the toggle to Job Seeker to log in.");
+          return;
+        }
+        if (mode === 'employee' && accountType === 'employer') {
+          setErr("This account is registered as an Employer. Switch the toggle to Employer to log in.");
+          return;
+        }
+        onLogin(profile, accountType);
+        return;
+      }
     } catch(e) {
       setErr("Incorrect email or password.");
     }
