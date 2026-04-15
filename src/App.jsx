@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob, incrementViews, fetchCodes } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -65,6 +66,48 @@ const ADMIN = { id:"admin", email:"admin@hosposearch.com.au", password:"hospo202
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
 const ROLE_TAGS = ["Chef Hat Venue","Fine Dining","Rooftop Bar","Resort","Group Venue","Michelin-Calibre","Hatted Restaurant","Waterfront","CBD","Regional","Award-Winning","Seasonal Menu"];
 const SALARY_BANDS = ["Under $50k","$50–70k","$70–90k","$90–110k","$110k+","Hourly Rate"];
+
+// ─── Visa options by country ─────────────────────────────────────────────────
+const VISA_OPTIONS = {
+  "Australia": [
+    "I'm an Australian citizen",
+    "I'm a permanent resident and/or NZ citizen",
+    "I have a family/partner visa with no restrictions",
+    "I have a graduate temporary work visa",
+    "I have a holiday temporary work visa",
+    "I have a temporary visa with restrictions on work location (e.g. 491)",
+    "I have a temporary visa with no restrictions (e.g. doctoral student)",
+    "I have a temporary visa with restrictions on work hours (e.g. student visa)",
+    "I have a temporary visa with restrictions on industry (e.g. 408)",
+    "I require sponsorship (e.g. 482, 457)",
+  ],
+  "New Zealand": [
+    "I'm a New Zealand citizen",
+    "I'm an Australian citizen or permanent resident",
+    "I hold a Skilled Migrant resident visa",
+    "I hold an Essential Skills work visa",
+    "I hold a Working Holiday visa",
+    "I hold a student visa (with work rights)",
+    "I require sponsorship / Accredited Employer Work Visa",
+  ],
+  "United Kingdom": [
+    "I'm a UK/Irish citizen",
+    "I hold Indefinite Leave to Remain",
+    "I hold a Skilled Worker visa",
+    "I hold a Graduate visa",
+    "I hold a Youth Mobility Scheme visa",
+    "I require visa sponsorship",
+  ],
+  "default": [
+    "I am legally authorised to work in this country",
+    "I hold a valid work visa",
+    "I require visa sponsorship",
+    "Other — I will provide details",
+  ],
+};
+
+const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const NOTICE_PERIODS = ["I can start immediately","1 week","2 weeks","3 weeks","4 weeks","6 weeks","2 months","3 months or more"];
 
 // ─── Location hierarchy ──────────────────────────────────────────────────────
 const LOCATIONS = {
@@ -1836,19 +1879,82 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Your Application</div>
               <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>For <strong style={{ color:C.textDark }}>{job.title}</strong> at {job.venue}</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
-                <input value={fd.name} onChange={e=>setFd(f=>({...f,name:e.target.value}))} placeholder="Your full name" style={IS}/>
-                <textarea value={fd.msg} onChange={e=>setFd(f=>({...f,msg:e.target.value}))} placeholder="Quick cover note (optional)…" rows={3} style={{...IS,resize:"none"}}/>
-                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:11 }}>
+              <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+                {/* Name */}
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Name *</div>
+                  <input value={fd.name} onChange={e=>setFd(f=>({...f,name:e.target.value}))} placeholder="Your full name" style={IS}/>
+                </div>
+
+                {/* Cover note */}
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Cover Note <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
+                  <textarea value={fd.msg} onChange={e=>setFd(f=>({...f,msg:e.target.value}))} placeholder="Introduce yourself briefly…" rows={3} style={{...IS,resize:"none"}}/>
+                </div>
+
+                {/* Documents */}
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:9 }}>📎 Documents</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
                     <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume(f)} onRemove={()=>setResume(null)}/>
                     <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover(f)} onRemove={()=>setCover(null)}/>
                   </div>
                 </div>
-                <div style={{ display:"flex", gap:9 }}>
+
+                {/* Right to work */}
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+                  <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>🛂 Right to Work</div>
+                  <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which best describes your right to work in {job.country||"this country"}?</div>
+                  <select value={fd.visa||""} onChange={e=>setFd(f=>({...f,visa:e.target.value}))} style={IS}>
+                    <option value="">Select your visa / work status…</option>
+                    {(VISA_OPTIONS[job.country]||VISA_OPTIONS["default"]).map(v=><option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+
+                {/* Availability */}
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+                  <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📅 Availability</div>
+                  <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which days are you available to work?</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {DAYS_OF_WEEK.map(day=>{
+                      const sel = (fd.availability||[]).includes(day);
+                      return (
+                        <button key={day} type="button" className="tap" onClick={()=>setFd(f=>({ ...f, availability: sel ? (f.availability||[]).filter(d=>d!==day) : [...(f.availability||[]), day] }))}
+                          style={{ background:sel?C.terracotta:"#fff", border:`1.5px solid ${sel?C.terracotta:C.border}`, borderRadius:20, padding:"6px 13px", color:sel?"#fff":C.textMid, fontSize:12, fontWeight:sel?600:400, transition:"all 0.15s" }}>
+                          {day.slice(0,3)}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ color:C.textSoft, fontSize:12, marginTop:10, marginBottom:6 }}>Preferred hours:</div>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                    {["Full-time","Part-time","Casual / On-call","Weekends only","Evenings only","Public holidays"].map(h=>{
+                      const sel = (fd.hours||[]).includes(h);
+                      return (
+                        <button key={h} type="button" className="tap" onClick={()=>setFd(f=>({ ...f, hours: sel ? (f.hours||[]).filter(x=>x!==h) : [...(f.hours||[]), h] }))}
+                          style={{ background:sel?C.sage:"#fff", border:`1.5px solid ${sel?C.sage:C.border}`, borderRadius:20, padding:"5px 12px", color:sel?"#fff":C.textMid, fontSize:11, fontWeight:sel?600:400, transition:"all 0.15s" }}>
+                          {h}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Notice period */}
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+                  <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>⏱️ Notice Period</div>
+                  <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>How much notice do you need to give your current employer?</div>
+                  <select value={fd.notice||""} onChange={e=>setFd(f=>({...f,notice:e.target.value}))} style={IS}>
+                    <option value="">Select…</option>
+                    {NOTICE_PERIODS.map(n=><option key={n} value={n}>{n}</option>)}
+                  </select>
+                </div>
+
+                {/* Buttons */}
+                <div style={{ display:"flex", gap:9, paddingTop:4 }}>
                   <button className="tap" onClick={()=>setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
-                  <button className="btn-cta tap" onClick={submit} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Submit</button>
+                  <button className="btn-cta tap" onClick={submit} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Submit Application</button>
                 </div>
               </div>
             </div>
@@ -1868,19 +1974,69 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 function Login({ onLogin }) {
+  const [screen, setScreen] = useState("login"); // login | signup
   const [mode, setMode] = useState("employee");
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
   const [logoTaps, setLogoTaps] = useState(0);
-  const go = () => {
+  // Sign up fields
+  const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:"employee" });
+  const [suErr, setSuErr] = useState("");
+  const [suDone, setSuDone] = useState(false);
+
+  const go = async () => {
     setErr("");
+    // Check hardcoded admin first
     if (email===ADMIN.email&&pass===ADMIN.password) { onLogin(ADMIN,"admin"); return; }
+    // Check hardcoded trial account
     const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
     if (trial) { onLogin(trial,"employer"); return; }
+    // Check demo accounts
     const pool = mode==="employer"?EMPLOYERS:EMPLOYEES;
-    const u = pool.find(u=>u.email===email&&u.password===pass);
-    if (!u) { setErr("Incorrect email or password."); return; }
-    onLogin(u,mode);
+    const demoUser = pool.find(u=>u.email===email&&u.password===pass);
+    if (demoUser) { onLogin(demoUser, mode); return; }
+    // Try Supabase auth
+    try {
+      const { profile } = await signIn(email, pass);
+      if (profile) { onLogin(profile, profile.type === 'employer' ? 'employer' : 'employee'); return; }
+    } catch(e) {
+      setErr("Incorrect email or password.");
+    }
   };
+
+  const signUp = async () => {
+    setSuErr("");
+    if (!su.name.trim()) { setSuErr("Please enter your name."); return; }
+    if (!su.email.includes("@")) { setSuErr("Please enter a valid email."); return; }
+    if (su.pass.length < 6) { setSuErr("Password must be at least 6 characters."); return; }
+    if (su.pass !== su.pass2) { setSuErr("Passwords don't match."); return; }
+    try {
+      const { profile } = await sbSignUp(su.email, su.pass, su.name, su.mode);
+      setSuDone(true);
+      setTimeout(()=>{ onLogin(profile, su.mode); }, 1400);
+    } catch(e) {
+      // If Supabase signup fails (e.g. email already exists), fall back to session account
+      if (e.message?.includes('already')) {
+        setSuErr("An account with this email already exists. Please log in.");
+      } else {
+        // Create session-only account as fallback
+        const newUser = {
+          id: "new_" + Date.now(),
+          email: su.email,
+          name: su.name,
+          handle: su.name.toLowerCase().replace(/\s+/g,"_"),
+          avatar: su.mode==="employer" ? "🍽️" : "👨‍🍳",
+          role: su.mode==="employer" ? "" : "Hospitality Professional",
+          type: su.mode,
+          verified: false,
+          bio: "",
+          ...(su.mode==="employer" ? { cuisine:"", venue_size:"", awards:[] } : { experience:"", cuisine_tags:[], location:"", available:true, skills:[], work_history:[], portfolio_photos:[] }),
+        };
+        setSuDone(true);
+        setTimeout(()=>{ onLogin(newUser, su.mode); }, 1400);
+      }
+    }
+  };
+
   const demo = t => { if(t==="employer"){setEmail("hire@attica.com.au");setPass("pass123");setMode("employer");}else{setEmail("chef@gmail.com");setPass("pass123");setMode("employee");} };
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 14px", color:C.textDark, fontSize:15 };
   return (
@@ -1894,6 +2050,42 @@ function Login({ onLogin }) {
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:700, color:C.textDark, letterSpacing:-0.5 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
           <div style={{ color:C.textFaint, fontSize:11, marginTop:5, letterSpacing:2.5, textTransform:"uppercase", fontWeight:500 }}>Hospitality Jobs · ANZ</div>
         </div>
+
+        {/* ── Sign Up Screen ── */}
+        {screen==="signup" && (
+          <div>
+            {suDone ? (
+              <div style={{ textAlign:"center", padding:"32px 0" }}>
+                <div style={{ width:66, height:66, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, margin:"0 auto 14px", border:`2px solid ${C.sage}` }}>🎉</div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.textDark, fontWeight:700, marginBottom:6 }}>Welcome to HospoSearch!</div>
+                <div style={{ color:C.textSoft, fontSize:14 }}>Setting up your account…</div>
+              </div>
+            ) : (
+              <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:16 }}>Create Account</div>
+                <div style={{ display:"flex", background:C.bgSoft, borderRadius:12, padding:3, marginBottom:20, border:`1px solid ${C.border}` }}>
+                  {[["employee","👨‍🍳 Job Seeker"],["employer","🍽️ Employer"]].map(([m,l])=>(
+                    <button key={m} onClick={()=>setSu(s=>({...s,mode:m}))} style={{ flex:1, padding:"9px 0", border:"none", borderRadius:9, background:su.mode===m?"#fff":"transparent", color:su.mode===m?C.terracotta:C.textSoft, fontWeight:su.mode===m?600:400, fontSize:13, boxShadow:su.mode===m?"0 1px 5px rgba(0,0,0,0.07)":"none", transition:"all 0.18s" }}>{l}</button>
+                  ))}
+                </div>
+                <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+                  <input value={su.name} onChange={e=>setSu(s=>({...s,name:e.target.value}))} placeholder={su.mode==="employer"?"Venue / Business name":"Your full name"} style={IS}/>
+                  <input value={su.email} onChange={e=>setSu(s=>({...s,email:e.target.value}))} placeholder="Email address" type="email" style={IS}/>
+                  <input value={su.pass} onChange={e=>setSu(s=>({...s,pass:e.target.value}))} placeholder="Password (min. 6 characters)" type="password" style={IS}/>
+                  <input value={su.pass2} onChange={e=>setSu(s=>({...s,pass2:e.target.value}))} placeholder="Confirm password" type="password" onKeyDown={e=>e.key==="Enter"&&signUp()} style={IS}/>
+                  {suErr && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{suErr}</div>}
+                  <button className="btn-cta tap" onClick={signUp} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Create Account</button>
+                </div>
+                <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:13 }}>
+                  Already have an account? <span onClick={()=>setScreen("login")} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Log in</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Login Screen ── */}
+        {screen==="login" && <>
         <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
           <div style={{ display:"flex", background:C.bgSoft, borderRadius:12, padding:3, marginBottom:20, border:`1px solid ${C.border}` }}>
             {[["employee","Job Seeker"],["employer","Employer"]].map(([m,l])=>(
@@ -1908,8 +2100,9 @@ function Login({ onLogin }) {
           </div>
         </div>
         <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:12 }}>
-          Don't have an account? <span style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span>
+          Don't have an account? <span onClick={()=>setScreen("signup")} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span>
         </div>
+        </>}
         {/* Hidden dev access — tap logo 5x to reveal demo buttons */}
         {logoTaps>=5 && (
           <div style={{ marginTop:16, background:C.bgSoft, borderRadius:14, padding:"14px 16px", border:`1px dashed ${C.border}` }}>
@@ -2718,19 +2911,78 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [user, setUser] = useState(null);
-  const [type, setType] = useState(null);
-  const [jobs, setJobs] = useState(INIT_JOBS);
+  const [user, setUser]     = useState(null);
+  const [type, setType]     = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
-  const [messages, setMessages] = useState(INIT_MESSAGES);
-  const [refs, setRefs]         = useState(INIT_REFERENCES);
-  const [notifs, setNotifs]     = useState(INIT_NOTIFS);
+  const [messages, setMessages]   = useState(INIT_MESSAGES);
+  const [refs, setRefs]           = useState(INIT_REFERENCES);
+  const [notifs, setNotifs]       = useState(INIT_NOTIFS);
   const [endorsements, setEndorsements] = useState(INIT_ENDORSEMENTS);
   const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS);
   const [codes, setCodes]               = useState(INIT_CODES);
-  const logout = () => { setUser(null); setType(null); };
-  if (!user) return <Login onLogin={(u,t)=>{ setUser(u); setType(t); }}/>;
+
+  // ── Load session + jobs on mount ──────────────────────────────────────────
+  useEffect(()=>{
+    const init = async () => {
+      try {
+        // Try to restore session from Supabase
+        const profile = await getSession();
+        if (profile) {
+          setUser(profile);
+          setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+        }
+      } catch(e) { /* no session — show login */ }
+
+      // Load jobs from Supabase
+      try {
+        const dbJobs = await fetchJobs();
+        if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+      } catch(e) { /* use seed data if DB empty */ }
+
+      // Load discount codes from Supabase
+      try {
+        const dbCodes = await fetchCodes();
+        if (dbCodes && Object.keys(dbCodes).length > 0) setCodes(dbCodes);
+      } catch(e) { /* use seed codes */ }
+
+      setLoading(false);
+    };
+    init();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') { setUser(null); setType(null); }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const logout = async () => {
+    try { await signOut(); } catch(e) {}
+    setUser(null); setType(null);
+  };
+
+  const handleLogin = async (u, t) => {
+    setUser(u); setType(t);
+    // Reload jobs after login
+    try {
+      const dbJobs = await fetchJobs();
+      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+    } catch(e) {}
+  };
+
+  if (loading) return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FAF8F4", fontFamily:"'DM Sans',sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500&display=swap');`}</style>
+      <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#C4623A,#C9A96E)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, marginBottom:16, boxShadow:"0 6px 18px rgba(196,98,58,0.3)" }}>🍽️</div>
+      <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:800, color:"#1A1A1A", letterSpacing:-0.5 }}><span style={{ color:"#C4623A" }}>Hospo</span>Search</div>
+      <div style={{ color:"#BBB", fontSize:12, marginTop:8, letterSpacing:2, textTransform:"uppercase" }}>Loading…</div>
+    </div>
+  );
+
+  if (!user) return <Login onLogin={handleLogin}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout}/>;

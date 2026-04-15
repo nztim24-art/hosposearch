@@ -322,7 +322,25 @@ export default function Landing() {
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#pricing">Pricing</a></li>
           <li><a href="#locations">Locations</a></li>
-          <li><Link to="/app">Log in</Link></li>
+          <li style={{position:'relative'}} className="hs-login-dd"
+            onMouseEnter={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='block'}
+            onMouseLeave={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='none'}>
+            <a href="#" onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:5}}>
+              Log in <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6,9 12,15 18,9"/></svg>
+            </a>
+            <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,marginTop:8,background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',minWidth:180,overflow:'hidden',zIndex:200}}>
+              <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                <span style={{fontSize:18}}>👨‍🍳</span><div><div style={{fontWeight:600,fontSize:13}}>Job Seeker</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Find your next role</div></div>
+              </Link>
+              <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,transition:'background 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                <span style={{fontSize:18}}>🍽️</span><div><div style={{fontWeight:600,fontSize:13}}>Employer</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Post jobs & find talent</div></div>
+              </Link>
+            </div>
+          </li>
           <li><Link to="/app" className="hs-nav-cta">Post a Job →</Link></li>
         </ul>
       </nav>
@@ -340,7 +358,17 @@ export default function Landing() {
             </p>
             <div className="hs-hero-actions fade-up-4">
               <Link to="/app" className="btn-primary">Post a Job — $50 AUD →</Link>
-              <Link to="/app" className="btn-secondary">Browse Roles</Link>
+              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'700',textDecoration:'none',border:'2px solid var(--ink)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='var(--ink)';e.currentTarget.style.color='white';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='var(--ink)';}}>
+                🔍 Browse Roles — Free
+              </Link>
+            </div>
+            <div className="fade-up-5" style={{marginTop:12,display:'flex',alignItems:'center',gap:8}}>
+              <span style={{fontSize:12,color:'var(--ink-soft)'}}>Job seekers:</span>
+              {['Head Chef','Sommelier','Barista','Floor Manager','Kitchen Hand'].map(r=>(
+                <Link key={r} to="/app" style={{background:'var(--terra-l)',border:'1px solid var(--terra-m, #E8CFBF)',color:'var(--terra)',fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap'}}>{r}</Link>
+              ))}
             </div>
             <div className="hs-trust fade-up-5">
               <div className="hs-trust-avatars">
