@@ -200,35 +200,97 @@ const styles = `
   .reveal{opacity:0;transform:translateY(24px);transition:opacity 0.65s ease,transform 0.65s ease;}
   .reveal.visible{opacity:1;transform:translateY(0);}
 
-  /* Mobile */
+  /* ── Tablet (max 900px) ── */
   @media(max-width:900px){
-    .hs-nav{padding:16px 20px;}
+    .hs-nav{padding:14px 20px;}
     .hs-nav-links{display:none;}
-    .hs-hero{padding:100px 20px 60px;}
-    .hs-hero-inner{grid-template-columns:1fr;}
-    .hs-phone-wrap{display:none;}
-    .hs-section{padding:64px 20px;}
+
+    /* Hero — stack vertically */
+    .hs-hero{padding:90px 20px 48px!important;min-height:auto!important;}
+    .hs-hero-inner-grid{grid-template-columns:1fr!important;gap:28px!important;}
+    .hs-hero-title{font-size:clamp(36px,9vw,54px)!important;}
+    .hs-hero-sub{font-size:15px!important;}
+
+    /* Sections */
+    .hs-section{padding:52px 20px;}
+    .hs-section-title{font-size:clamp(26px,7vw,40px);}
+
+    /* Split panels */
     .hs-split{grid-template-columns:1fr;}
-    .hs-split-panel{padding:36px 28px;}
+    .hs-split-panel{padding:32px 24px;}
+
+    /* Stats 2x2 */
     .hs-stats-inner{grid-template-columns:repeat(2,1fr);}
-    .hs-stat{padding:28px 20px;}
+    .hs-stat{padding:24px 16px;}
     .hs-stat:nth-child(2){border-right:none;}
-    .hs-stat-num{font-size:36px;}
+    .hs-stat-num{font-size:34px;}
+
+    /* App showcase — stack to single col, phone on top */
+    .hs-showcase-section{padding:52px 20px!important;}
+    .hs-showcase-grid{grid-template-columns:1fr!important;gap:24px!important;}
+    .hs-showcase-grid>div:nth-child(2){order:-1;display:flex!important;justify-content:center;}
+    .hs-showcase-grid>div:nth-child(1),
+    .hs-showcase-grid>div:nth-child(3){flex-direction:column!important;text-align:left!important;}
+    .hs-showcase-grid>div:nth-child(3)>div{flex-direction:row!important;text-align:left!important;}
+    .hs-showcase-grid>div:nth-child(3)>div>div:last-child{text-align:left!important;}
+
+    /* Pricing — single column */
+    .hs-pricing{padding:60px 20px;}
+    .hs-pricing-tier-grid{grid-template-columns:1fr!important;max-width:420px!important;margin:0 auto!important;}
+    .hs-pricing-tier-grid>div:nth-child(2){transform:none!important;box-shadow:0 8px 24px rgba(0,0,0,0.3)!important;}
+
+    /* Seek compare table — horizontal scroll */
+    .hs-compare-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:16px;}
+    .hs-compare-wrap table{min-width:600px;}
+
+    /* Categories 2 cols */
     .hs-cats{grid-template-columns:repeat(2,1fr);}
+
+    /* Testimonials single col */
     .hs-testi-grid{grid-template-columns:1fr;}
+
+    /* Locations 3 cols */
     .hs-locs-grid{grid-template-columns:repeat(3,1fr);}
-    .hs-pricing-cards{grid-template-columns:1fr;max-width:380px;}
-    .hs-footer-top{grid-template-columns:1fr 1fr;gap:32px;}
+
+    /* Footer */
+    .hs-footer-top{grid-template-columns:1fr 1fr;gap:28px;}
     .hs-footer-bottom{flex-direction:column;gap:10px;text-align:center;}
-    .hs-final{padding:72px 20px;}
-    .hs-pricing{padding:72px 20px;}
+    .hs-final{padding:64px 20px;}
+    .hs-final-title{font-size:clamp(30px,8vw,48px);}
   }
-  @media(max-width:520px){
-    .hs-cats{grid-template-columns:repeat(2,1fr);}
+
+  /* ── Mobile (max 600px) ── */
+  @media(max-width:600px){
+    .hs-hero{padding:80px 16px 40px!important;}
+    .hs-section{padding:44px 16px;}
+
+    /* Hero CTAs full width */
+    .hs-hero-actions{flex-direction:column;align-items:stretch!important;}
+    .hs-hero-actions a{width:100%!important;justify-content:center!important;text-align:center;}
+
+    /* Final CTA */
+    .hs-final-actions{flex-direction:column;align-items:center;}
+    .hs-final-actions a{width:100%;max-width:320px;justify-content:center;}
+
+    /* Locations 2 cols */
     .hs-locs-grid{grid-template-columns:repeat(2,1fr);}
+
+    /* Footer single col */
     .hs-footer-top{grid-template-columns:1fr;}
-    .hs-hero-actions{flex-direction:column;align-items:flex-start;}
-    .hs-final-actions{flex-direction:column;}
+
+    /* Cats 2 cols */
+    .hs-cats{grid-template-columns:repeat(2,1fr);}
+
+    /* Pricing single col */
+    .hs-pricing-tier-grid{grid-template-columns:1fr!important;max-width:100%!important;}
+    .hs-pricing-tier-grid>div{padding:24px 20px!important;}
+
+    /* Pricing — reduce font size on small screens */
+    .hs-price-big{font-size:42px!important;}
+
+    /* Seek compare smaller font */
+    .hs-compare-wrap table{font-size:11px!important;}
+    .hs-compare-wrap td,.hs-compare-wrap th{padding:9px 12px!important;}
   }
 `
 
@@ -359,7 +421,7 @@ export default function Landing() {
 
       {/* Hero — two column: left text, right live Instagram feed */}
       <section className="hs-hero" style={{minHeight:'90vh',padding:'110px 40px 60px',alignItems:'center'}}>
-        <div style={{maxWidth:1160,margin:'0 auto',width:'100%',display:'grid',gridTemplateColumns:'1fr 1fr',gap:64,alignItems:'center'}}>
+        <div className="hs-hero-inner" className='hs-hero-inner-grid' style={{maxWidth:1160,margin:'0 auto',width:'100%',display:'grid',gridTemplateColumns:'1fr 1fr',gap:64,alignItems:'center'}}>
           {/* Left — candidate copy */}
           <div>
             <div className="hs-eyebrow fade-up-1">Now live · Australia &amp; New Zealand</div>
@@ -445,7 +507,7 @@ export default function Landing() {
       </div>
 
       {/* App showcase + Instagram feed placeholder */}
-      <section style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
+      <section className='hs-showcase-section' style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
         <div style={{position:'absolute',top:-200,right:-200,width:600,height:600,borderRadius:'50%',background:'radial-gradient(circle,rgba(196,98,58,0.15),transparent 65%)',pointerEvents:'none'}}/>
         <div style={{maxWidth:1160,margin:'0 auto',position:'relative',zIndex:1}}>
           <div style={{textAlign:'center',marginBottom:52}}>
@@ -459,7 +521,7 @@ export default function Landing() {
           </div>
 
           {/* Phone + feature callouts */}
-          <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:40,alignItems:'center'}}>
+          <div className="hs-showcase-grid" style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:40,alignItems:'center'}}>
             {/* Left features */}
             <div style={{display:'flex',flexDirection:'column',gap:24}}>
               {[
@@ -629,7 +691,7 @@ export default function Landing() {
           </div>
 
           {/* 3 Olympic tier cards */}
-          <div className="reveal" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+          <div className="reveal hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
 
             {/* Bronze — $50 */}
             <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
@@ -642,7 +704,7 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Standard Listing</div>
                 </div>
               </div>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$50</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$50</div>
               <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'].map(f=>(
@@ -670,7 +732,7 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Featured Listing</div>
                 </div>
               </div>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$70</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$70</div>
               <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'].map(f=>(
@@ -698,7 +760,7 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Premium Listing</div>
                 </div>
               </div>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$100</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$100</div>
               <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {[
@@ -725,7 +787,7 @@ export default function Landing() {
           </div>
 
           {/* Seek comparison table */}
-          <div className="reveal" style={{maxWidth:900,background:'rgba(255,255,255,0.04)',borderRadius:20,border:'1px solid rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:28}}>
+          <div className="reveal hs-compare-table" style={{maxWidth:900,background:'rgba(255,255,255,0.04)',borderRadius:20,border:'1px solid rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:28}}>
             <div style={{padding:'20px 28px',borderBottom:'1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',gap:10}}>
               <span style={{fontSize:14,fontWeight:700,color:'white'}}>How we compare</span>
               <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>— vs the alternatives</span>
