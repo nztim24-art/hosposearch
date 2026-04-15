@@ -135,7 +135,7 @@ const styles = `
   .hs-pricing{background:var(--ink);padding:100px 40px;position:relative;overflow:hidden;}
   .hs-pricing::before{content:'';position:absolute;top:-200px;right:-200px;width:700px;height:700px;border-radius:50%;background:radial-gradient(circle,rgba(196,98,58,0.15),transparent 65%);pointer-events:none;}
   .hs-pricing-inner{max-width:1160px;margin:0 auto;position:relative;z-index:1;}
-  .hs-pricing-cards{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:740px;}
+  .hs-pricing-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;max-width:900px;}
   .hs-price-card{background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:36px 32px;position:relative;transition:all 0.22s;}
   .hs-price-card:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.2);}
   .hs-price-card.featured{background:var(--terra);border-color:var(--terra);}
@@ -357,38 +357,65 @@ export default function Landing() {
         </ul>
       </nav>
 
-      {/* Hero — full width, centred, candidate-first */}
-      <section className="hs-hero" style={{minHeight:'80vh',textAlign:'center',alignItems:'center',padding:'120px 40px 60px'}}>
-        <div style={{maxWidth:760,margin:'0 auto',width:'100%'}}>
-          <div className="hs-eyebrow fade-up-1" style={{margin:'0 auto 24px'}}>Now live · Australia &amp; New Zealand</div>
-          <h1 className="hs-hero-title fade-up-2" style={{fontSize:'clamp(48px,7vw,88px)',letterSpacing:'-2px',marginBottom:24}}>
-            Your next great<br/><em>hospitality role</em><br/>starts here
-          </h1>
-          <p className="hs-hero-sub fade-up-3" style={{maxWidth:520,margin:'0 auto 36px',fontSize:18}}>
-            Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
-          </p>
-          <div className="hs-hero-actions fade-up-4" style={{justifyContent:'center',marginBottom:20}}>
-            <Link to="/app" className="btn-primary" style={{fontSize:16,padding:'16px 36px'}}>🔍 Find Jobs — Free</Link>
-            <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'15px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
-              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
-              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
-              Hiring? Post a job →
-            </Link>
-          </div>
-          <div className="fade-up-5" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,flexWrap:'wrap',marginBottom:32}}>
-            <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular:</span>
-            {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager','Kitchen Hand'].map(r=>(
-              <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 11px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
-            ))}
-          </div>
-          <div className="hs-trust fade-up-5" style={{justifyContent:'center'}}>
-            <div className="hs-trust-avatars">
-              <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
+      {/* Hero — two column: left text, right live Instagram feed */}
+      <section className="hs-hero" style={{minHeight:'90vh',padding:'110px 40px 60px',alignItems:'center'}}>
+        <div style={{maxWidth:1160,margin:'0 auto',width:'100%',display:'grid',gridTemplateColumns:'1fr 1fr',gap:64,alignItems:'center'}}>
+          {/* Left — candidate copy */}
+          <div>
+            <div className="hs-eyebrow fade-up-1">Now live · Australia &amp; New Zealand</div>
+            <h1 className="hs-hero-title fade-up-2" style={{fontSize:'clamp(40px,5.5vw,72px)',letterSpacing:'-2px',marginBottom:22}}>
+              Your next great<br/><em>hospitality role</em><br/>starts here
+            </h1>
+            <p className="hs-hero-sub fade-up-3" style={{marginBottom:32,fontSize:17}}>
+              Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
+            </p>
+            <div className="hs-hero-actions fade-up-4" style={{marginBottom:18}}>
+              <Link to="/app" className="btn-primary">🔍 Find Jobs — Free</Link>
+              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 24px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
+                Hiring? Post a job →
+              </Link>
             </div>
-            <div className="hs-trust-text">
-              <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
+            <div className="fade-up-5" style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:28}}>
+              <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular:</span>
+              {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager'].map(r=>(
+                <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 10px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
+              ))}
+            </div>
+            <div className="hs-trust fade-up-5">
+              <div className="hs-trust-avatars">
+                <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
+              </div>
+              <div className="hs-trust-text">
+                <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
+              </div>
+            </div>
+          </div>
+
+          {/* Right — live Instagram feed */}
+          <div className="fade-up-3" style={{position:'relative'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:14}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="white"/></svg>
+                </div>
+                <div>
+                  <div style={{fontWeight:700,fontSize:13,color:'var(--ink)'}}>@hosposearch</div>
+                  <div style={{fontSize:11,color:'var(--ink-soft)'}}>Latest from Instagram</div>
+                </div>
+              </div>
+              <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
+                style={{fontSize:12,fontWeight:600,color:'var(--terra)',textDecoration:'none',border:'1px solid var(--terra)',borderRadius:20,padding:'4px 12px',transition:'all 0.15s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='var(--terra-l)'}
+                onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                Follow
+              </a>
+            </div>
+            <div style={{borderRadius:16,overflow:'hidden',border:'1px solid var(--border)',boxShadow:'0 8px 32px rgba(0,0,0,0.08)'}}>
+              <behold-widget feed-id="SVyieFYXHAirbiQqA0Ws"></behold-widget>
             </div>
           </div>
         </div>
@@ -600,27 +627,143 @@ export default function Landing() {
             <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>No subscriptions.<br/>No hidden fees.</h2>
             <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'52px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing. Job seekers are always free. GST included.</p>
           </div>
-          <div className="hs-pricing-cards reveal">
-            <div className="hs-price-card">
-              <div className="hs-price-name">Standard Listing</div>
-              <div className="hs-price-amount">$50</div>
-              <div className="hs-price-period">AUD · one-time · GST incl.</div>
-              <ul className="hs-price-feats">
-                {['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'].map(f=><li key={f}>{f}</li>)}
+
+          {/* 3 Olympic tier cards */}
+          <div className="reveal" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+
+            {/* Bronze — $50 */}
+            <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#C9A96E'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#8B6914'}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥉</div>
+                <div>
+                  <div style={{color:'#C9A96E',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Bronze</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Standard Listing</div>
+                </div>
+              </div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$50</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#C9A96E',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
               </ul>
-              <Link to="/app" className="btn-price">Post a Job</Link>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='rgba(201,169,110,0.25)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='rgba(201,169,110,0.15)';}}>
+                Post a Job
+              </Link>
             </div>
-            <div className="hs-price-card featured">
-              <div className="hs-price-badge">⭐ Most Popular</div>
-              <div className="hs-price-name">Featured Listing</div>
-              <div className="hs-price-amount">$70</div>
-              <div className="hs-price-period">AUD · one-time · GST incl.</div>
-              <ul className="hs-price-feats">
-                {['Everything in Standard','Pinned to top of feed','Featured badge & gold star','Priority in search results','7-day featured spotlight','3× more applications on average'].map(f=><li key={f}>{f}</li>)}
+
+            {/* Silver — $70 */}
+            <div style={{background:'linear-gradient(145deg,#1E2228,#151A20)',border:'2px solid #A8B8C8',borderRadius:24,padding:'32px 28px',position:'relative',transform:'translateY(-8px)',boxShadow:'0 20px 50px rgba(0,0,0,0.4)',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#D0E0F0'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#A8B8C8'}>
+              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#A8B8C8,#D0E0F0)',color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥈</div>
+                <div>
+                  <div style={{color:'#C0D0E0',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Silver</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Featured Listing</div>
+                </div>
+              </div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$70</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#C0D0E0',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
               </ul>
-              <Link to="/app" className="btn-price">Post Featured</Link>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                Post Featured
+              </Link>
+            </div>
+
+            {/* Gold — $100 */}
+            <div style={{background:'linear-gradient(145deg,#231A08,#1A1205)',border:'1px solid #D4A017',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#FFD700'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#D4A017'}>
+              <div style={{position:'absolute',top:12,right:12,background:'linear-gradient(135deg,#D4A017,#FFD700)',color:'#1A1000',fontSize:9,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'3px 10px',borderRadius:100}}>NEW</div>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥇</div>
+                <div>
+                  <div style={{color:'#FFD700',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Gold</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Premium Listing</div>
+                </div>
+              </div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$100</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {[
+                  'Everything in Silver',
+                  'Shared on @hosposearch Instagram',
+                  'Shared on HospoSearch Facebook',
+                  'Up to 5 employer screening questions',
+                  'Applicant auto-ranking by answers',
+                  'Priority application inbox',
+                  'Listing reviewed & copy improved by our team',
+                  'Gold "Premium Venue" verified badge',
+                ].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#FFD700',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                Post Premium Gold
+              </Link>
             </div>
           </div>
+
+          {/* Seek comparison table */}
+          <div className="reveal" style={{maxWidth:900,background:'rgba(255,255,255,0.04)',borderRadius:20,border:'1px solid rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:28}}>
+            <div style={{padding:'20px 28px',borderBottom:'1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:14,fontWeight:700,color:'white'}}>How we compare</span>
+              <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>— vs the alternatives</span>
+            </div>
+            <div style={{overflowX:'auto'}}>
+              <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                <thead>
+                  <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                    {['Feature','Seek','HospoSearch Bronze','HospoSearch Silver','HospoSearch Gold'].map((h,i)=>(
+                      <th key={h} style={{padding:'12px 20px',textAlign:i===0?'left':'center',color:i===0?'rgba(255,255,255,0.4)':i===1?'rgba(255,255,255,0.4)':i===2?'#C9A96E':i===3?'#C0D0E0':'#FFD700',fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ['Price per listing','$275–$695','$50','$70','$100'],
+                    ['Hospitality-specific','✗','✓','✓','✓'],
+                    ['Instagram-style feed','✗','✓','✓','✓'],
+                    ['Story-style profiles','✗','✓','✓','✓'],
+                    ['Pinned to top of feed','Extra cost','—','✓ 30 days','✓ 30 days'],
+                    ['Social media promotion','✗','✗','✗','✓ Instagram + Facebook'],
+                    ['Screening questions','Extra cost','✗','✗','✓ Up to 5'],
+                    ['Applicant auto-ranking','✗','✗','✗','✓'],
+                    ['Listing copy review','✗','✗','✗','✓'],
+                    ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
+                  ].map(([feat,...vals])=>(
+                    <tr key={feat} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                      <td style={{padding:'11px 20px',color:'rgba(255,255,255,0.65)',fontWeight:500}}>{feat}</td>
+                      {vals.map((v,i)=>(
+                        <td key={i} style={{padding:'11px 20px',textAlign:'center',color:v==='✓'||v.startsWith('✓')?i===1?'#C9A96E':i===2?'#C0D0E0':'#FFD700':v==='✗'?'rgba(255,255,255,0.2)':i===0?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.55)',fontWeight:v==='✓'||v.startsWith('✓')||v==='✗'?700:400,whiteSpace:'nowrap'}}>{v}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           <div className="hs-pricing-note reveal">Job seekers always browse and apply for free</div>
         </div>
       </section>
