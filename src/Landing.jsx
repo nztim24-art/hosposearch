@@ -328,17 +328,20 @@ export default function Landing() {
             <a href="#" onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:5}}>
               Log in <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6,9 12,15 18,9"/></svg>
             </a>
-            <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,marginTop:8,background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',minWidth:180,overflow:'hidden',zIndex:200}}>
-              <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
-                onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                <span style={{fontSize:18}}>👨‍🍳</span><div><div style={{fontWeight:600,fontSize:13}}>Job Seeker</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Find your next role</div></div>
-              </Link>
-              <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,transition:'background 0.15s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
-                onMouseLeave={e=>e.currentTarget.style.background='white'}>
-                <span style={{fontSize:18}}>🍽️</span><div><div style={{fontWeight:600,fontSize:13}}>Employer</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Post jobs & find talent</div></div>
-              </Link>
+            {/* paddingTop bridges the gap so mouse doesn't leave the hover zone */}
+            <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,paddingTop:6,zIndex:200,minWidth:180}}>
+              <div style={{background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',overflow:'hidden'}}>
+                <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                  onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                  <span style={{fontSize:18}}>👨‍🍳</span><div><div style={{fontWeight:600,fontSize:13}}>Job Seeker</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Find your next role</div></div>
+                </Link>
+                <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,transition:'background 0.15s'}}
+                  onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                  onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                  <span style={{fontSize:18}}>🍽️</span><div><div style={{fontWeight:600,fontSize:13}}>Employer</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Post jobs & find talent</div></div>
+                </Link>
+              </div>
             </div>
           </li>
           <li><Link to="/app" className="hs-nav-cta">Post a Job →</Link></li>
@@ -351,23 +354,25 @@ export default function Landing() {
           <div>
             <div className="hs-eyebrow fade-up-1">Now live · Australia &amp; New Zealand</div>
             <h1 className="hs-hero-title fade-up-2">
-              Where great<br/><em>hospitality</em><br/>talent is found
+              Your next great<br/><em>hospitality role</em><br/>starts here
             </h1>
             <p className="hs-hero-sub fade-up-3">
-              The dedicated jobs platform for restaurants, hotels, bars, and cafés across Australia and New Zealand. Find exceptional people. Find your next role.
+              Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
             </p>
             <div className="hs-hero-actions fade-up-4">
-              <Link to="/app" className="btn-primary">Post a Job — $50 AUD →</Link>
-              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'700',textDecoration:'none',border:'2px solid var(--ink)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='var(--ink)';e.currentTarget.style.color='white';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='transparent';e.currentTarget.style.color='var(--ink)';}}>
-                🔍 Browse Roles — Free
+              <Link to="/app" className="btn-primary">🔍 Find Jobs — Free</Link>
+              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
+                Hiring? Post a job →
               </Link>
             </div>
-            <div className="fade-up-5" style={{marginTop:12,display:'flex',alignItems:'center',gap:8}}>
-              <span style={{fontSize:12,color:'var(--ink-soft)'}}>Job seekers:</span>
-              {['Head Chef','Sommelier','Barista','Floor Manager','Kitchen Hand'].map(r=>(
-                <Link key={r} to="/app" style={{background:'var(--terra-l)',border:'1px solid var(--terra-m, #E8CFBF)',color:'var(--terra)',fontSize:11,fontWeight:600,padding:'3px 10px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap'}}>{r}</Link>
+            <div className="fade-up-5" style={{marginTop:16,display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
+              <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular searches:</span>
+              {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager','Kitchen Hand'].map(r=>(
+                <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 11px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
+                  onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
               ))}
             </div>
             <div className="hs-trust fade-up-5">
@@ -375,7 +380,7 @@ export default function Landing() {
                 <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
               </div>
               <div className="hs-trust-text">
-                <strong>Built for hospitality.</strong><br/>Instagram-style job discovery
+                <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
               </div>
             </div>
           </div>
@@ -459,25 +464,25 @@ export default function Landing() {
             <p className="hs-section-sub">Whether you're a venue looking for your next great hire, or a hospitality professional ready for your next move.</p>
           </div>
           <div className="hs-split reveal">
+            <div className="hs-split-panel cand">
+              <div className="hs-split-icon cand">👨‍🍳</div>
+              <div className="hs-split-eyebrow cand">For Job Seekers</div>
+              <h3 className="hs-split-title">Find your next role in hospitality</h3>
+              <p className="hs-split-desc">Browse roles from the best venues in Australia, New Zealand and worldwide. Apply in seconds — it's completely free.</p>
+              <ul className="hs-feat-list">
+                {['Swipe through roles like an Instagram feed','Filter by country, state, city, sector and role type','Save résumé & cover letter to auto-attach','Track every application and its status','Get job alerts for matching roles','Build a portfolio with work history and photos','Collect verified references and skill endorsements'].map(f=><li key={f}>{f}</li>)}
+              </ul>
+              <Link to="/app" className="btn-cand">Browse Jobs — Free →</Link>
+            </div>
             <div className="hs-split-panel emp">
               <div className="hs-split-icon emp">🍽️</div>
               <div className="hs-split-eyebrow emp">For Employers</div>
               <h3 className="hs-split-title">Hire exceptional hospitality talent</h3>
               <p className="hs-split-desc">Post your role in minutes. Reach thousands of qualified candidates across Australia, New Zealand, and beyond.</p>
               <ul className="hs-feat-list">
-                {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards','Analytics — views, applications, conversion rate','Featured listings for maximum visibility'].map(f=><li key={f}>{f}</li>)}
+                {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','From just $50 AUD per listing'].map(f=><li key={f}>{f}</li>)}
               </ul>
               <Link to="/app" className="btn-emp">Post a Job — From $50 →</Link>
-            </div>
-            <div className="hs-split-panel cand">
-              <div className="hs-split-icon cand">👨‍🍳</div>
-              <div className="hs-split-eyebrow cand">For Job Seekers</div>
-              <h3 className="hs-split-title">Find your next role in hospitality</h3>
-              <p className="hs-split-desc">Browse roles from the best venues in the industry. Apply in seconds with your saved profile and documents.</p>
-              <ul className="hs-feat-list">
-                {['Swipe through roles like an Instagram feed','Filter by country, state, city, sector and role type','Save résumé & cover letter to auto-attach','Track every application and its status','Get job alerts for matching roles','Build a portfolio with work history and photos','Collect verified references and skill endorsements'].map(f=><li key={f}>{f}</li>)}
-              </ul>
-              <Link to="/app" className="btn-cand">Browse Jobs — Free →</Link>
             </div>
           </div>
         </div>
@@ -578,13 +583,93 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* Instagram Feed Section */}
+      <section className="hs-section" style={{background:'white',paddingTop:'80px',paddingBottom:'80px'}}>
+        <div className="hs-section-inner">
+          <div className="reveal" style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:36,flexWrap:'wrap',gap:16}}>
+            <div>
+              <div className="hs-section-tag">Follow along</div>
+              <h2 className="hs-section-title" style={{marginBottom:8}}>Behind the pass</h2>
+              <p style={{color:'var(--ink-soft)',fontSize:15,lineHeight:1.6,maxWidth:480}}>
+                Stories from the hospitality industry — venue spotlights, chef profiles, career tips and the jobs everyone's talking about.
+              </p>
+            </div>
+            <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:9,background:'var(--cream)',border:'1px solid var(--border)',borderRadius:100,padding:'10px 20px',textDecoration:'none',color:'var(--ink)',fontSize:13,fontWeight:600,flexShrink:0,transition:'all 0.2s'}}
+              onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';}}
+              onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
+              @hosposearch
+            </a>
+          </div>
+
+          {/* Instagram-style card grid */}
+          <div className="reveal" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
+            {[
+              { emoji:'👨‍🍳', color:'linear-gradient(145deg,#EDE0D0,#CEBBA0)', tag:'Chef Spotlight', title:'From Commis to Head Chef: Jordan Lim's story at Attica', desc:'Five years, three sections, and one phone call that changed everything. We sat down with Jordan to talk about the journey.', time:'2 days ago', likes:'847', comments:'43' },
+              { emoji:'🌸', color:'linear-gradient(145deg,#D0E0D0,#AACCAA)', tag:'New Listing', title:'Tetsuya's is hiring a Sommelier — $70–85k + benefits', desc:'One of Sydney's most iconic restaurants is looking for a passionate sommelier to join their award-winning team.', time:'4 days ago', likes:'1.2k', comments:'91' },
+              { emoji:'☕', color:'linear-gradient(145deg,#E8E0D4,#D4C8B8)', tag:'Career Tips', title:'How to nail a hospitality interview in 2025', desc:'The industry has changed. Here's what top venues are actually looking for — and how to walk in ready.', time:'1 week ago', likes:'2.1k', comments:'156' },
+              { emoji:'🏨', color:'linear-gradient(145deg,#D8E4D8,#AACCAA)', tag:'Venue Spotlight', title:'Inside the Langham: what it's really like to work in a 5-star hotel', desc:'From concierge to kitchen — we went behind the scenes at one of Melbourne's most celebrated properties.', time:'1 week ago', likes:'934', comments:'67' },
+              { emoji:'🍷', color:'linear-gradient(145deg,#E4D8CC,#C8A888)', tag:'Industry News', title:'Hospitality wages are rising in 2025 — here's what to know', desc:'New award rates, tipping culture, and what candidates should be negotiating for in their next role.', time:'2 weeks ago', likes:'3.4k', comments:'218' },
+              { emoji:'🎯', color:'linear-gradient(145deg,#E0D4E8,#C8B8D4)', tag:'For Employers', title:'Why your job ad isn't getting applications (and how to fix it)', desc:'We analysed 500 listings. The ones that get 3× more applications all have one thing in common.', time:'2 weeks ago', likes:'1.8k', comments:'104' },
+            ].map((post,i)=>(
+              <a key={i} href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
+                className="reveal"
+                style={{background:'var(--cream)',borderRadius:20,overflow:'hidden',border:'1px solid var(--border)',textDecoration:'none',color:'var(--ink)',display:'block',transition:'all 0.22s',cursor:'pointer'}}
+                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 12px 32px rgba(0,0,0,0.08)';e.currentTarget.style.borderColor='var(--terra)';}}
+                onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='var(--border)';}}>
+                {/* Card image */}
+                <div style={{height:160,background:post.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,position:'relative'}}>
+                  {post.emoji}
+                  <div style={{position:'absolute',top:12,left:12,background:'rgba(255,255,255,0.9)',borderRadius:20,padding:'3px 10px',fontSize:10,fontWeight:700,color:'var(--terra)',letterSpacing:0.5,textTransform:'uppercase'}}>
+                    {post.tag}
+                  </div>
+                </div>
+                {/* Card body */}
+                <div style={{padding:'16px 18px 18px'}}>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:'var(--ink)',lineHeight:1.3,marginBottom:8}}>
+                    {post.title}
+                  </div>
+                  <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.6,marginBottom:14,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
+                    {post.desc}
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <span style={{fontSize:11,color:'var(--ink-faint)'}}>{post.time}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:12}}>
+                      <span style={{fontSize:11,color:'var(--ink-soft)',display:'flex',alignItems:'center',gap:3}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+                        {post.likes}
+                      </span>
+                      <span style={{fontSize:11,color:'var(--ink-soft)',display:'flex',alignItems:'center',gap:3}}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                        {post.comments}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          <div className="reveal" style={{textAlign:'center',marginTop:36}}>
+            <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
+              style={{display:'inline-flex',alignItems:'center',gap:8,background:'var(--ink)',color:'white',padding:'13px 28px',borderRadius:100,fontSize:14,fontWeight:600,textDecoration:'none',transition:'all 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.opacity='0.85'}
+              onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="white"/></svg>
+              Follow @hosposearch for more
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="hs-final">
-        <h2 className="hs-final-title">Ready to find<br/>your next great match?</h2>
-        <p className="hs-final-sub">Join thousands of hospitality professionals and venues across ANZ and beyond.</p>
+        <h2 className="hs-final-title">Your next role is<br/>waiting for you</h2>
+        <p className="hs-final-sub">Join 18,000+ hospitality professionals who have already found their next opportunity on HospoSearch.</p>
         <div className="hs-final-actions">
-          <Link to="/app" className="btn-white">Post a Job — $50 AUD →</Link>
-          <Link to="/app" className="btn-ghost">Browse Jobs — Free</Link>
+          <Link to="/app" className="btn-white">🔍 Find Jobs — Free</Link>
+          <Link to="/app" className="btn-ghost">Hiring? Post a job →</Link>
         </div>
       </section>
 
