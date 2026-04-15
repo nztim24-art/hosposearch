@@ -38,7 +38,7 @@ const styles = `
   .hs-hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;padding:120px 40px 80px;position:relative;overflow:hidden;}
   .hs-hero::before{content:'';position:absolute;top:-120px;right:-120px;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(196,98,58,0.12) 0%,transparent 70%);pointer-events:none;}
   .hs-hero::after{content:'';position:absolute;bottom:-80px;left:-80px;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(107,143,113,0.10) 0%,transparent 70%);pointer-events:none;}
-  .hs-hero-inner{max-width:1160px;margin:0 auto;width:100%;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;}
+  .hs-hero-inner{max-width:760px;margin:0 auto;width:100%;}
   .hs-eyebrow{display:inline-flex;align-items:center;gap:8px;background:var(--terra-l);border:1px solid rgba(196,98,58,0.25);color:var(--terra);font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;padding:6px 14px;border-radius:100px;margin-bottom:24px;}
   .hs-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--terra);animation:pulse 2s infinite;}
   .hs-hero-title{font-family:'Playfair Display',serif;font-size:clamp(42px,5.5vw,72px);font-weight:900;line-height:1.05;letter-spacing:-1.5px;color:var(--ink);margin-bottom:24px;}
@@ -254,6 +254,15 @@ export default function Landing() {
       document.head.appendChild(link)
     }
 
+    // Inject Behold Instagram widget script
+    if (!document.querySelector('#behold-script')) {
+      const s = document.createElement('script')
+      s.id = 'behold-script'
+      s.type = 'module'
+      s.src = 'https://w.behold.so/widget.js'
+      document.head.appendChild(s)
+    }
+
     // Nav shrink on scroll
     const handleScroll = () => {
       if (!navRef.current) return
@@ -348,85 +357,38 @@ export default function Landing() {
         </ul>
       </nav>
 
-      {/* Hero */}
-      <section className="hs-hero">
-        <div className="hs-hero-inner">
-          <div>
-            <div className="hs-eyebrow fade-up-1">Now live · Australia &amp; New Zealand</div>
-            <h1 className="hs-hero-title fade-up-2">
-              Your next great<br/><em>hospitality role</em><br/>starts here
-            </h1>
-            <p className="hs-hero-sub fade-up-3">
-              Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
-            </p>
-            <div className="hs-hero-actions fade-up-4">
-              <Link to="/app" className="btn-primary">🔍 Find Jobs — Free</Link>
-              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
-                Hiring? Post a job →
-              </Link>
-            </div>
-            <div className="fade-up-5" style={{marginTop:16,display:'flex',alignItems:'center',gap:7,flexWrap:'wrap'}}>
-              <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular searches:</span>
-              {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager','Kitchen Hand'].map(r=>(
-                <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 11px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
-                  onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
-                  onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
-              ))}
-            </div>
-            <div className="hs-trust fade-up-5">
-              <div className="hs-trust-avatars">
-                <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
-              </div>
-              <div className="hs-trust-text">
-                <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
-              </div>
-            </div>
+      {/* Hero — full width, centred, candidate-first */}
+      <section className="hs-hero" style={{minHeight:'80vh',textAlign:'center',alignItems:'center',padding:'120px 40px 60px'}}>
+        <div style={{maxWidth:760,margin:'0 auto',width:'100%'}}>
+          <div className="hs-eyebrow fade-up-1" style={{margin:'0 auto 24px'}}>Now live · Australia &amp; New Zealand</div>
+          <h1 className="hs-hero-title fade-up-2" style={{fontSize:'clamp(48px,7vw,88px)',letterSpacing:'-2px',marginBottom:24}}>
+            Your next great<br/><em>hospitality role</em><br/>starts here
+          </h1>
+          <p className="hs-hero-sub fade-up-3" style={{maxWidth:520,margin:'0 auto 36px',fontSize:18}}>
+            Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
+          </p>
+          <div className="hs-hero-actions fade-up-4" style={{justifyContent:'center',marginBottom:20}}>
+            <Link to="/app" className="btn-primary" style={{fontSize:16,padding:'16px 36px'}}>🔍 Find Jobs — Free</Link>
+            <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'15px 28px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
+              Hiring? Post a job →
+            </Link>
           </div>
-
-          {/* Phone mockup */}
-          <div style={{position:'relative',display:'flex',justifyContent:'center',alignItems:'center'}} className="fade-up-3">
-            <div className="hs-phone-wrap">
-              <div className="hs-phone-badge">✨ Head Chef · $90–110k</div>
-              <div className="hs-phone-badge-2">🎉 Application sent!</div>
-              <div className="deco-ring" style={{width:'340px',height:'340px',top:'-40px',left:'-40px'}}/>
-              <div className="deco-ring" style={{width:'240px',height:'240px',top:'20px',left:'20px',opacity:0.5}}/>
-              <div className="hs-phone">
-                <div className="hs-phone-notch"/>
-                <div className="hs-phone-screen">
-                  <div className="hs-phone-header">
-                    <div className="hs-phone-logo"><span>Hospo</span>Search</div>
-                    <span style={{fontSize:'18px'}}>🔔</span>
-                  </div>
-                  <div style={{display:'flex',gap:'12px',padding:'10px 12px',background:'white',borderBottom:'1px solid #EAE4DA',overflow:'hidden'}}>
-                    {[['🍽️','Attica','story-new'],['🌸',"Tetsuya's",'story-fol'],['⚓','Quay','story-seen']].map(([emoji,name,cls])=>(
-                      <div key={name} style={{textAlign:'center',flexShrink:0}}>
-                        <div style={{width:'44px',height:'44px',borderRadius:'50%',
-                          background: cls==='story-new'?'conic-gradient(#C4623A 0%,#C9A96E 55%,#C4623A 100%)':
-                                      cls==='story-fol'?'conic-gradient(#6B8F71 0%,#A8D4AE 55%,#6B8F71 100%)':'#D0C8BC',
-                          padding:'2.5px',margin:'0 auto 3px'}}>
-                          <div style={{width:'100%',height:'100%',borderRadius:'50%',background:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:'18px'}}>{emoji}</div>
-                        </div>
-                        <div style={{fontSize:'8px',color:'#888'}}>{name}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {[
-                    {emoji:'🍽️',title:'Head Chef',meta:'Attica · Ripponlea VIC',salary:'$90–110k · Full-time',bg:'linear-gradient(145deg,#EDE0D0,#CEBBA0)'},
-                    {emoji:'🌸',title:'Sommelier',meta:"Tetsuya's · Sydney NSW",salary:"$70–85k · Full-time",bg:'linear-gradient(145deg,#D0E0D0,#AACCAA)'},
-                  ].map(c=>(
-                    <div className="hs-phone-card" key={c.title}>
-                      <div className="hs-phone-card-img" style={{background:c.bg}}>{c.emoji}</div>
-                      <div className="hs-phone-card-body">
-                        <div className="hs-phone-card-title">{c.title}</div>
-                        <div className="hs-phone-card-meta">{c.meta}</div>
-                        <div className="hs-phone-card-salary">{c.salary}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div className="fade-up-5" style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,flexWrap:'wrap',marginBottom:32}}>
+            <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular:</span>
+            {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager','Kitchen Hand'].map(r=>(
+              <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 11px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
+                onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
+                onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
+            ))}
+          </div>
+          <div className="hs-trust fade-up-5" style={{justifyContent:'center'}}>
+            <div className="hs-trust-avatars">
+              <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
+            </div>
+            <div className="hs-trust-text">
+              <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
             </div>
           </div>
         </div>
@@ -454,6 +416,102 @@ export default function Landing() {
           ))}
         </div>
       </div>
+
+      {/* App showcase + Instagram feed placeholder */}
+      <section style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
+        <div style={{position:'absolute',top:-200,right:-200,width:600,height:600,borderRadius:'50%',background:'radial-gradient(circle,rgba(196,98,58,0.15),transparent 65%)',pointerEvents:'none'}}/>
+        <div style={{maxWidth:1160,margin:'0 auto',position:'relative',zIndex:1}}>
+          <div style={{textAlign:'center',marginBottom:52}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:'var(--terra)',marginBottom:12}}>The app</div>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(30px,4vw,48px)',fontWeight:900,color:'white',letterSpacing:-1,lineHeight:1.1,marginBottom:14}}>
+              Job discovery, reimagined
+            </h2>
+            <p style={{color:'rgba(255,255,255,0.55)',fontSize:15,maxWidth:480,margin:'0 auto'}}>
+              Browse roles like an Instagram feed. Apply in seconds. Follow your favourite venues. Built entirely for hospitality.
+            </p>
+          </div>
+
+          {/* Phone + feature callouts */}
+          <div style={{display:'grid',gridTemplateColumns:'1fr auto 1fr',gap:40,alignItems:'center'}}>
+            {/* Left features */}
+            <div style={{display:'flex',flexDirection:'column',gap:24}}>
+              {[
+                {icon:'📸',title:'Story-style venue profiles',desc:'Follow venues and see their latest roles as stories — just like Instagram.'},
+                {icon:'🔍',title:'Smart search & filters',desc:'Filter by country, state, sector, role type and salary band instantly.'},
+                {icon:'📎',title:'One-tap apply',desc:'Save your résumé once. Apply to any role in seconds with it auto-attached.'},
+              ].map(f=>(
+                <div key={f.title} style={{display:'flex',gap:14,alignItems:'flex-start'}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
+                  <div>
+                    <div style={{color:'white',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
+                    <div style={{color:'rgba(255,255,255,0.5)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Phone mockup */}
+            <div style={{position:'relative',display:'flex',justifyContent:'center',animation:'float 6s ease-in-out infinite'}}>
+              <div style={{position:'absolute',top:-16,right:-20,background:'var(--terra)',color:'white',padding:'8px 14px',borderRadius:12,fontSize:11,fontWeight:700,boxShadow:'0 4px 14px rgba(196,98,58,0.35)',whiteSpace:'nowrap',zIndex:4}}>✨ Head Chef · $90–110k</div>
+              <div style={{position:'absolute',bottom:40,left:-28,background:'white',padding:'10px 14px',borderRadius:12,fontSize:11,fontWeight:600,boxShadow:'0 4px 20px rgba(0,0,0,0.12)',whiteSpace:'nowrap',color:'var(--ink)',zIndex:4,border:'1px solid var(--border)'}}>🎉 Application sent!</div>
+              <div style={{width:240,background:'var(--ink)',borderRadius:36,padding:12,boxShadow:'0 40px 80px rgba(0,0,0,0.4),0 0 0 1px rgba(255,255,255,0.08)'}}>
+                <div style={{width:72,height:22,background:'var(--ink)',borderRadius:'0 0 14px 14px',margin:'0 auto 8px'}}/>
+                <div style={{background:'#FAF8F4',borderRadius:26,overflow:'hidden',aspectRatio:'9/19'}}>
+                  <div style={{background:'white',padding:'10px 12px 8px',borderBottom:'1px solid #EAE4DA',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:800,color:'#1A1A1A'}}><span style={{color:'#C4623A'}}>Hospo</span>Search</div>
+                    <span style={{fontSize:16}}>🔔</span>
+                  </div>
+                  <div style={{display:'flex',gap:10,padding:'8px 10px',background:'white',borderBottom:'1px solid #EAE4DA'}}>
+                    {[['🍽️','Attica','#C4623A'],['🌸',"Tetsuya's",'#6B8F71'],['⚓','Quay','#C0BAB2']].map(([e,n,c])=>(
+                      <div key={n} style={{textAlign:'center',flexShrink:0}}>
+                        <div style={{width:38,height:38,borderRadius:'50%',background:`conic-gradient(${c} 0%,${c}88 55%,${c} 100%)`,padding:'2px',margin:'0 auto 2px'}}>
+                          <div style={{width:'100%',height:'100%',borderRadius:'50%',background:'white',display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>{e}</div>
+                        </div>
+                        <div style={{fontSize:'7px',color:'#888'}}>{n}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {[{e:'🍽️',t:'Head Chef',m:'Attica · VIC',s:'$90–110k',bg:'linear-gradient(145deg,#EDE0D0,#CEBBA0)'},{e:'🌸',t:'Sommelier',m:"Tetsuya's · NSW",s:'$70–85k',bg:'linear-gradient(145deg,#D0E0D0,#AACCAA)'}].map(c=>(
+                    <div key={c.t} style={{background:'white',borderBottom:'1px solid #EAE4DA'}}>
+                      <div style={{height:90,background:c.bg,display:'flex',alignItems:'center',justifyContent:'center',fontSize:28}}>{c.e}</div>
+                      <div style={{padding:'6px 9px 8px'}}>
+                        <div style={{fontFamily:"'Playfair Display',serif",fontSize:11,fontWeight:700,color:'#1A1A1A'}}>{c.t}</div>
+                        <div style={{fontSize:9,color:'#888',marginBottom:3}}>{c.m}</div>
+                        <div style={{fontSize:10,color:'#C9A96E',fontWeight:700}}>{c.s}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right features */}
+            <div style={{display:'flex',flexDirection:'column',gap:24}}>
+              {[
+                {icon:'🔔',title:'Job alerts',desc:'Set alerts for any role, location or sector. Get notified the moment it posts.'},
+                {icon:'⭐',title:'Skill endorsements',desc:'Let employers endorse your skills. Build credibility before the interview.'},
+                {icon:'📊',title:'Application tracking',desc:'See exactly where every application stands — Sent, Viewed, Shortlisted.'},
+              ].map(f=>(
+                <div key={f.title} style={{display:'flex',gap:14,alignItems:'flex-start',flexDirection:'row-reverse',textAlign:'right'}}>
+                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
+                  <div>
+                    <div style={{color:'white',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
+                    <div style={{color:'rgba(255,255,255,0.5)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{textAlign:'center',marginTop:52}}>
+            <Link to="/app" style={{display:'inline-flex',alignItems:'center',gap:8,background:'var(--terra)',color:'white',padding:'14px 32px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(196,98,58,0.3)',transition:'all 0.2s'}}
+              onMouseEnter={e=>e.currentTarget.style.background='var(--terra-d)'}
+              onMouseLeave={e=>e.currentTarget.style.background='var(--terra)'}>
+              🔍 Start browsing jobs →
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* How it works */}
       <section className="hs-section" id="how-it-works">
@@ -603,55 +661,12 @@ export default function Landing() {
             </a>
           </div>
 
-          {/* Instagram-style card grid */}
-          <div className="reveal" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16}}>
-            {[
-              { emoji:'👨‍🍳', color:'linear-gradient(145deg,#EDE0D0,#CEBBA0)', tag:'Chef Spotlight', title:'From Commis to Head Chef: Jordan Lim\'s story at Attica', desc:'Five years, three sections, and one phone call that changed everything. We sat down with Jordan to talk about the journey.', time:'2 days ago', likes:'847', comments:'43' },
-              { emoji:'🌸', color:'linear-gradient(145deg,#D0E0D0,#AACCAA)', tag:'New Listing', title:'Tetsuya\'s is hiring a Sommelier — $70–85k + benefits', desc:'One of Sydney\'s most iconic restaurants is looking for a passionate sommelier to join their award-winning team.', time:'4 days ago', likes:'1.2k', comments:'91' },
-              { emoji:'☕', color:'linear-gradient(145deg,#E8E0D4,#D4C8B8)', tag:'Career Tips', title:'How to nail a hospitality interview in 2025', desc:'The industry has changed. Here\'s what top venues are actually looking for — and how to walk in ready.', time:'1 week ago', likes:'2.1k', comments:'156' },
-              { emoji:'🏨', color:'linear-gradient(145deg,#D8E4D8,#AACCAA)', tag:'Venue Spotlight', title:'Inside the Langham: what it\'s really like to work in a 5-star hotel', desc:'From concierge to kitchen — we went behind the scenes at one of Melbourne\'s most celebrated properties.', time:'1 week ago', likes:'934', comments:'67' },
-              { emoji:'🍷', color:'linear-gradient(145deg,#E4D8CC,#C8A888)', tag:'Industry News', title:'Hospitality wages are rising in 2025 — here\'s what to know', desc:'New award rates, tipping culture, and what candidates should be negotiating for in their next role.', time:'2 weeks ago', likes:'3.4k', comments:'218' },
-              { emoji:'🎯', color:'linear-gradient(145deg,#E0D4E8,#C8B8D4)', tag:'For Employers', title:'Why your job ad isn\'t getting applications (and how to fix it)', desc:'We analysed 500 listings. The ones that get 3× more applications all have one thing in common.', time:'2 weeks ago', likes:'1.8k', comments:'104' },
-            ].map((post,i)=>(
-              <a key={i} href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
-                className="reveal"
-                style={{background:'var(--cream)',borderRadius:20,overflow:'hidden',border:'1px solid var(--border)',textDecoration:'none',color:'var(--ink)',display:'block',transition:'all 0.22s',cursor:'pointer'}}
-                onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-4px)';e.currentTarget.style.boxShadow='0 12px 32px rgba(0,0,0,0.08)';e.currentTarget.style.borderColor='var(--terra)';}}
-                onMouseLeave={e=>{e.currentTarget.style.transform='none';e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='var(--border)';}}>
-                {/* Card image */}
-                <div style={{height:160,background:post.color,display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,position:'relative'}}>
-                  {post.emoji}
-                  <div style={{position:'absolute',top:12,left:12,background:'rgba(255,255,255,0.9)',borderRadius:20,padding:'3px 10px',fontSize:10,fontWeight:700,color:'var(--terra)',letterSpacing:0.5,textTransform:'uppercase'}}>
-                    {post.tag}
-                  </div>
-                </div>
-                {/* Card body */}
-                <div style={{padding:'16px 18px 18px'}}>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,fontWeight:700,color:'var(--ink)',lineHeight:1.3,marginBottom:8}}>
-                    {post.title}
-                  </div>
-                  <div style={{fontSize:13,color:'var(--ink-soft)',lineHeight:1.6,marginBottom:14,display:'-webkit-box',WebkitLineClamp:2,WebkitBoxOrient:'vertical',overflow:'hidden'}}>
-                    {post.desc}
-                  </div>
-                  <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <span style={{fontSize:11,color:'var(--ink-faint)'}}>{post.time}</span>
-                    <div style={{display:'flex',alignItems:'center',gap:12}}>
-                      <span style={{fontSize:11,color:'var(--ink-soft)',display:'flex',alignItems:'center',gap:3}}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
-                        {post.likes}
-                      </span>
-                      <span style={{fontSize:11,color:'var(--ink-soft)',display:'flex',alignItems:'center',gap:3}}>
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                        {post.comments}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </a>
-            ))}
+          {/* Live Behold Instagram feed */}
+          <div className="reveal" style={{marginBottom:32}}>
+            <behold-widget feed-id="SVyieFYXHAirbiQqA0Ws"></behold-widget>
           </div>
 
-          <div className="reveal" style={{textAlign:'center',marginTop:36}}>
+          <div className="reveal" style={{textAlign:'center',marginTop:8}}>
             <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
               style={{display:'inline-flex',alignItems:'center',gap:8,background:'var(--ink)',color:'white',padding:'13px 28px',borderRadius:100,fontSize:14,fontWeight:600,textDecoration:'none',transition:'all 0.2s'}}
               onMouseEnter={e=>e.currentTarget.style.opacity='0.85'}
