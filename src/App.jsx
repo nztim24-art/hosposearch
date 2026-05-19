@@ -2719,6 +2719,50 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [editUser, setEditUser] = useState(null);
   const [newCode, setNewCode] = useState({ code:"", pct:10, uses:50, desc:"", expires:"" });
   const [codeSaved, setCodeSaved] = useState(false);
+
+  // Post job state
+  const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
+  const [njPhotos, setNjPhotos] = useState([]);
+  const [njPosted, setNjPosted] = useState(false);
+  const [njTagInput, setNjTagInput] = useState("");
+
+  const postJob = () => {
+    if (!nj.title.trim() || !nj.short.trim()) return;
+    const fp = njPhotos.length > 0 ? njPhotos : [];
+    const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
+    const newJob = {
+      id: "j" + Date.now(),
+      empId: "admin",
+      title: nj.title,
+      venue: "HospoSearch",
+      loc: locStr,
+      country: nj.country,
+      state: nj.state,
+      city: nj.city,
+      sector: nj.sector,
+      roleType: nj.roleType,
+      salary: nj.salary || "Competitive",
+      salaryBand: nj.salaryBand,
+      type: nj.type,
+      tags: nj.tags,
+      short: nj.short,
+      full: nj.full || nj.short,
+      link: nj.link || "#",
+      photos: fp.length > 0 ? fp : [0, 1, 2],
+      video: null,
+      verified: true,
+      featured: nj.tier !== "standard",
+      ts: Date.now(),
+      apps: [],
+      views: 0,
+    };
+    setJobs(p => [newJob, ...p]);
+    setNjPosted(true);
+    setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
+    setNjPhotos([]);
+    setTimeout(() => setNjPosted(false), 3000);
+  };
   const allUsers = [...EMPLOYERS.filter(e=>!e.isTrial).map(e=>({...e,type:"employer"})), ...EMPLOYEES.map(e=>({...e,type:"employee"}))];
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
   return (
@@ -2730,8 +2774,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
       </div>
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        {[["listings","📋 Listings"],["users","👥 Users"],["codes","🎟️ Codes"]].map(([t,l])=>(
-          <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:13, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
+        {[["listings","📋 Listings"],["post","➕ Post Job"],["users","👥 Users"],["codes","🎟️ Codes"]].map(([t,l])=>(
+          <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:12, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
         ))}
       </div>
       <div style={{ flex:1, overflowY:"auto", padding:14 }}>
@@ -2760,6 +2804,172 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
             {jobs.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div>No listings yet</div>}
           </div>
         )}
+        {/* Post a Job — as HospoSearch */}
+        {tab==="post" && (
+          <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:4 }}>Post a Job as HospoSearch</div>
+            <div style={{ color:C.textSoft, fontSize:13, marginBottom:16 }}>Post jobs directly to the feed under the HospoSearch brand.</div>
+
+            {njPosted && (
+              <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:14 }}>
+                <span style={{ fontSize:22 }}>🎉</span>
+                <div>
+                  <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>Job posted successfully!</div>
+                  <div style={{ color:C.textSoft, fontSize:12 }}>It's now live in the feed.</div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ background:"#fff", borderRadius:14, padding:"16px", border:`1px solid ${C.border}`, display:"flex", flexDirection:"column", gap:13 }}>
+
+              {/* Tier selector */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Listing Tier</div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
+                  {[["standard","🥉 Bronze","Standard"],["featured","🥈 Silver","Featured"],["premium","🥇 Gold","Premium"]].map(([v,icon,label])=>(
+                    <button key={v} className="tap" onClick={()=>setNj(j=>({...j,tier:v}))}
+                      style={{ padding:"10px 6px", border:`2px solid ${nj.tier===v?C.terracotta:C.border}`, borderRadius:10, background:nj.tier===v?C.terracottaL:"#fff", color:nj.tier===v?C.terracotta:C.textMid, fontSize:11, fontWeight:nj.tier===v?700:400, textAlign:"center" }}>
+                      <div style={{ fontSize:18, marginBottom:3 }}>{icon.split(" ")[0]}</div>
+                      <div>{label}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Title */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Job Title *</div>
+                <input value={nj.title} onChange={e=>setNj(j=>({...j,title:e.target.value}))} placeholder="e.g. Head Chef, Bar Manager…" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:14 }}/>
+              </div>
+
+              {/* Location */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Country</div>
+                <select value={nj.country} onChange={e=>setNj(j=>({...j,country:e.target.value,state:"",city:""}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                  {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                </select>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>State / Region</div>
+                  <select value={nj.state} onChange={e=>setNj(j=>({...j,state:e.target.value,city:""}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    <option value="">Any</option>
+                    {Object.keys(LOCATIONS[nj.country]||{}).map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>City</div>
+                  <select value={nj.city} onChange={e=>setNj(j=>({...j,city:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    <option value="">Any</option>
+                    {(LOCATIONS[nj.country]?.[nj.state]||[]).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Sector + Role Type */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Sector</div>
+                  <select value={nj.sector} onChange={e=>setNj(j=>({...j,sector:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    <option value="">Select…</option>
+                    {SECTORS.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Role Type</div>
+                  <select value={nj.roleType} onChange={e=>setNj(j=>({...j,roleType:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    <option value="">Select…</option>
+                    {Object.entries(HOSPO_ROLES).map(([dept,roles])=><optgroup key={dept} label={dept}>{roles.map(r=><option key={r}>{r}</option>)}</optgroup>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Employment Type + Salary */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Employment Type</div>
+                  <select value={nj.type} onChange={e=>setNj(j=>({...j,type:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    {["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Band</div>
+                  <select value={nj.salaryBand} onChange={e=>setNj(j=>({...j,salaryBand:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
+                    {SALARY_BANDS.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Salary display */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary (display text)</div>
+                <input value={nj.salary} onChange={e=>setNj(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, Competitive, DOE" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+              </div>
+
+              {/* Short description */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Short Description * <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(shown in feed)</span></div>
+                <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="2–3 punchy sentences about the role…" rows={3} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13, resize:"none" }}/>
+              </div>
+
+              {/* Full description */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on detail page)</span></div>
+                <textarea value={nj.full} onChange={e=>setNj(j=>({...j,full:e.target.value}))} placeholder="Full job description, responsibilities, requirements…" rows={5} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13, resize:"none" }}/>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Tags</div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:7 }}>
+                  {nj.tags.map(tag=>(
+                    <span key={tag} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, display:"flex", alignItems:"center", gap:5 }}>
+                      {tag}
+                      <button onClick={()=>setNj(j=>({...j,tags:j.tags.filter(t=>t!==tag)}))} style={{ background:"none", border:"none", color:C.terracotta, fontSize:14, lineHeight:1, cursor:"pointer", padding:0 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input value={njTagInput} onChange={e=>setNjTagInput(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter"&&njTagInput.trim()){ setNj(j=>({...j,tags:[...j.tags,njTagInput.trim()]})); setNjTagInput(""); }}} placeholder="Type a tag and press Enter…" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                  <button className="tap" onClick={()=>{ if(njTagInput.trim()){ setNj(j=>({...j,tags:[...j.tags,njTagInput.trim()]})); setNjTagInput(""); }}} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 13px", color:C.textMid, fontSize:13 }}>Add</button>
+                </div>
+              </div>
+
+              {/* Photos */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5)</span></div>
+                <input type="file" accept="image/*" multiple onChange={e=>{ const files=Array.from(e.target.files).slice(0,5); files.forEach(file=>{ const r=new FileReader(); r.onload=ev=>setNjPhotos(p=>[...p.slice(0,4),ev.target.result]); r.readAsDataURL(file); }); }} style={{ display:"none" }} id="admin-photos"/>
+                <label htmlFor="admin-photos" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:C.bgSoft, border:`1.5px dashed ${C.border}`, borderRadius:10, cursor:"pointer", color:C.textMid, fontSize:13 }}>
+                  📷 Tap to upload photos ({njPhotos.length}/5)
+                </label>
+                {njPhotos.length > 0 && (
+                  <div style={{ display:"flex", gap:7, marginTop:8, flexWrap:"wrap" }}>
+                    {njPhotos.map((p,i)=>(
+                      <div key={i} style={{ position:"relative" }}>
+                        <img src={p} alt="" style={{ width:60, height:60, borderRadius:8, objectFit:"cover" }}/>
+                        <button onClick={()=>setNjPhotos(ps=>ps.filter((_,idx)=>idx!==i))} style={{ position:"absolute", top:-5, right:-5, width:18, height:18, borderRadius:"50%", background:C.error, border:"none", color:"white", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>×</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Apply link */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Application Link <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
+                <input value={nj.link} onChange={e=>setNj(j=>({...j,link:e.target.value}))} placeholder="https://venue.com/apply or leave blank" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+              </div>
+
+              {/* Post button */}
+              <button className="btn-cta tap" onClick={postJob}
+                disabled={!nj.title.trim()||!nj.short.trim()}
+                style={{ background:nj.title.trim()&&nj.short.trim()?`linear-gradient(135deg,${C.terracotta},#A84F2E)`:"#ccc", border:"none", borderRadius:12, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:nj.title.trim()&&nj.short.trim()?"0 4px 14px rgba(196,98,58,0.22)":"none" }}>
+                🚀 Post Job to Feed
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Discount Codes */}
         {tab==="codes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
