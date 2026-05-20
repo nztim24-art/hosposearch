@@ -302,7 +302,7 @@ const TICKER_ITEMS = [
 ]
 
 export default function Landing() {
-  const [pricingTab, setPricingTab] = React.useState('listing');
+  const [pricingTab, setPricingTab] = useState('listing');
   const navRef = useRef()
   const statsRef = useRef()
   const countersAnimated = useRef(false)
