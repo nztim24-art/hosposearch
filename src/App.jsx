@@ -363,7 +363,7 @@ const DEFAULT_NOTIF_PREFS = {
 
 const ago = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60) return `${d}s`; if(d<3600) return `${Math.floor(d/60)}m`; if(d<86400) return `${Math.floor(d/3600)}h`; return `${Math.floor(d/86400)}d`; };
 const fmtSize = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
-const isData  = s => typeof s==="string" && s.startsWith("data:");
+const isData  = s => typeof s==="string" && (s.startsWith("data:") || s.startsWith("http"));
 const isVid   = s => typeof s==="string" && s.startsWith("data:video");
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
