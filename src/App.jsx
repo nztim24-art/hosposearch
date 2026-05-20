@@ -300,12 +300,7 @@ const ALL_ROLES = Object.values(HOSPO_ROLES).flat();
 
 const INIT_JOBS = [];
 
-const INIT_MESSAGES = {
-  "u1-emp1": [
-    { from:"emp1", text:"Hi Jordan, thanks for applying for the Head Chef role. Your experience looks great. When are you available for a chat?", ts:Date.now()-3600000*1 },
-    { from:"u1",   text:"Hi! Thanks so much. I'm available Monday to Wednesday this week. Happy to come in any time.", ts:Date.now()-3600000*0.5 },
-  ],
-};
+const INIT_MESSAGES = {};
 
 // ─── Sample references seed data ─────────────────────────────────────────────
 const INIT_REFERENCES = {
@@ -1883,7 +1878,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
           style={{ background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:8, padding:"5px 12px", color:isFollowed?C.sage:C.textDark, fontSize:12, fontWeight:600, transition:"all 0.18s" }}>
           {isFollowed ? "Following" : "Follow"}
         </button>
-        <button className="tap" style={{ background:"none", border:"none", padding:"2px 0 2px 4px" }}><Icon name="more" size={20} color={C.textSoft}/></button>
+        <button className="tap" onClick={e=>{e.stopPropagation(); onExpand(job);}} style={{ background:"none", border:"none", padding:"2px 0 2px 4px" }} title="View full listing"><Icon name="more" size={20} color={C.textSoft}/></button>
       </div>
       <div onClick={()=>onExpand(job)} style={{ cursor:"pointer" }}>
         <Carousel photos={job.photos} video={job.video}/>
@@ -2561,6 +2556,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [expandedJob, setExpandedJob] = useState(null);
   const [venueProfile, setVenueProfile] = useState(null);
   const [sel, setSel] = useState(null);
+  const [appStatusFilter, setAppStatusFilter] = useState("All");
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
@@ -2901,28 +2897,52 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
             {(sel?[sel]:mine).map(j=>(
               <div key={j.id}>
                 {!sel && <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:6, marginTop:10 }}>{j.title}</div>}
-                {(!j.apps||j.apps.length===0)
-                  ? <div style={{ padding:"16px", background:"#fff", borderRadius:11, color:C.textFaint, fontSize:13, textAlign:"center", border:`1px dashed ${C.border}` }}>No applications yet</div>
-                  : j.apps.map((a,i)=>(
+                {(()=>{
+                  const filtered = (j.apps||[]).filter(a=>appStatusFilter==="All"||(a.status||"Sent")===appStatusFilter);
+                  if(filtered.length===0) return <div style={{ padding:"16px", background:"#fff", borderRadius:11, color:C.textFaint, fontSize:13, textAlign:"center", border:`1px dashed ${C.border}` }}>{(j.apps||[]).length===0?"No applications yet":`No ${appStatusFilter} applications`}</div>;
+                  return filtered.map((a,i)=>(
                     <div key={i} style={{ background:"#fff", borderRadius:13, padding:"12px 14px", border:`1px solid ${C.border}`, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
                       <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:a.msg||a.resume||a.cover?9:0 }}>
                         <div style={{ width:36, height:36, borderRadius:11, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>👤</div>
                         <div style={{ flex:1 }}><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>{a.name}</div><div style={{ color:C.textFaint, fontSize:11 }}>{ago(a.ts)} ago</div></div>
                         <div style={{ display:"flex", gap:6 }}>
-                          <select value={a.status||"Sent"} onChange={async e=>{ const newStatus=e.target.value; setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:newStatus}:ap)}:jj)); try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){} }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:C.textMid, fontSize:11, cursor:"pointer" }}>
-                            {["Sent","Viewed","Shortlisted","No thanks"].map(s=><option key={s}>{s}</option>)}
+                          <select value={a.status||"Sent"} onChange={async e=>{ const newStatus=e.target.value; setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:newStatus}:ap)}:jj)); try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){} }}
+                            style={{ background:({Sent:C.bgSoft,Viewed:C.blueL,Shortlisted:C.sageL,Interview:"#FFF8EE","Not Suitable":"#FEF2F0",Offer:"#ECFDF5"})[a.status||"Sent"]||C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:({Sent:C.textMid,Viewed:C.blue,Shortlisted:C.sage,Interview:C.featured,"Not Suitable":C.error,Offer:C.sage})[a.status||"Sent"]||C.textMid, fontSize:11, cursor:"pointer", fontWeight:600 }}>
+                            {["Sent","Viewed","Shortlisted","Interview","Not Suitable","Offer"].map(s=><option key={s}>{s}</option>)}
                           </select>
                           <button className="tap" onClick={()=>{ const key=`${a.uid}-${user.id}`; setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${j.title}. We'd love to have a chat.`, ts:Date.now() }] })); setTab("messages"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Message</button>
                         </div>
                       </div>
                       {a.msg && <div style={{ color:C.textMid, fontSize:13, background:C.bgSoft, padding:"9px 11px", borderRadius:8, lineHeight:1.55, marginBottom:7 }}>{a.msg}</div>}
-                      {(a.resume||a.cover) && <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                        {a.resume&&<div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"4px 9px" }}><span style={{ fontSize:12 }}>📋</span><span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span><span style={{ color:C.textFaint, fontSize:10 }}>{fmtS(a.resume?.size)}</span></div>}
-                        {a.cover&&<div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"4px 9px" }}><span style={{ fontSize:12 }}>✉️</span><span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover</span></div>}
-                      </div>}
+                      {/* Application details */}
+                      {(a.visa||a.notice||(a.availability||[]).length>0) && (
+                        <div style={{ background:C.bgSoft, borderRadius:8, padding:"8px 11px", marginBottom:7, display:"flex", flexWrap:"wrap", gap:6 }}>
+                          {a.visa && <span style={{ color:C.textSoft, fontSize:11 }}>🛂 {a.visa}</span>}
+                          {a.notice && <span style={{ color:C.textSoft, fontSize:11 }}>⏱ {a.notice}</span>}
+                          {(a.availability||[]).length>0 && <span style={{ color:C.textSoft, fontSize:11 }}>📅 {(a.availability||[]).join(", ")}</span>}
+                        </div>
+                      )}
+                      {(a.resume||a.cover) && (
+                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                          {a.resume && (
+                            <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
+                              <span style={{ fontSize:12 }}>📋</span>
+                              <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span>
+                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.resume.name||"uploaded"}</span>
+                            </div>
+                          )}
+                          {a.cover && (
+                            <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
+                              <span style={{ fontSize:12 }}>✉️</span>
+                              <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover Letter</span>
+                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.cover.name||"uploaded"}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  ))
-                }
+                  ));
+                })()}
               </div>
             ))}
           </div>
