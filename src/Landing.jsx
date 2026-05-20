@@ -306,31 +306,62 @@ function PricingModal({ onClose, defaultTab='listing' }) {
   const [selectedTier, setSelectedTier] = useState(null)
 
   const listingTiers = [
-    { key:'bronze', icon:'🥉', name:'Bronze', price:55, period:'one-time', color:'#C9A96E', colorD:'#8B6914', features:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
-    { key:'silver', icon:'🥈', name:'Silver', price:77, period:'one-time', color:'#C0D0E0', colorD:'#A8B8C8', popular:true, features:['Everything in Bronze','Pinned to top of feed 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
-    { key:'gold',   icon:'🥇', name:'Gold',   price:110, period:'one-time', color:'#FFD700', colorD:'#D4A017', features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Applicant auto-ranking','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge'] },
+    {
+      key:'bronze', icon:'🥉', name:'Bronze', price:50, gst:5, period:'one-time',
+      color:'#C9A96E', colorD:'#8B6914',
+      features:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
+    },
+    {
+      key:'silver', icon:'🥈', name:'Silver', price:70, gst:7, period:'one-time',
+      color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
+      features:['Everything in Bronze','Pinned to top of feed 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts']
+    },
+    {
+      key:'gold', icon:'🥇', name:'Gold', price:100, gst:10, period:'one-time',
+      color:'#FFD700', colorD:'#D4A017',
+      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Applicant auto-ranking','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge']
+    },
   ]
   const subTiers = [
-    { key:'starter', icon:'🥉', name:'Starter', price:109, period:'mo', color:'#C9A96E', colorD:'#8B6914', limit:'3 listings/mo', features:['3 active listings at any time','All Bronze features','Cancel anytime'] },
-    { key:'growth',  icon:'🥈', name:'Growth',  price:219, period:'mo', color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 listings/mo', features:['6 active listings at any time','All Silver features','Candidate search & messaging','Cancel anytime'] },
-    { key:'pro',     icon:'🥇', name:'Pro',     price:439, period:'mo', color:'#FFD700', colorD:'#D4A017', limit:'10 listings/mo', features:['10 active listings at any time','All Gold features','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime'] },
+    {
+      key:'starter', icon:'🥉', name:'Starter', price:99, gst:9.90, period:'mo',
+      color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
+      features:['3 active listings at any time','All Bronze features on every listing','Cancel anytime']
+    },
+    {
+      key:'growth', icon:'🥈', name:'Growth', price:199, gst:19.90, period:'mo',
+      color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
+      features:['6 active listings at any time','All Silver features on every listing','Candidate search & messaging','Cancel anytime']
+    },
+    {
+      key:'pro', icon:'🥇', name:'Pro', price:399, gst:39.90, period:'mo',
+      color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
+      features:['10 active listings at any time','All Gold features on every listing','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime']
+    },
   ]
   const tiers = tab === 'listing' ? listingTiers : subTiers
+  const selected = tiers.find(t=>t.key===selectedTier)
 
   return (
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(4px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:'var(--ink)',borderRadius:24,padding:'32px 28px',maxWidth:860,width:'100%',maxHeight:'90vh',overflowY:'auto',position:'relative',boxShadow:'0 40px 80px rgba(0,0,0,0.5)'}}>
-        {/* Close */}
-        <button onClick={onClose} style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.1)',border:'none',color:'white',width:32,height:32,borderRadius:'50%',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px',backdropFilter:'blur(6px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'#0F0E0C',borderRadius:28,padding:'36px 32px',maxWidth:960,width:'100%',maxHeight:'92vh',overflowY:'auto',position:'relative',boxShadow:'0 60px 120px rgba(0,0,0,0.7)',border:'1px solid rgba(255,255,255,0.08)'}}>
 
-        <div style={{textAlign:'center',marginBottom:28}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:'white',marginBottom:8}}>Choose your plan</div>
-          <p style={{color:'rgba(255,255,255,0.55)',fontSize:14,marginBottom:20}}>Post your first role in minutes. Job seekers always browse free.</p>
+        {/* Close */}
+        <button onClick={onClose} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white',width:36,height:36,borderRadius:'50%',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>×</button>
+
+        {/* Header */}
+        <div style={{textAlign:'center',marginBottom:32}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,color:'white',marginBottom:10,letterSpacing:-1}}>
+            Post a Job on HospoSearch
+          </div>
+          <p style={{color:'rgba(255,255,255,0.5)',fontSize:15,marginBottom:24,maxWidth:500,margin:'0 auto 24px'}}>
+            Reach thousands of hospitality professionals across Australia & New Zealand. Job seekers always browse free.
+          </p>
           {/* Tab toggle */}
-          <div style={{display:'inline-flex',background:'rgba(255,255,255,0.08)',borderRadius:100,padding:4,gap:4}}>
-            {[['listing','Pay Per Listing'],['subscription','Monthly Plans']].map(([v,l])=>(
-              <button key={v} onClick={()=>setTab(v)}
-                style={{padding:'8px 20px',borderRadius:100,border:'none',background:tab===v?'white':'transparent',color:tab===v?'var(--ink)':'rgba(255,255,255,0.6)',fontWeight:tab===v?700:400,fontSize:13,cursor:'pointer',transition:'all 0.2s'}}>
+          <div style={{display:'inline-flex',background:'rgba(255,255,255,0.07)',borderRadius:100,padding:4,gap:4,border:'1px solid rgba(255,255,255,0.1)'}}>
+            {[['listing','💳 Pay Per Listing'],['subscription','📅 Monthly Plans']].map(([v,l])=>(
+              <button key={v} onClick={()=>{setTab(v);setSelectedTier(null)}}
+                style={{padding:'10px 24px',borderRadius:100,border:'none',background:tab===v?'white':'transparent',color:tab===v?'#0F0E0C':'rgba(255,255,255,0.55)',fontWeight:tab===v?700:400,fontSize:14,cursor:'pointer',transition:'all 0.2s',whiteSpace:'nowrap'}}>
                 {l}
               </button>
             ))}
@@ -338,37 +369,61 @@ function PricingModal({ onClose, defaultTab='listing' }) {
         </div>
 
         {/* Tier cards */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20}}>
-          {tiers.map(tier=>(
-            <div key={tier.key}
-              onClick={()=>setSelectedTier(tier.key)}
-              style={{background:selectedTier===tier.key?`rgba(${tier.key==='bronze'?'201,169,110':tier.key==='silver'?'192,208,224':'255,215,0'},0.15)`:'rgba(255,255,255,0.05)',border:`2px solid ${selectedTier===tier.key?tier.color:'rgba(255,255,255,0.1)'}`,borderRadius:16,padding:'20px 16px',cursor:'pointer',transition:'all 0.2s',position:'relative'}}>
-              {tier.popular && <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:tier.color,color:'#1A1A2E',fontSize:9,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'3px 12px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>}
-              {selectedTier===tier.key && <div style={{position:'absolute',top:10,right:10,background:tier.color,color:'#1A1A1A',width:20,height:20,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700}}>✓</div>}
-              <div style={{fontSize:24,marginBottom:8}}>{tier.icon}</div>
-              <div style={{color:tier.color,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',marginBottom:4}}>{tier.name}</div>
-              {tier.limit && <div style={{color:'rgba(255,255,255,0.4)',fontSize:11,marginBottom:6}}>{tier.limit}</div>}
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-1,marginBottom:2}}>${tier.price}</div>
-              <div style={{color:'rgba(255,255,255,0.35)',fontSize:11,marginBottom:12}}>AUD incl. GST{tier.period==='mo'?' /mo':''}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:5}}>
-                {tier.features.map(f=>(
-                  <li key={f} style={{fontSize:12,color:'rgba(255,255,255,0.6)',display:'flex',alignItems:'flex-start',gap:6}}>
-                    <span style={{color:tier.color,fontWeight:700,flexShrink:0,fontSize:10,marginTop:2}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:28}}>
+          {tiers.map(tier=>{
+            const isSel = selectedTier===tier.key
+            return (
+              <div key={tier.key} onClick={()=>setSelectedTier(tier.key)}
+                style={{background:isSel?`rgba(${tier.key==='bronze'?'201,169,110':tier.key==='silver'?'192,208,224':'255,215,0'},0.12)`:'rgba(255,255,255,0.04)',border:`2px solid ${isSel?tier.color:'rgba(255,255,255,0.1)'}`,borderRadius:20,padding:'24px 20px',cursor:'pointer',transition:'all 0.2s',position:'relative',boxShadow:isSel?`0 8px 32px rgba(0,0,0,0.3)`:'none'}}>
+                {tier.popular && !isSel && (
+                  <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:tier.color,color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 14px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
+                )}
+                {isSel && (
+                  <div style={{position:'absolute',top:14,right:14,background:tier.color,color:'#1A1A1A',width:24,height:24,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900}}>✓</div>
+                )}
+
+                {/* Icon + name */}
+                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
+                  <span style={{fontSize:32}}>{tier.icon}</span>
+                  <div>
+                    <div style={{color:tier.color,fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>{tier.name}</div>
+                    {tier.limit && <div style={{color:'rgba(255,255,255,0.4)',fontSize:12,marginTop:2}}>{tier.limit}</div>}
+                  </div>
+                </div>
+
+                {/* Price — pre-GST large, GST small underneath */}
+                <div style={{marginBottom:16}}>
+                  <div style={{display:'flex',alignItems:'baseline',gap:4}}>
+                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-2}}>${tier.price}</div>
+                    {tier.period==='mo' && <div style={{color:'rgba(255,255,255,0.4)',fontSize:14,fontWeight:500}}>/mo</div>}
+                  </div>
+                  <div style={{color:'rgba(255,255,255,0.3)',fontSize:11,marginTop:3}}>
+                    + ${tier.gst.toFixed(2)} GST = <span style={{color:'rgba(255,255,255,0.5)',fontWeight:600}}>${(tier.price+tier.gst).toFixed(2)} AUD total{tier.period==='mo'?'/mo':''}</span>
+                  </div>
+                </div>
+
+                {/* Features */}
+                <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:7}}>
+                  {tier.features.map(f=>(
+                    <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8,lineHeight:1.4}}>
+                      <span style={{color:tier.color,fontWeight:700,flexShrink:0,fontSize:11,marginTop:2}}>✓</span>{f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          })}
         </div>
 
         {/* CTA */}
         <div style={{textAlign:'center'}}>
           <a href={`/app?tier=${selectedTier||tiers[0].key}&mode=${tab}`}
-            style={{display:'inline-flex',alignItems:'center',gap:8,background:selectedTier?'var(--terra)':'rgba(255,255,255,0.2)',color:'white',padding:'14px 36px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:selectedTier?'0 4px 18px rgba(196,98,58,0.35)':'none',transition:'all 0.2s',marginBottom:12}}>
-            {selectedTier ? `Get started with ${tiers.find(t=>t.key===selectedTier)?.name} →` : 'Select a plan to continue →'}
+            style={{display:'inline-flex',alignItems:'center',gap:10,background:selectedTier?'var(--terra)':'rgba(255,255,255,0.15)',color:'white',padding:'16px 44px',borderRadius:100,fontSize:16,fontWeight:700,textDecoration:'none',boxShadow:selectedTier?'0 6px 24px rgba(196,98,58,0.4)':'none',transition:'all 0.2s',marginBottom:14,border:selectedTier?'none':'1px solid rgba(255,255,255,0.2)'}}>
+            {selected ? `Get started with ${selected.name} — $${selected.price} ${tab==='subscription'?'/mo':''} →` : '← Select a plan above to continue'}
           </a>
-          <div style={{color:'rgba(255,255,255,0.35)',fontSize:12}}>
-            Already have an account? <a href="/app" style={{color:'var(--terra)',textDecoration:'none',fontWeight:600}}>Log in →</a>
+          <div style={{color:'rgba(255,255,255,0.3)',fontSize:13}}>
+            Already have an account?{' '}
+            <a href="/app" style={{color:'var(--terra)',textDecoration:'none',fontWeight:600}}>Log in here →</a>
           </div>
         </div>
       </div>
@@ -781,7 +836,7 @@ export default function Landing() {
 
           {/* ── Pay Per Listing ── */}
           {pricingTab==='listing' && (
-          <div className="reveal hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
 
             {/* Bronze — $50 */}
             <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
@@ -879,7 +934,7 @@ export default function Landing() {
 
           {/* ── Subscriptions ── */}
           {pricingTab==='subscription' && (
-          <div className="reveal hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
 
             {/* Starter */}
             <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
