@@ -3025,6 +3025,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       <div style={{ flex:1, overflow:"hidden" }}>
         {tab==="home" && (
           <div style={{ height:"100%", overflowY:"auto" }}>
+            {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             <StoryBar jobs={jobs} following={following} currentUser={user} onOpen={(stories, startIndex)=>setStoryJob({ stories, startIndex })}/>
             {featuredJobs.length>0 && (
               <div style={{ background:C.featuredL, padding:"9px 16px", borderBottom:`1px solid ${C.featured}30`, display:"flex", alignItems:"center", gap:8 }}>
@@ -3091,10 +3092,12 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
   const [njPhotos, setNjPhotos] = useState([]);
   const [njPosted, setNjPosted] = useState(false);
+  const [njPosting, setNjPosting] = useState(false);
   const [njTagInput, setNjTagInput] = useState("");
 
   const postJob = async () => {
     if (!nj.title.trim() || !nj.short.trim()) return;
+    setNjPosting(true);
     const fp = njPhotos.length > 0 ? njPhotos : [];
     const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
     const newJob = {
@@ -3131,6 +3134,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       console.warn('Supabase save failed, using local:', e);
       setJobs(p => [newJob, ...p]);
     }
+    setNjPosting(false);
     setNjPosted(true);
     setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
     setNjPhotos([]);
@@ -3335,9 +3339,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
               {/* Post button */}
               <button className="btn-cta tap" onClick={postJob}
-                disabled={!nj.title.trim()||!nj.short.trim()}
-                style={{ background:nj.title.trim()&&nj.short.trim()?`linear-gradient(135deg,${C.terracotta},#A84F2E)`:"#ccc", border:"none", borderRadius:12, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:nj.title.trim()&&nj.short.trim()?"0 4px 14px rgba(196,98,58,0.22)":"none" }}>
-                🚀 Post Job to Feed
+                disabled={njPosting||njPosted||!nj.title.trim()||!nj.short.trim()}
+                style={{ background:njPosted?C.sage:njPosting?"#999":nj.title.trim()&&nj.short.trim()?`linear-gradient(135deg,${C.terracotta},#A84F2E)`:"#ccc", border:"none", borderRadius:12, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:njPosted?`0 4px 14px ${C.sage}40`:nj.title.trim()&&nj.short.trim()?"0 4px 14px rgba(196,98,58,0.22)":"none", transition:"all 0.3s" }}>
+                {njPosted ? "✅ Job Posted!" : njPosting ? "⏳ Uploading…" : "🚀 Post Job to Feed"}
               </button>
             </div>
           </div>
@@ -3566,6 +3570,45 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   ))}
                 </div>
                 <input onKeyDown={e=>{ if(e.key==="Enter"&&e.target.value.trim()){ setEditJob(j=>({...j,tags:[...(j.tags||[]),e.target.value.trim()]})); e.target.value=""; }}} placeholder="Type tag + Enter to add" style={IS}/>
+              </div>
+
+              {/* Photos */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5 · tap × to delete)</span></div>
+                {/* Existing photos */}
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
+                  {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).map((p,i)=>(
+                    <div key={i} style={{ position:"relative" }}>
+                      <img src={p} alt="" style={{ width:52, height:65, borderRadius:8, objectFit:"cover", border:`1px solid ${C.border}` }}/>
+                      <button onClick={()=>setEditJob(j=>({...j,photos:(j.photos||[]).filter((_,idx)=>idx!==i)}))}
+                        style={{ position:"absolute", top:-5, right:-5, width:20, height:20, borderRadius:"50%", background:C.error, border:"2px solid white", color:"white", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>×</button>
+                    </div>
+                  ))}
+                  {/* Add more photos button */}
+                  {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).length < 5 && (
+                    <label style={{ width:52, height:65, borderRadius:8, border:`1.5px dashed ${C.border}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:3 }}>
+                      <input type="file" accept="image/*" multiple style={{ display:"none" }}
+                        onChange={e=>{
+                          const files = Array.from(e.target.files);
+                          files.forEach(file=>{
+                            const r = new FileReader();
+                            r.onload = ev => setEditJob(j=>{
+                              const existing = (j.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:"));
+                              if(existing.length >= 5) return j;
+                              return {...j, photos:[...existing, ev.target.result]};
+                            });
+                            r.readAsDataURL(file);
+                          });
+                        }}
+                      />
+                      <span style={{ fontSize:18 }}>📷</span>
+                      <span style={{ fontSize:9, color:C.textFaint, fontWeight:600 }}>ADD</span>
+                    </label>
+                  )}
+                </div>
+                {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).length === 0 && (
+                  <div style={{ color:C.textFaint, fontSize:12 }}>No photos uploaded yet — tap ADD to upload</div>
+                )}
               </div>
 
               {/* Featured + Verified toggles */}

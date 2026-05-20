@@ -53,16 +53,55 @@ export async function fetchJobs() {
   return data.map(normaliseJob)
 }
 
+// Upload a single base64 image to Supabase Storage
+async function uploadPhoto(base64, jobId, index) {
+  try {
+    // Convert base64 to blob
+    const res = await fetch(base64)
+    const blob = await res.blob()
+    const ext = blob.type.includes('png') ? 'png' : 'jpg'
+    const path = `jobs/${jobId}/${index}.${ext}`
+    
+    const { data, error } = await supabase.storage
+      .from('job-photos')
+      .upload(path, blob, { upsert: true, contentType: blob.type })
+    
+    if (error) {
+      console.warn('Photo upload failed:', error)
+      return null
+    }
+    
+    const { data: urlData } = supabase.storage
+      .from('job-photos')
+      .getPublicUrl(path)
+    
+    return urlData.publicUrl
+  } catch(e) {
+    console.warn('Photo upload error:', e)
+    return null
+  }
+}
+
 export async function createJob(empId, jobData) {
-  console.log('createJob called with empId:', empId, 'jobData:', jobData)
+  console.log('createJob called with empId:', empId)
   
-  // Handle photo data — Supabase can't store large base64 strings
-  // Store placeholder indices instead
-  const safePhotos = (jobData.photos || []).map((p, i) => {
-    if (typeof p === 'number') return p
-    if (typeof p === 'string' && p.startsWith('data:')) return i // placeholder
-    return p
-  })
+  // Generate a temp ID for storage path
+  const tempId = 'j' + Date.now()
+  
+  // Upload base64 photos to Supabase Storage
+  const photoUrls = []
+  const photos = jobData.photos || []
+  for (let i = 0; i < photos.length; i++) {
+    const p = photos[i]
+    if (typeof p === 'string' && p.startsWith('data:')) {
+      const url = await uploadPhoto(p, tempId, i)
+      if (url) photoUrls.push(url)
+    } else if (typeof p === 'number') {
+      photoUrls.push(p) // keep placeholder numbers
+    }
+  }
+  
+  const safePhotos = photoUrls.length > 0 ? photoUrls : [0, 1, 2]
 
   const insertData = {
     emp_id:      empId || 'admin',
