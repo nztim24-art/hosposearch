@@ -1,4 +1,29 @@
 import { useState, useRef, useEffect } from "react";
+
+// ─── Stripe ───────────────────────────────────────────────────────────────────
+const STRIPE_PK = "pk_test_51TYwmyGkG9EGtGJgeITW1dBzVae1mfXaac2ccNNjvk89D6s52Mgu4rdImGkCelAZd8UoVrWvf7MHe929Bzzmwokl00K7uBM1kw";
+
+async function createCheckoutSession(tier, jobTitle, venueEmail, jobId) {
+  const res = await fetch('/api/create-checkout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tier, jobTitle, venueEmail, jobId }),
+  });
+  if (!res.ok) throw new Error('Failed to create checkout session');
+  const { url } = await res.json();
+  return url;
+}
+
+async function createSubscriptionSession(plan, userEmail, userId) {
+  const res = await fetch('/api/create-subscription', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ plan, userEmail, userId }),
+  });
+  if (!res.ok) throw new Error('Failed to create subscription session');
+  const { url } = await res.json();
+  return url;
+}
 import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob, incrementViews, fetchCodes } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
@@ -2144,19 +2169,36 @@ function Login({ onLogin }) {
 }
 
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
-function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured }) {
-  const basePrice = isFeatured ? 70 : 50;
-  const [step, setStep] = useState("review");
-  const [card, setCard] = useState({ number:"", expiry:"", cvc:"", name:"" });
-  const [errs, setErrs] = useState({});
-  const [prog, setProg] = useState(0);
-  const [codeInput, setCodeInput] = useState("");
-  const [appliedCode, setAppliedCode] = useState(null);
-  const [codeErr, setCodeErr] = useState("");
-  const txId = useRef("ch_"+Math.random().toString(36).slice(2,10).toUpperCase());
+function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tier, user }) {
+  const tierKey = tier || (isFeatured ? 'gold' : 'bronze');
+  const basePrice = tierKey==='gold' ? 100 : tierKey==='silver' ? 70 : 50;
+  const tierLabel = tierKey==='gold' ? '🥇 Gold Premium' : tierKey==='silver' ? '🥈 Silver Featured' : '🥉 Bronze Standard';
 
-  const discount = appliedCode ? Math.round(basePrice * (appliedCode.pct/100)) : 0;
-  const finalPrice = basePrice - discount;
+  const [codeInput, setCodeInput]     = useState("");
+  const [appliedCode, setAppliedCode] = useState(null);
+  const [codeErr, setCodeErr]         = useState("");
+  const [loading, setLoading]         = useState(false);
+  const [err, setErr]                 = useState("");
+  const [captureEmail, setCaptureEmail] = useState(user?.email||"");
+  const [emailCaptured, setEmailCaptured] = useState(false);
+
+  // Notify hello@hosposearch.com.au when employer enters email but hasn't paid
+  const notifyAbandoned = async (email) => {
+    if (!email || !email.includes('@') || emailCaptured) return;
+    setEmailCaptured(true);
+    try {
+      await fetch('/api/notify-abandoned', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ email, jobTitle:jobDraft?.title||'', tier:tierKey }),
+      });
+    } catch(e) {}
+  };
+
+  const discount   = appliedCode ? Math.round(basePrice * (appliedCode.pct/100)) : 0;
+  const subtotal   = basePrice - discount;
+  const gst        = Math.round(subtotal * 0.1);
+  const total      = subtotal + gst;
 
   const applyCode = () => {
     const code = codeInput.trim().toUpperCase();
@@ -2165,103 +2207,270 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
     if (!found) { setCodeErr("Code not found."); return; }
     if (!found.active) { setCodeErr("This code is no longer active."); return; }
     if (found.used >= found.uses) { setCodeErr("This code has reached its usage limit."); return; }
-    const exp = new Date(found.expires);
-    if (exp < new Date()) { setCodeErr("This code has expired."); return; }
+    if (new Date(found.expires) < new Date()) { setCodeErr("This code has expired."); return; }
     setAppliedCode({ ...found, code });
     setCodeErr("");
   };
 
   const removeCode = () => { setAppliedCode(null); setCodeInput(""); setCodeErr(""); };
 
-  const fmt4 = v => v.replace(/\D/g,"").slice(0,16).replace(/(.{4})/g,"$1 ").trim();
-  const fmtE = v => { const d=v.replace(/\D/g,"").slice(0,4); return d.length>2?d.slice(0,2)+"/"+d.slice(2):d; };
-  const validate = () => {
-    const e={};
-    if(card.number.replace(/\s/g,"").length<16) e.number="Enter 16-digit number";
-    if(card.expiry.length<5) e.expiry="MM/YY required";
-    if(card.cvc.length<3) e.cvc="3 digits";
-    if(!card.name.trim()) e.name="Required";
-    setErrs(e); return !Object.keys(e).length;
-  };
-  const pay = () => {
-    if(!validate()) return;
-    // Mark code as used
-    if (appliedCode && setCodes) {
-      setCodes(prev => ({ ...prev, [appliedCode.code]: { ...prev[appliedCode.code], used: prev[appliedCode.code].used + 1 } }));
+  const pay = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const url = await createCheckoutSession(
+        tierKey,
+        jobDraft?.title || '',
+        user?.email || '',
+        jobDraft?.id || ''
+      );
+      window.location.href = url;
+    } catch(e) {
+      setErr("Could not connect to payment. Please try again.");
+      setLoading(false);
     }
-    setStep("paying");
-    let p=0; const t=setInterval(()=>{ p+=Math.random()*15+8; if(p>=100){p=100;clearInterval(t);setTimeout(()=>setStep("success"),350);} setProg(Math.min(p,100)); },160);
   };
-  const IS = f => ({ width:"100%", background:C.bgSoft, border:`1.5px solid ${errs[f]?C.error:C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14, transition:"all 0.18s" });
+
+  const IS2 = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:8000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(3px)" }}>
-      <div style={{ width:"100%", maxWidth:520, background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 22px 40px", maxHeight:"92vh", overflowY:"auto", boxShadow:"0 -6px 32px rgba(0,0,0,0.12)" }}>
-        <div style={{ width:38, height:4, background:C.border, borderRadius:2, margin:"10px auto 20px" }}/>
-        {step==="review" && <>
-          <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:18 }}>
-            <div style={{ width:44, height:44, borderRadius:13, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>💳</div>
-            <div><div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700 }}>Complete Payment</div><div style={{ color:C.textSoft, fontSize:12 }}>Secured by Stripe</div></div>
+    <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
+      <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Complete Payment</div>
+      <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>Posting <strong style={{color:C.textDark}}>{jobDraft?.title||"your listing"}</strong> as {tierLabel}</div>
+
+      {/* Email field — captured for follow-up if abandoned */}
+      {!user?.email && (
+        <div style={{ marginBottom:14 }}>
+          <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Your Email <span style={{color:C.error}}>*</span></div>
+          <input
+            type="email"
+            value={captureEmail}
+            onChange={e=>setCaptureEmail(e.target.value)}
+            onBlur={()=>notifyAbandoned(captureEmail)}
+            placeholder="your@venue.com.au"
+            style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 }}
+          />
+        </div>
+      )}
+
+      {/* Price breakdown */}
+      <div style={{ background:C.bgSoft, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}`, marginBottom:16 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+          <span style={{ color:C.textSoft, fontSize:13 }}>{tierLabel} listing</span>
+          <span style={{ color:C.textDark, fontSize:13 }}>${basePrice}.00 AUD</span>
+        </div>
+        {discount > 0 && (
+          <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
+            <span style={{ color:C.sage, fontSize:13 }}>Discount ({appliedCode?.code})</span>
+            <span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>−${discount}.00</span>
           </div>
-          {/* Order summary */}
-          <div style={{ background:C.bgSoft, borderRadius:13, padding:"13px 15px", marginBottom:14, border:`1px solid ${C.border}` }}>
-            <div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:9 }}>Order Summary</div>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:8 }}>
-              <div><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>Job Listing — {jobDraft?.title||"New Role"}</div><div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{jobDraft?.venue} · {jobDraft?.type}{isFeatured?" · Featured":""}</div></div>
-              <div style={{ fontFamily:"'Fraunces',serif", color:appliedCode?C.textSoft:C.terracotta, fontWeight:700, fontSize:22, textDecoration:appliedCode?"line-through":"none" }}>${basePrice}</div>
+        )}
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
+          <span style={{ color:C.textSoft, fontSize:13 }}>GST (10%)</span>
+          <span style={{ color:C.textDark, fontSize:13 }}>${gst}.00 AUD</span>
+        </div>
+        <div style={{ display:"flex", justifyContent:"space-between", borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
+          <span style={{ color:C.textDark, fontSize:15, fontWeight:700 }}>Total</span>
+          <span style={{ color:C.terracotta, fontSize:17, fontWeight:700 }}>${total}.00 AUD</span>
+        </div>
+      </div>
+
+      {/* Discount code */}
+      <div style={{ marginBottom:16 }}>
+        <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:6, fontWeight:600 }}>Discount Code</div>
+        {appliedCode ? (
+          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
+            <span style={{ flex:1, color:C.sage, fontWeight:700, fontSize:13 }}>✓ {appliedCode.code} — {appliedCode.pct}% off applied</span>
+            <button onClick={removeCode} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, cursor:"pointer" }}>×</button>
+          </div>
+        ) : (
+          <div style={{ display:"flex", gap:8 }}>
+            <input value={codeInput} onChange={e=>setCodeInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&applyCode()} placeholder="Enter code" style={{...IS2, flex:1}}/>
+            <button className="tap" onClick={applyCode} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 16px", color:C.textMid, fontSize:13, fontWeight:600 }}>Apply</button>
+          </div>
+        )}
+        {codeErr && <div style={{ color:C.error, fontSize:12, marginTop:5 }}>{codeErr}</div>}
+      </div>
+
+      {/* Stripe secure notice */}
+      <div style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 14px", background:"#F0FFF4", border:"1px solid #86EFAC", borderRadius:10, marginBottom:16 }}>
+        <span style={{ fontSize:18 }}>🔒</span>
+        <span style={{ color:"#166534", fontSize:12 }}>You'll be taken to Stripe's secure checkout to complete payment. We never store your card details.</span>
+      </div>
+
+      {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:8, padding:"9px 12px", marginBottom:12 }}>{err}</div>}
+
+      {/* Buttons */}
+      <div style={{ display:"flex", gap:9 }}>
+        <button className="tap" onClick={()=>{ notifyAbandoned(captureEmail||user?.email||''); onCancel(); }} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 0", color:C.textMid, fontSize:14 }}>Back</button>
+        <button className="btn-cta tap" onClick={pay} disabled={loading}
+          style={{ flex:2, background:loading?"#ccc":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:loading?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
+          {loading ? "Redirecting to Stripe…" : `Pay $${total}.00 AUD →`}
+        </button>
+      </div>
+      <div style={{ textAlign:"center", marginTop:10, color:C.textFaint, fontSize:11 }}>Secured by Stripe · GST receipt provided</div>
+    </div>
+  );
+}
+
+
+// ─── Subscribe Plans ──────────────────────────────────────────────────────────
+function SubscribePlans({ user, onSubscribe }) {
+  const [loading, setLoading] = useState(null);
+  const sub = user?.subscription_tier;
+  const active = user?.subscription_active;
+
+  const plans = [
+    {
+      key: "starter",
+      name: "Starter",
+      icon: "🥉",
+      price: 99,
+      limit: 3,
+      color: "#C9A96E",
+      colorL: "#FDF6E8",
+      border: "#8B6914",
+      features: [
+        "3 active listings at any time",
+        "30-day listing visibility",
+        "Up to 5 photos + video reel",
+        "Unlimited applications",
+        "Application management dashboard",
+        "Verified venue profile",
+        "Cancel anytime",
+      ],
+    },
+    {
+      key: "growth",
+      name: "Growth",
+      icon: "🥈",
+      price: 199,
+      limit: 6,
+      color: "#C0D0E0",
+      colorL: "#EEF3F8",
+      border: "#A8B8C8",
+      popular: true,
+      features: [
+        "6 active listings at any time",
+        "All Starter features",
+        "Pinned to top of feed",
+        "Featured badge on every listing",
+        "Priority in search results",
+        "Highlighted in job alert emails",
+        "Candidate search & messaging",
+        "Cancel anytime",
+      ],
+    },
+    {
+      key: "pro",
+      name: "Pro",
+      icon: "🥇",
+      price: 399,
+      limit: 10,
+      color: "#FFD700",
+      colorL: "#FFFBEB",
+      border: "#D4A017",
+      features: [
+        "10 active listings at any time",
+        "All Growth features",
+        "Instagram & Facebook promotion",
+        "Custom screening questions",
+        "Applicant auto-ranking",
+        "Bulk application management",
+        "Analytics dashboard",
+        "Custom venue landing page",
+        "Cancel anytime",
+      ],
+    },
+  ];
+
+  const IS = { width:"100%", background:"#fff", border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:3 }}>Subscription Plans</div>
+        <div style={{ color:C.textSoft, fontSize:13 }}>Post multiple jobs every month for one flat fee. Cancel anytime.</div>
+      </div>
+
+      {/* Current plan badge */}
+      {active && sub && (
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
+          <span style={{ fontSize:22 }}>✅</span>
+          <div>
+            <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>
+              Active: {sub.charAt(0).toUpperCase()+sub.slice(1)} Plan
             </div>
-            {appliedCode && (
-              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"7px 10px", background:C.sageL, borderRadius:8, marginBottom:8, border:`1px solid ${C.sage}40` }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <span style={{ fontSize:14 }}>🎟️</span>
-                  <div><div style={{ color:C.sage, fontWeight:700, fontSize:12 }}>{appliedCode.code} — {appliedCode.pct}% off</div><div style={{ color:C.textSoft, fontSize:10 }}>{appliedCode.desc}</div></div>
-                </div>
-                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                  <span style={{ color:C.sage, fontWeight:700, fontSize:14 }}>−${discount}</span>
-                  <button className="tap" onClick={removeCode} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>
-                </div>
-              </div>
+            <div style={{ color:C.textSoft, fontSize:12 }}>Your subscription is active and renews monthly via Stripe.</div>
+          </div>
+        </div>
+      )}
+
+      {/* Plan cards */}
+      {plans.map(plan => {
+        const isCurrent = active && sub === plan.key;
+        const gst = Math.round(plan.price * 0.1);
+        const total = plan.price + gst;
+        return (
+          <div key={plan.key} style={{ background:isCurrent?"#ECFDF5":"#fff", borderRadius:16, border:`1.5px solid ${isCurrent?C.sage:plan.popular?plan.border:C.border}`, padding:"18px 16px", position:"relative", boxShadow:plan.popular?"0 4px 20px rgba(0,0,0,0.08)":"none" }}>
+            {plan.popular && !isCurrent && (
+              <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:`linear-gradient(135deg,${plan.border},${plan.color})`, color:C.ink, fontSize:10, fontWeight:800, letterSpacing:1.5, textTransform:"uppercase", padding:"4px 14px", borderRadius:100, whiteSpace:"nowrap" }}>⭐ Most Popular</div>
             )}
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", borderTop:`1px solid ${C.border}`, paddingTop:9, marginTop:4 }}>
+            {isCurrent && (
+              <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:C.sage, color:"#fff", fontSize:10, fontWeight:800, letterSpacing:1.5, textTransform:"uppercase", padding:"4px 14px", borderRadius:100, whiteSpace:"nowrap" }}>✓ Current Plan</div>
+            )}
+
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+              <span style={{ fontSize:28 }}>{plan.icon}</span>
               <div>
-                <span style={{ color:C.textFaint, fontSize:11 }}>Total · Includes GST · AUD</span>
+                <div style={{ fontWeight:700, fontSize:16, color:C.textDark }}>{plan.name}</div>
+                <div style={{ color:C.textSoft, fontSize:12 }}>{plan.limit} active listings/month</div>
               </div>
-              <div style={{ fontFamily:"'Fraunces',serif", color:C.terracotta, fontWeight:700, fontSize:22 }}>${finalPrice}</div>
-            </div>
-          </div>
-          {/* Discount code input */}
-          {!appliedCode && (
-            <div style={{ marginBottom:14 }}>
-              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:6, fontWeight:600 }}>Discount Code</div>
-              <div style={{ display:"flex", gap:8 }}>
-                <input value={codeInput} onChange={e=>setCodeInput(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&applyCode()} placeholder="Enter code…" style={{ flex:1, background:C.bgSoft, border:`1.5px solid ${codeErr?C.error:C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14, textTransform:"uppercase", letterSpacing:1 }}/>
-                <button className="btn-cta tap" onClick={applyCode} style={{ background:C.textDark, border:"none", borderRadius:10, padding:"11px 18px", color:"#fff", fontWeight:700, fontSize:13 }}>Apply</button>
+              <div style={{ marginLeft:"auto", textAlign:"right" }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color:plan.color, lineHeight:1 }}>${plan.price}</div>
+                <div style={{ color:C.textFaint, fontSize:10 }}>+${gst} GST/mo</div>
               </div>
-              {codeErr && <div style={{ color:C.error, fontSize:12, marginTop:4 }}>{codeErr}</div>}
             </div>
-          )}
-          <div style={{ display:"flex", flexDirection:"column", gap:11, marginBottom:14 }}>
-            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Card Number</div><input value={card.number} onChange={e=>setCard(c=>({...c,number:fmt4(e.target.value)}))} placeholder="1234 5678 9012 3456" style={IS("number")}/>{errs.number&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.number}</div>}</div>
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-              <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Expiry</div><input value={card.expiry} onChange={e=>setCard(c=>({...c,expiry:fmtE(e.target.value)}))} placeholder="MM/YY" style={IS("expiry")}/>{errs.expiry&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.expiry}</div>}</div>
-              <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>CVC</div><input value={card.cvc} onChange={e=>setCard(c=>({...c,cvc:e.target.value.replace(/\D/g,"").slice(0,4)}))} placeholder="•••" style={IS("cvc")}/>{errs.cvc&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.cvc}</div>}</div>
-            </div>
-            <div><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Cardholder Name</div><input value={card.name} onChange={e=>setCard(c=>({...c,name:e.target.value}))} placeholder="Name on card" style={IS("name")}/>{errs.name&&<div style={{ color:C.error, fontSize:11, marginTop:3 }}>{errs.name}</div>}</div>
+
+            <ul style={{ listStyle:"none", display:"flex", flexDirection:"column", gap:6, marginBottom:14 }}>
+              {plan.features.map(f=>(
+                <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:7, fontSize:13, color:C.textMid }}>
+                  <span style={{ color:plan.color, fontWeight:700, flexShrink:0, marginTop:1 }}>✓</span>{f}
+                </li>
+              ))}
+            </ul>
+
+            <button className="btn-cta tap" disabled={isCurrent||loading===plan.key}
+              onClick={async()=>{
+                setLoading(plan.key);
+                await onSubscribe(plan.key);
+                setLoading(null);
+              }}
+              style={{ width:"100%", background:isCurrent?C.sage:loading===plan.key?"#ccc":`linear-gradient(135deg,${plan.color},${plan.border})`, border:"none", borderRadius:10, padding:"13px 0", color:plan.key==="starter"?"#1A1000":"#fff", fontWeight:700, fontSize:14, opacity:isCurrent?0.7:1 }}>
+              {isCurrent ? "Current Plan" : loading===plan.key ? "Redirecting…" : `Subscribe — $${total}/mo incl. GST`}
+            </button>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 12px", background:C.sageL, borderRadius:10, marginBottom:14, border:`1px solid ${C.sage}25` }}><span>🔒</span><div style={{ color:C.textMid, fontSize:12 }}>256-bit SSL · Card details never stored</div></div>
-          <div style={{ display:"flex", gap:10 }}>
-            <button className="tap" onClick={onCancel} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
-            <button className="btn-cta tap" onClick={pay} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 13px rgba(196,98,58,0.25)" }}>Pay $50.00 AUD</button>
-          </div>
-        </>}
-        {step==="paying" && <div style={{ textAlign:"center", padding:"44px 0 16px" }}><div style={{ width:60, height:60, borderRadius:"50%", background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, margin:"0 auto 15px" }}>💳</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700, marginBottom:4 }}>Processing…</div><div style={{ color:C.textSoft, fontSize:13, marginBottom:22 }}>Just a moment</div><div style={{ background:C.border, borderRadius:100, height:5, overflow:"hidden", maxWidth:210, margin:"0 auto" }}><div style={{ height:"100%", background:`linear-gradient(90deg,${C.terracotta},${C.sand})`, borderRadius:100, width:`${prog}%`, transition:"width 0.18s" }}/></div></div>}
-        {step==="success" && <div style={{ textAlign:"center", padding:"20px 0 8px" }}><div style={{ width:70, height:70, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, margin:"0 auto 15px", border:`2px solid ${C.sage}` }}>✅</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.textDark, fontWeight:700, marginBottom:5 }}>Payment Confirmed!</div><div style={{ color:C.textMid, fontSize:14, marginBottom:3 }}>$50.00 AUD charged</div><div style={{ color:C.textFaint, fontSize:12, marginBottom:20 }}>Receipt sent to your email</div><div style={{ background:C.sageL, border:`1px solid ${C.sage}30`, borderRadius:12, padding:"12px 15px", marginBottom:18, textAlign:"left" }}><div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Receipt</div><div style={{ display:"flex", justifyContent:"space-between", marginBottom:5 }}><span style={{ color:C.textMid, fontSize:13 }}>Job Listing</span><span style={{ color:C.textDark, fontSize:13, fontWeight:600 }}>$50.00</span></div><div style={{ display:"flex", justifyContent:"space-between" }}><span style={{ color:C.textMid, fontSize:13 }}>Transaction ID</span><span style={{ color:C.textFaint, fontSize:11, fontFamily:"monospace" }}>{txId.current}</span></div></div><button className="btn-cta tap" onClick={onSuccess} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"14px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 13px rgba(196,98,58,0.22)" }}>Publish Listing →</button></div>}
+        );
+      })}
+
+      {/* Compare to pay per listing */}
+      <div style={{ background:C.bgSoft, borderRadius:12, padding:"13px 15px", border:`1px solid ${C.border}` }}>
+        <div style={{ color:C.textMid, fontSize:12, fontWeight:600, marginBottom:6 }}>💡 Compare to pay-per-listing</div>
+        <div style={{ color:C.textSoft, fontSize:12, lineHeight:1.6 }}>
+          Posting 3 Bronze listings individually = $165 AUD (incl. GST).<br/>
+          Starter plan = $108.90/mo for the same 3 slots, every month.<br/>
+          <span style={{ color:C.terracotta, fontWeight:600 }}>Save over 30% with a subscription.</span>
+        </div>
+      </div>
+
+      <div style={{ textAlign:"center", color:C.textFaint, fontSize:11 }}>
+        Billed monthly · Cancel anytime in Stripe · GST receipt provided
       </div>
     </div>
   );
 }
 
-// ─── Employer Dashboard ───────────────────────────────────────────────────────
-function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout }) {
+function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus }) {
   const [tab, setTab] = useState("browse");
   const [expandedJob, setExpandedJob] = useState(null);
   const [venueProfile, setVenueProfile] = useState(null);
@@ -2296,6 +2505,38 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
       <style>{G}</style>
+      {paymentStatus==='success' && (
+        <div style={{ background:"#ECFDF5", borderBottom:"1px solid #86EFAC", padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+          <span style={{ fontSize:20 }}>🎉</span>
+          <div style={{ flex:1 }}>
+            <div style={{ color:"#166534", fontWeight:700, fontSize:14 }}>Payment successful — listing is live!</div>
+            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>A GST receipt has been sent to your email by Stripe.</div>
+          </div>
+          <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+      )}
+      {paymentStatus&&paymentStatus.startsWith('subscription_success_') && (
+        <div style={{ background:"#ECFDF5", borderBottom:"1px solid #86EFAC", padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+          <span style={{ fontSize:20 }}>🎉</span>
+          <div style={{ flex:1 }}>
+            <div style={{ color:"#166534", fontWeight:700, fontSize:14 }}>
+              Welcome to {paymentStatus.replace('subscription_success_','').charAt(0).toUpperCase()+paymentStatus.replace('subscription_success_','').slice(1)} Plan!
+            </div>
+            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>Your subscription is active. You can now post jobs up to your plan limit.</div>
+          </div>
+          <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+      )}
+      {(paymentStatus==='cancelled'||paymentStatus==='subscription_cancelled') && (
+        <div style={{ background:"#FEF2F0", borderBottom:`1px solid ${C.error}30`, padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+          <span style={{ fontSize:20 }}>ℹ️</span>
+          <div style={{ flex:1 }}>
+            <div style={{ color:C.error, fontWeight:700, fontSize:14 }}>Payment cancelled</div>
+            <div style={{ color:C.error, fontSize:12, opacity:0.8 }}>No charge was made.</div>
+          </div>
+          <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:C.error, fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
+        </div>
+      )}
       <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.96)", backdropFilter:"blur(10px)", flexShrink:0 }}>
         <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, flex:1 }}>{user.avatar} {user.name}</div>
         {user.isTrial
@@ -2539,6 +2780,14 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {tab==="messages" && <MessagesScreen currentUser={user} userType="employer" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("feed")}/>}
 
         {/* Analytics */}
+        {tab==="subscribe" && (
+          <SubscribePlans user={user} onSubscribe={async(plan)=>{
+            try {
+              const url = await createSubscriptionSession(plan, user.email, user.id);
+              window.location.href = url;
+            } catch(e) { alert("Could not start subscription. Please try again."); }
+          }}/>
+        )}
         {tab==="analytics" && (
           <div style={{ height:"100%", overflowY:"auto", padding:"16px" }}>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700, marginBottom:16 }}>Analytics</div>
@@ -3080,31 +3329,144 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         )}
       </div>
       {editJob && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:9000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(2px)" }}>
-          <div style={{ width:"100%", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:"20px 20px 0 0", padding:"6px 20px 40px", maxHeight:"90vh", overflowY:"auto" }}>
-            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 18px" }}/>
-            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>Edit Listing</div>
-              <button className="tap" onClick={()=>setEditJob(null)} style={{ background:"none", border:"none" }}><Icon name="close" size={20} color={C.textSoft}/></button>
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(3px)" }}>
+          <div style={{ width:"100%", maxWidth:540, margin:"0 auto", background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 20px 40px", maxHeight:"92vh", overflowY:"auto" }}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 16px" }}/>
+
+            {/* Header */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:18 }}>
+              <div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark }}>Edit Listing</div>
+                <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{editJob.venue} · posted {ago(editJob.ts)} ago</div>
+              </div>
+              <button className="tap" onClick={()=>setEditJob(null)} style={{ background:"none", border:"none" }}><Icon name="close" size={22} color={C.textSoft}/></button>
             </div>
-            <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {[["Title","title"],["Venue","venue"],["Location","loc"],["Salary","salary"],["Short Description","short"],["Apply Link","link"]].map(([l,k])=>(
+
+            <div style={{ display:"flex", flexDirection:"column", gap:13 }}>
+
+              {/* Title + Venue */}
+              {[["Job Title","title"],["Venue Name","venue"]].map(([l,k])=>(
                 <div key={k}>
-                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>{l}</div>
-                  {k==="short"?<textarea value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} rows={3} style={{...IS,resize:"none"}}/>:<input value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} style={IS}/>}
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
+                  <input value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} style={IS}/>
                 </div>
               ))}
+
+              {/* Location */}
               <div>
-                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>Type</div>
-                <select value={editJob.type} onChange={e=>setEditJob(j=>({...j,type:e.target.value}))} style={IS}>{["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}</select>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Country</div>
+                <select value={editJob.country||"Australia"} onChange={e=>setEditJob(j=>({...j,country:e.target.value,state:"",city:""}))} style={IS}>
+                  {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                </select>
               </div>
-              <div className="tap" onClick={()=>setEditJob(j=>({...j,featured:!j.featured}))} style={{ display:"flex", alignItems:"center", gap:9, padding:"10px 12px", background:editJob.featured?C.featuredL:C.bgSoft, borderRadius:10, border:`1px solid ${editJob.featured?C.featured+"40":C.border}`, cursor:"pointer" }}>
-                <div style={{ width:18, height:18, borderRadius:4, background:editJob.featured?C.featured:C.border, display:"flex", alignItems:"center", justifyContent:"center" }}>{editJob.featured&&<Icon name="check" size={11} color="#fff"/>}</div>
-                <span style={{ color:editJob.featured?C.featured:C.textMid, fontSize:13, fontWeight:500 }}>⭐ Featured listing</span>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>State / Region</div>
+                  <select value={editJob.state||""} onChange={e=>setEditJob(j=>({...j,state:e.target.value,city:""}))} style={IS}>
+                    <option value="">Any</option>
+                    {Object.keys(LOCATIONS[editJob.country||"Australia"]||{}).map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>City</div>
+                  <select value={editJob.city||""} onChange={e=>setEditJob(j=>({...j,city:e.target.value}))} style={IS}>
+                    <option value="">Any</option>
+                    {(LOCATIONS[editJob.country||"Australia"]?.[editJob.state||""]||[]).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
               </div>
+
+              {/* Sector + Role Type */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Sector</div>
+                  <select value={editJob.sector||""} onChange={e=>setEditJob(j=>({...j,sector:e.target.value}))} style={IS}>
+                    <option value="">Select…</option>
+                    {SECTORS.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Role Type</div>
+                  <select value={editJob.roleType||""} onChange={e=>setEditJob(j=>({...j,roleType:e.target.value}))} style={IS}>
+                    <option value="">Select…</option>
+                    {Object.entries(HOSPO_ROLES).map(([dept,roles])=><optgroup key={dept} label={dept}>{roles.map(r=><option key={r}>{r}</option>)}</optgroup>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Employment Type + Salary Band */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Employment Type</div>
+                  <select value={editJob.type||"Full-time"} onChange={e=>setEditJob(j=>({...j,type:e.target.value}))} style={IS}>
+                    {["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Band</div>
+                  <select value={editJob.salaryBand||""} onChange={e=>setEditJob(j=>({...j,salaryBand:e.target.value}))} style={IS}>
+                    {SALARY_BANDS.map(s=><option key={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              {/* Salary display */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Display Text</div>
+                <input value={editJob.salary||""} onChange={e=>setEditJob(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, Competitive" style={IS}/>
+              </div>
+
+              {/* Short + Full description */}
+              {[["Short Description (shown in feed)","short",3],["Full Description (detail page)","full",6]].map(([l,k,rows])=>(
+                <div key={k}>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
+                  <textarea value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} rows={rows} style={{...IS,resize:"none"}}/>
+                </div>
+              ))}
+
+              {/* Apply link */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Apply Link</div>
+                <input value={editJob.link||""} onChange={e=>setEditJob(j=>({...j,link:e.target.value}))} placeholder="https://…" style={IS}/>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Tags</div>
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:7 }}>
+                  {(editJob.tags||[]).map(tag=>(
+                    <span key={tag} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, display:"flex", alignItems:"center", gap:5 }}>
+                      {tag}
+                      <button onClick={()=>setEditJob(j=>({...j,tags:(j.tags||[]).filter(t=>t!==tag)}))} style={{ background:"none", border:"none", color:C.terracotta, fontSize:14, lineHeight:1, cursor:"pointer", padding:0 }}>×</button>
+                    </span>
+                  ))}
+                </div>
+                <input onKeyDown={e=>{ if(e.key==="Enter"&&e.target.value.trim()){ setEditJob(j=>({...j,tags:[...(j.tags||[]),e.target.value.trim()]})); e.target.value=""; }}} placeholder="Type tag + Enter to add" style={IS}/>
+              </div>
+
+              {/* Featured + Verified toggles */}
+              <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                {[["featured","⭐ Featured listing",C.featured,C.featuredL],["verified","✅ Verified venue",C.sage,C.sageL]].map(([key,label,clr,bg])=>(
+                  <div key={key} className="tap" onClick={()=>setEditJob(j=>({...j,[key]:!j[key]}))}
+                    style={{ display:"flex", alignItems:"center", gap:9, padding:"10px 12px", background:editJob[key]?bg:C.bgSoft, borderRadius:10, border:`1px solid ${editJob[key]?clr+"40":C.border}`, cursor:"pointer" }}>
+                    <div style={{ width:20, height:20, borderRadius:5, background:editJob[key]?clr:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      {editJob[key] && <Icon name="check" size={12} color="#fff"/>}
+                    </div>
+                    <span style={{ color:editJob[key]?clr:C.textMid, fontSize:13, fontWeight:500 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action buttons */}
               <div style={{ display:"flex", gap:9, marginTop:4 }}>
-                <button className="tap" onClick={()=>setEditJob(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
-                <button className="btn-cta tap" onClick={()=>{ setJobs(p=>p.map(j=>j.id===editJob.id?editJob:j)); setEditJob(null); }} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Save Changes</button>
+                <button className="tap" onClick={()=>setEditJob(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                <button className="btn-cta tap" onClick={()=>{
+                  const locStr = [editJob.city,editJob.state,editJob.country].filter(Boolean).join(", ")||editJob.loc||"Australia";
+                  setJobs(p=>p.map(j=>j.id===editJob.id?{...editJob,loc:locStr}:j));
+                  setEditJob(null);
+                }} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                  💾 Save Changes
+                </button>
               </div>
             </div>
           </div>
@@ -3154,8 +3516,28 @@ export default function App() {
   const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS);
   const [codes, setCodes]               = useState(INIT_CODES);
 
+  // ── Handle Stripe payment return ────────────────────────────────────────────
+  const [paymentStatus, setPaymentStatus] = useState(null); // success | cancelled | null
+
   // ── Load session + jobs on mount ──────────────────────────────────────────
   useEffect(()=>{
+    // Check for Stripe payment return
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment') === 'success') {
+      setPaymentStatus('success');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('payment') === 'cancelled') {
+      setPaymentStatus('cancelled');
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('subscription') === 'success') {
+      const plan = params.get('plan') || '';
+      setPaymentStatus('subscription_success_' + plan);
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (params.get('subscription') === 'cancelled') {
+      setPaymentStatus('subscription_cancelled');
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
     const init = async () => {
       try {
         // Try to restore session from Supabase
@@ -3214,6 +3596,6 @@ export default function App() {
 
   if (!user) return <Login onLogin={handleLogin}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
-  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout}/>;
+  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout}/>;
 }

@@ -302,6 +302,7 @@ const TICKER_ITEMS = [
 ]
 
 export default function Landing() {
+  const [pricingTab, setPricingTab] = React.useState('listing');
   const navRef = useRef()
   const statsRef = useRef()
   const countersAnimated = useRef(false)
@@ -686,11 +687,21 @@ export default function Landing() {
         <div className="hs-pricing-inner">
           <div className="reveal">
             <div className="hs-section-tag" style={{color:'var(--terra)'}}>Simple pricing</div>
-            <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>No subscriptions.<br/>No hidden fees.</h2>
-            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'52px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing. Job seekers are always free. GST included.</p>
+            <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>Transparent pricing.<br/>No hidden fees.</h2>
+            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free. GST included.</p>
+            {/* Toggle */}
+            <div style={{display:'inline-flex',background:'rgba(255,255,255,0.08)',borderRadius:100,padding:4,marginBottom:48,gap:4}}>
+              {[['listing','Pay Per Listing'],['subscription','Subscriptions']].map(([v,l])=>(
+                <button key={v} onClick={()=>setPricingTab(v)}
+                  style={{padding:'9px 22px',borderRadius:100,border:'none',background:pricingTab===v?'white':'transparent',color:pricingTab===v?'var(--ink)':'rgba(255,255,255,0.6)',fontWeight:pricingTab===v?700:400,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
+                  {l}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* 3 Olympic tier cards */}
+          {/* ── Pay Per Listing ── */}
+          {pricingTab==='listing' && (
           <div className="reveal hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
 
             {/* Bronze — $50 */}
@@ -785,6 +796,104 @@ export default function Landing() {
               </Link>
             </div>
           </div>
+          )}
+
+          {/* ── Subscriptions ── */}
+          {pricingTab==='subscription' && (
+          <div className="reveal hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+
+            {/* Starter */}
+            <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#C9A96E'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#8B6914'}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥉</div>
+                <div>
+                  <div style={{color:'#C9A96E',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Starter</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>3 active listings</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2}}>$99</div>
+                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
+              </div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#C9A96E',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.background='rgba(201,169,110,0.25)'}
+                onMouseLeave={e=>e.currentTarget.style.background='rgba(201,169,110,0.15)'}>
+                Start Starter Plan
+              </Link>
+            </div>
+
+            {/* Growth */}
+            <div style={{background:'linear-gradient(145deg,#1E2228,#151A20)',border:'2px solid #A8B8C8',borderRadius:24,padding:'32px 28px',position:'relative',transform:'translateY(-8px)',boxShadow:'0 20px 50px rgba(0,0,0,0.4)',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#D0E0F0'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#A8B8C8'}>
+              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#A8B8C8,#D0E0F0)',color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥈</div>
+                <div>
+                  <div style={{color:'#C0D0E0',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Growth</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>6 active listings</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2}}>$199</div>
+                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
+              </div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#C0D0E0',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                Start Growth Plan
+              </Link>
+            </div>
+
+            {/* Pro */}
+            <div style={{background:'linear-gradient(145deg,#231A08,#1A1205)',border:'1px solid #D4A017',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor='#FFD700'}
+              onMouseLeave={e=>e.currentTarget.style.borderColor='#D4A017'}>
+              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
+                <div style={{fontSize:28}}>🥇</div>
+                <div>
+                  <div style={{color:'#FFD700',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Pro</div>
+                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>10 active listings</div>
+                </div>
+              </div>
+              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2}}>$399</div>
+                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
+              </div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
+                {['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'].map(f=>(
+                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
+                    <span style={{color:'#FFD700',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s'}}
+                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
+                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
+                Start Pro Plan
+              </Link>
+            </div>
+          </div>
+          )}
 
           {/* Seek comparison table */}
           <div className="reveal hs-compare-table" style={{maxWidth:900,background:'rgba(255,255,255,0.04)',borderRadius:20,border:'1px solid rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:28}}>
@@ -890,6 +999,37 @@ export default function Landing() {
         <div className="hs-final-actions">
           <Link to="/app" className="btn-white">🔍 Find Jobs — Free</Link>
           <Link to="/app" className="btn-ghost">Hiring? Post a job →</Link>
+        </div>
+        {/* Employer email capture */}
+        <div style={{marginTop:40,background:'rgba(255,255,255,0.1)',borderRadius:16,padding:'24px 28px',maxWidth:480,marginLeft:'auto',marginRight:'auto',border:'1px solid rgba(255,255,255,0.15)'}}>
+          <div style={{color:'white',fontWeight:700,fontSize:16,marginBottom:6}}>Hiring? Get notified about new candidates</div>
+          <div style={{color:'rgba(255,255,255,0.6)',fontSize:13,marginBottom:16}}>Drop your email and we'll send you matching candidates as they join.</div>
+          <div style={{display:'flex',gap:8}}>
+            <input
+              type="email"
+              placeholder="your@venue.com.au"
+              id="employer-capture-email"
+              style={{flex:1,background:'rgba(255,255,255,0.15)',border:'1px solid rgba(255,255,255,0.25)',borderRadius:10,padding:'11px 14px',color:'white',fontSize:14,outline:'none'}}
+            />
+            <button
+              onClick={async()=>{
+                const email = document.getElementById('employer-capture-email').value;
+                if (!email || !email.includes('@')) return;
+                try {
+                  await fetch('https://formspree.io/f/hello@hosposearch.com.au', {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body:JSON.stringify({email, source:'landing_employer_capture', _subject:`New employer interest: ${email}`})
+                  });
+                  document.getElementById('employer-capture-email').value='';
+                  document.getElementById('employer-capture-thanks').style.display='block';
+                } catch(e) {}
+              }}
+              style={{background:'white',color:'var(--terra)',padding:'11px 20px',borderRadius:10,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>
+              Notify Me
+            </button>
+          </div>
+          <div id="employer-capture-thanks" style={{display:'none',color:'rgba(255,255,255,0.8)',fontSize:13,marginTop:10,textAlign:'center'}}>✓ Got it — we'll be in touch!</div>
         </div>
       </section>
 
