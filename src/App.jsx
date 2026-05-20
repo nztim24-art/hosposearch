@@ -471,45 +471,106 @@ function getEmp(job) {
 
 function Carousel({ photos, video, height=null }) {
   const [cur, setCur] = useState(0);
-  const sx = useRef(null);
-  const slides = video ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))] : photos.map(s=>({ t:"photo", src:s }));
-  const s = slides[cur];
-  const prev = e => { e.stopPropagation(); setCur(c=>(c-1+slides.length)%slides.length); };
-  const next = e => { e.stopPropagation(); setCur(c=>(c+1)%slides.length); };
-  const pbg = PBG[typeof s?.src==="number" ? s.src%PBG.length : cur%PBG.length];
-  // 4:5 aspect ratio (Instagram standard) unless height explicitly overridden
+  const [dragging, setDragging] = useState(false);
+  const [dragX, setDragX] = useState(0);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const containerRef = useRef(null);
+
+  const slides = video
+    ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))]
+    : photos.map(s=>({ t:"photo", src:s }));
+
+  const goTo = (i) => { setCur(Math.max(0, Math.min(i, slides.length-1))); };
+
+  const onTouchStart = e => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setDragging(true);
+    setDragX(0);
+  };
+  const onTouchMove = e => {
+    if (touchStartX.current === null) return;
+    const dx = e.touches[0].clientX - touchStartX.current;
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (dy > 40) { setDragging(false); return; } // vertical scroll — ignore
+    setDragX(dx);
+  };
+  const onTouchEnd = e => {
+    if (!dragging) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0 && cur < slides.length-1) goTo(cur+1);
+      if (dx > 0 && cur > 0) goTo(cur-1);
+    }
+    setDragging(false);
+    setDragX(0);
+    touchStartX.current = null;
+  };
+
   const containerStyle = height
-    ? { position:"relative", width:"100%", height, background:C.bgSoft, overflow:"hidden" }
-    : { position:"relative", width:"100%", aspectRatio:"4/5", background:C.bgSoft, overflow:"hidden" };
+    ? { position:"relative", width:"100%", height, overflow:"hidden" }
+    : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
+
+  const translateX = dragging
+    ? `calc(${-cur * 100}% + ${dragX}px)`
+    : `${-cur * 100}%`;
+
   return (
-    <div style={containerStyle}
-      onTouchStart={e=>{ sx.current=e.touches[0].clientX; }}
-      onTouchEnd={e=>{ if(!sx.current) return; const d=sx.current-e.changedTouches[0].clientX; if(Math.abs(d)>36) d>0?next(e):prev(e); sx.current=null; }}>
-      {s?.t==="video" ? (
-        <div style={{ position:"relative", width:"100%", height:"100%" }}>
-          <video src={s.src} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-          <div style={{ position:"absolute", top:10, left:12, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)", borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:5 }}>
-            <Icon name="video" size={11} color="#fff" fill="#fff"/><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>Reel</span>
-          </div>
-        </div>
-      ) : s?.src && isData(s.src) ? (
-        <img src={s.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
-      ) : (
-        <div style={{ width:"100%", height:"100%", background:pbg, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10 }}>
-          <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
-          <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {cur+1}</span>
+    <div ref={containerRef} style={containerStyle}
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}>
+
+      {/* Sliding strip — all slides side by side */}
+      <div style={{
+        display:"flex",
+        width:`${slides.length * 100}%`,
+        height:"100%",
+        transform:`translateX(${translateX})`,
+        transition: dragging ? "none" : "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)",
+        willChange:"transform",
+      }}>
+        {slides.map((slide, i) => {
+          const pbg = PBG[typeof slide.src==="number" ? slide.src%PBG.length : i%PBG.length];
+          return (
+            <div key={i} style={{ width:`${100/slides.length}%`, height:"100%", flexShrink:0, overflow:"hidden", background:pbg }}>
+              {slide.t==="video" ? (
+                <div style={{ position:"relative", width:"100%", height:"100%" }}>
+                  <video src={slide.src} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                  <div style={{ position:"absolute", top:10, left:12, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)", borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:5 }}>
+                    <Icon name="video" size={11} color="#fff" fill="#fff"/><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>Reel</span>
+                  </div>
+                </div>
+              ) : slide.src && isData(slide.src) ? (
+                <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+              ) : (
+                <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
+                  <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
+                  <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {i+1}</span>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Dot indicators */}
+      {slides.length > 1 && (
+        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5, zIndex:2 }}>
+          {slides.map((_,i)=>(
+            <div key={i} onClick={e=>{e.stopPropagation();goTo(i);}}
+              style={{ width:i===cur?18:6, height:6, borderRadius:3, background:i===cur?"#fff":"rgba(255,255,255,0.5)", transition:"all 0.25s", cursor:"pointer" }}/>
+          ))}
         </div>
       )}
-      {slides.length>1 && <>
-        <button onClick={prev} className="tap" style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.82)", border:"none", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 6px rgba(0,0,0,0.12)" }}><span style={{ color:C.clay, fontSize:16 }}>‹</span></button>
-        <button onClick={next} className="tap" style={{ position:"absolute", right:10, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.82)", border:"none", width:30, height:30, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", boxShadow:"0 1px 6px rgba(0,0,0,0.12)" }}><span style={{ color:C.clay, fontSize:16 }}>›</span></button>
-        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5 }}>
-          {slides.map((_,i)=><div key={i} onClick={e=>{e.stopPropagation();setCur(i);}} style={{ width:i===cur?18:6, height:6, borderRadius:3, background:i===cur?"#fff":"rgba(255,255,255,0.5)", transition:"all 0.25s", cursor:"pointer" }}/>)}
-        </div>
-        <div style={{ position:"absolute", top:10, right:12, background:"rgba(0,0,0,0.45)", borderRadius:20, padding:"3px 9px" }}>
+
+      {/* Counter badge */}
+      {slides.length > 1 && (
+        <div style={{ position:"absolute", top:10, right:12, background:"rgba(0,0,0,0.45)", borderRadius:20, padding:"3px 9px", zIndex:2 }}>
           <span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>{cur+1}/{slides.length}</span>
         </div>
-      </>}
+      )}
     </div>
   );
 }
@@ -1803,7 +1864,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-            <span className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ color:C.textDark, fontWeight:600, fontSize:14, cursor:"pointer" }}>{emp?.handle}</span>
+            <span className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ color:C.textDark, fontWeight:600, fontSize:14, cursor:"pointer" }}>{emp?.name||emp?.handle}</span>
             {job.verified && <span style={{ color:C.blue, fontSize:13 }}>●</span>}
           </div>
           <div style={{ color:C.textSoft, fontSize:11 }}>{job.loc}</div>
@@ -3640,6 +3701,35 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 </div>
                 {(editJob.photos||[]).filter(p=>isData(p)).length === 0 && (
                   <div style={{ color:C.textFaint, fontSize:12 }}>No photos — tap ADD to upload</div>
+                )}
+              </div>
+
+              {/* Transfer to employer */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Transfer to Employer <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(enter their email to hand off this listing)</span></div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input
+                    placeholder="employer@venue.com.au"
+                    id="transfer-email-input"
+                    style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}
+                  />
+                  <button className="tap" onClick={async ()=>{
+                    const email = document.getElementById('transfer-email-input').value.trim();
+                    if (!email) return;
+                    // Find user by email in Supabase
+                    const { data } = await supabase.from('profiles').select('id,name,handle').eq('email', email).single();
+                    if (!data) { alert('No account found with that email. Ask them to sign up first.'); return; }
+                    if (window.confirm(`Transfer this listing to ${data.name} (@${data.handle})?`)) {
+                      setEditJob(j=>({...j, empId:data.id, venue:data.name}));
+                      document.getElementById('transfer-email-input').value = '';
+                      alert(`✅ Listing will transfer to ${data.name} when you save.`);
+                    }
+                  }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:9, padding:"10px 14px", color:C.terracotta, fontSize:13, fontWeight:600 }}>
+                    Transfer
+                  </button>
+                </div>
+                {editJob.empId !== 'admin' && editJob.empId && (
+                  <div style={{ color:C.sage, fontSize:12, marginTop:5 }}>✓ Currently assigned to emp ID: {editJob.empId}</div>
                 )}
               </div>
 
