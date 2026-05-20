@@ -297,20 +297,7 @@ const HOSPO_ROLES = {
 };
 const ALL_ROLES = Object.values(HOSPO_ROLES).flat();
 
-const INIT_JOBS = [
-  { id:"j1", empId:"emp1", title:"Head Chef", venue:"Attica", loc:"Ripponlea, VIC", country:"Australia", state:"Victoria", city:"Melbourne", sector:"Fine Dining", roleType:"Head Chef", salary:"$90–110k", salaryBand:"$90–110k", type:"Full-time", tags:["Chef Hat Venue","Fine Dining","Award-Winning"],
-    short:"Lead the kitchen at one of Australia's most celebrated fine dining venues. 3 hat experience preferred.",
-    full:"Attica is seeking an exceptional Head Chef to join Ben Shewry's legendary team. You'll lead a brigade of 18 in crafting one of the world's most talked-about tasting menus. Indigenous ingredients, boundary-pushing technique, and a deeply collaborative culture define us.\n\nYou'll be responsible for menu development, kitchen management, staff training, and maintaining our 3 Chef Hat standard.\n\nWe offer competitive salary, staff meals, genuine career progression, and the privilege of working alongside some of the world's most respected culinary talent.",
-    link:"https://attica.com.au/jobs", photos:[0,1,2,3,4], video:null, verified:true, featured:true, ts:Date.now()-3600000*2, apps:[], views:142 },
-  { id:"j2", empId:"emp2", title:"Sommelier", venue:"Tetsuya's", loc:"Sydney, NSW", country:"Australia", state:"New South Wales", city:"Sydney", sector:"Restaurant", roleType:"Sommelier", salary:"$70–85k", salaryBand:"$70–90k", type:"Full-time", tags:["Hatted Restaurant","Fine Dining","CBD"],
-    short:"Join Tetsuya's iconic front-of-house team as a passionate sommelier with a love for Japanese-French cuisine.",
-    full:"Tetsuya's is one of Sydney's most iconic fine dining destinations. We are seeking an experienced Sommelier to manage our exceptional cellar and guide guests through our award-winning wine program.\n\nYou will curate wine pairings for our 10-course degustation, manage cellar operations, mentor junior staff, and build supplier relationships.\n\nCourt of Master Sommeliers certification preferred. We offer world-class working environment and competitive remuneration.",
-    link:"https://tetsuyas.com/careers", photos:[1,2,3,0,4], video:null, verified:true, featured:false, ts:Date.now()-3600000*5, apps:[], views:87 },
-  { id:"j3", empId:"emp3", title:"Pastry Chef", venue:"Quay Restaurant", loc:"Sydney, NSW", country:"Australia", state:"New South Wales", city:"Sydney", sector:"Fine Dining", roleType:"Pastry Chef", salary:"$75–88k", salaryBand:"$70–90k", type:"Full-time", tags:["Hatted Restaurant","Waterfront","Contemporary"],
-    short:"Create extraordinary desserts at Peter Gilmore's harbour-front restaurant. Iconic venue, world-class team.",
-    full:"Quay is seeking a creative and technically skilled Pastry Chef under Executive Chef Peter Gilmore. You'll develop and execute our dessert menu with a focus on seasonal produce and contemporary technique.\n\nResponsibilities include daily pastry production, menu R&D, HACCP standards, and mentoring junior pastry staff.\n\nBenefits include competitive salary, chef whites, staff meals, and Sydney Harbour views.",
-    link:"https://quay.com.au/careers", photos:[2,3,4,1,0], video:null, verified:false, featured:false, ts:Date.now()-3600000*22, apps:[], views:63 },
-];
+const INIT_JOBS = [];
 
 const INIT_MESSAGES = {
   "u1-emp1": [
@@ -2019,7 +2006,6 @@ function Login({ onLogin }) {
   const [screen, setScreen] = useState("login"); // login | signup
   const [mode, setMode] = useState("employee");
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
-  const [logoTaps, setLogoTaps] = useState(0);
   // Sign up fields
   const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:"employee" });
   const [suErr, setSuErr] = useState("");
@@ -2108,7 +2094,7 @@ function Login({ onLogin }) {
       <div style={{ position:"fixed", bottom:-60, left:-60, width:200, height:200, borderRadius:"50%", background:`radial-gradient(circle,${C.sageL},transparent 70%)`, pointerEvents:"none" }}/>
       <div style={{ width:"100%", maxWidth:380, position:"relative" }}>
         <div style={{ textAlign:"center", marginBottom:32 }}>
-          <div onClick={()=>setLogoTaps(t=>t+1)} style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px", boxShadow:`0 6px 18px ${C.terracottaM}`, cursor:"default", userSelect:"none" }}>🍽️</div>
+          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px", boxShadow:`0 6px 18px ${C.terracottaM}` }}>🍽️</div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:700, color:C.textDark, letterSpacing:-0.5 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
           <div style={{ color:C.textFaint, fontSize:11, marginTop:5, letterSpacing:2.5, textTransform:"uppercase", fontWeight:500 }}>Hospitality Jobs · ANZ</div>
         </div>
@@ -2165,21 +2151,7 @@ function Login({ onLogin }) {
           Don't have an account? <span onClick={()=>setScreen("signup")} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span>
         </div>
         </>}
-        {/* Hidden dev access — tap logo 5x to reveal demo buttons */}
-        {logoTaps>=5 && (
-          <div style={{ marginTop:16, background:C.bgSoft, borderRadius:14, padding:"14px 16px", border:`1px dashed ${C.border}` }}>
-            <div style={{ color:C.textFaint, fontSize:10, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:10, textAlign:"center" }}>Dev Access</div>
-            <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-              {[["employee","👨‍🍳","Job Seeker"],["employer","🍽️","Employer"],["admin","🛡️","Admin"],["trial","🔍","Trial"]].map(([t,ic,l])=>(
-                <button key={t} className="tap" onClick={()=>{
-                  if(t==="admin"){setEmail(ADMIN.email);setPass(ADMIN.password);}
-                  else if(t==="trial"){setEmail("trial@hosposearch.com.au");setPass("hospo_trial!");}
-                  else demo(t);
-                }} style={{ flex:1, minWidth:70, background:"#fff", border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textMid, fontSize:12, fontWeight:500, display:"flex", alignItems:"center", justifyContent:"center", gap:5 }}><span>{ic}</span>{l}</button>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );
@@ -2496,6 +2468,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
   const [posted, setPosted] = useState(false);
+  const [posting, setPosting] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
   const mine = jobs.filter(j=>j.empId===user.id);
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
@@ -2517,6 +2490,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     if(!nj.title.trim()) return;
     const jobData = buildJobData();
     if(user.isTrial) {
+      setPosting(true);
       try {
         const saved = await sbCreateJob(user.id, jobData);
         setJobs(p=>[saved,...p]);
@@ -2524,13 +2498,15 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         console.warn('Supabase save failed, using local:', e);
         setJobs(p=>[{...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0},...p]);
       }
+      setPosting(false);
       setPosted(true);
-      setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2200);
+      setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
     } else {
       setCheckoutJob(jobData);
     }
   };
   const publishAfterPayment = async () => {
+    setPosting(true);
     let jobToAdd = checkoutJob;
     try {
       const saved = await sbCreateJob(user.id, checkoutJob);
@@ -2541,19 +2517,33 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     }
     setJobs(p=>[jobToAdd,...p]);
     setCheckoutJob(null);
+    setPosting(false);
     setPosted(true);
-    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2200);
+    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
   };
   const uploadVideo = () => { const r=document.createElement("input"); r.type="file"; r.accept="video/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; if(f.size>50*1048576){alert("Keep reel under 50MB.");return;} const rd=new FileReader(); rd.onload=ev=>setVideoFile(ev.target.result); rd.readAsDataURL(f); }; r.click(); };
   const fmtS = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
 
-  const NavBtn = ({ t, ic, l, badge }) => (
-    <button className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-      <Icon name={ic} size={24} color={tab===t?C.terracotta:C.textSoft} fill={tab===t&&ic==="person"?C.terracottaL:"none"}/>
-      {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
-      <span style={{ fontSize:10, color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400 }}>{l}</span>
-    </button>
-  );
+  const NavBtn = ({ t, ic, l, badge }) => {
+    const isPost = t==="post";
+    const isPostedTab = isPost && posted;
+    const isActive = tab===t;
+    const iconColor = isPostedTab ? C.sage : isActive ? C.terracotta : C.textSoft;
+    const labelColor = isPostedTab ? C.sage : isActive ? C.terracotta : C.textSoft;
+    return (
+      <button className="tap" onClick={()=>setTab(t)}
+        style={{ flex:1, padding:"10px 0 8px", border:"none", background:isPostedTab?"#ECFDF5":"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative", transition:"background 0.3s", borderTop:isPostedTab?`2px solid ${C.sage}`:"2px solid transparent" }}>
+        {isPostedTab
+          ? <span style={{ fontSize:22 }}>✅</span>
+          : <Icon name={ic} size={24} color={iconColor} fill={isActive&&ic==="person"?C.terracottaL:"none"}/>
+        }
+        {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
+        <span style={{ fontSize:10, color:labelColor, fontWeight:isActive||isPostedTab?600:400 }}>
+          {isPostedTab ? "Posted!" : l}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
@@ -2781,13 +2771,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </div>
             )}
             {user.isTrial && <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>🎁</span><div style={{ flex:1 }}><div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>HospoSearch Trial — Free Post</div><div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Posting on behalf of a new venue</div></div><span style={{ color:C.sage, fontWeight:700 }}>FREE</span></div>}
-            <button className="btn-cta tap" onClick={post} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
-              {user.isTrial ? "Publish Free Listing" : "Continue to Payment →"}
+            <button className="btn-cta tap" onClick={post} disabled={posting}
+              style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
+              {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : user.isTrial ? "🚀 Publish Free Listing" : "Continue to Payment →"}
             </button>
           </div>
         )}
 
-        {posted && <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 20px" }}><div style={{ width:74, height:74, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:38, marginBottom:16, border:`2px solid ${C.sage}` }}>🎉</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:24, color:C.textDark, fontWeight:700, marginBottom:6 }}>Listing Published!</div><div style={{ color:C.textMid }}>Your role is now live</div></div>}
+        {posted && (
+          <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 20px", background:"#ECFDF5" }}>
+            <div style={{ width:88, height:88, borderRadius:"50%", background:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:46, marginBottom:20, border:`3px solid ${C.sage}`, boxShadow:`0 8px 24px ${C.sage}40` }}>✅</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, color:"#166534", fontWeight:800, marginBottom:8, textAlign:"center" }}>Job Posted!</div>
+            <div style={{ color:"#166534", fontSize:15, marginBottom:6, opacity:0.8, textAlign:"center" }}>Your listing is now live on HospoSearch</div>
+            <div style={{ color:"#166534", fontSize:13, opacity:0.6 }}>Redirecting to your listings…</div>
+          </div>
+        )}
 
         {/* Applications */}
         {tab==="apps" && (
