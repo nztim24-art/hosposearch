@@ -3037,7 +3037,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             {sortedJobs.map((j,i)=>(
               <div key={j.id}>
                 {i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 16px 4px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
-                <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>
+                {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
               </div>
             ))}
             <div style={{ textAlign:"center", padding:"32px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:24, marginBottom:7 }}>🌿</div>You're all caught up!</div>
@@ -3155,7 +3155,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         {tab==="listings" && (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{jobs.length} total listing{jobs.length!==1?"s":""}</div>
-            {jobs.map(j=>{ const emp=getEmp(j); const first=j.photos[0]; const isd=isData(first); return (
+            {jobs.filter(j=>j&&j.id).map(j=>{ const emp=getEmp(j); const first=(j.photos||[0])[0]; const isd=isData(first); return (
               <div key={j.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", height:72 }}>
                   <div style={{ width:72, flexShrink:0, background:isd?"transparent":PBG[(typeof first==="number"?first:0)%PBG.length], overflow:"hidden" }}>

@@ -43,7 +43,7 @@ export async function fetchJobs() {
   const { data, error } = await supabase
     .from('jobs')
     .select('*')
-    .eq('active', true)
+    .neq('active', false)
     .order('featured', { ascending: false })
     .order('created_at', { ascending: false })
   if (error) {
@@ -216,30 +216,31 @@ export async function updateProfile(profileId, updates) {
 
 // ─── Normalise DB row → app format ────────────────────────────────────────────
 function normaliseJob(row) {
+  if (!row) return null;
   return {
-    id:         row.id,
-    empId:      row.emp_id,
-    title:      row.title,
-    venue:      row.venue || '',
-    loc:        row.loc,
-    country:    row.country,
-    state:      row.state,
-    city:       row.city,
-    sector:     row.sector,
-    roleType:   row.role_type,
-    salary:     row.salary,
-    salaryBand: row.salary_band,
-    type:       row.type,
-    tags:       row.tags || [],
-    short:      row.short,
-    full:       row.full_desc,
-    link:       row.link,
-    photos:     row.photos?.length > 0 ? row.photos : [0, 1, 2],
+    id:         row.id || ('j' + Date.now()),
+    empId:      row.emp_id || 'admin',
+    title:      row.title || '',
+    venue:      row.venue || 'HospoSearch',
+    loc:        row.loc || row.country || 'Australia',
+    country:    row.country || 'Australia',
+    state:      row.state || '',
+    city:       row.city || '',
+    sector:     row.sector || '',
+    roleType:   row.role_type || '',
+    salary:     row.salary || 'Competitive',
+    salaryBand: row.salary_band || '',
+    type:       row.type || 'Full-time',
+    tags:       Array.isArray(row.tags) ? row.tags : [],
+    short:      row.short || '',
+    full:       row.full_desc || row.short || '',
+    link:       row.link || '#',
+    photos:     Array.isArray(row.photos) && row.photos.length > 0 ? row.photos : [0, 1, 2],
     video:      row.video_url || null,
-    verified:   row.verified,
-    featured:   row.featured,
+    verified:   row.verified || false,
+    featured:   row.featured || false,
     views:      row.views || 0,
     apps:       [],
-    ts:         new Date(row.created_at).getTime(),
+    ts:         row.created_at ? new Date(row.created_at).getTime() : Date.now(),
   }
 }
