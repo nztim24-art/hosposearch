@@ -444,6 +444,31 @@ function FileZone({ label, icon, file, onFile, onRemove }) {
 }
 
 // ─── Carousel ─────────────────────────────────────────────────────────────────
+// ─── Employer lookup helper ───────────────────────────────────────────────────
+function getEmp(job) {
+  if (!job) return null;
+  const found = EMPLOYERS.find(e => e.id === job.empId);
+  if (found) return found;
+  const venueName = job.venue || 'HospoSearch';
+  return {
+    id:       job.empId || 'admin',
+    name:     venueName,
+    handle:   venueName.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''),
+    avatar:   '🍽️',
+    verified: job.verified || false,
+    bio:      job.loc || '',
+    cuisine:  job.sector || '',
+    size:     '',
+    awards:   [],
+    isTrial:  false,
+    email:    '',
+    password: '',
+    subscription_tier:   null,
+    subscription_active: false,
+    subscription_limit:  0,
+  };
+}
+
 function Carousel({ photos, video, height=null }) {
   const [cur, setCur] = useState(0);
   const sx = useRef(null);
@@ -3109,7 +3134,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     setNjPosted(true);
     setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
     setNjPhotos([]);
-    setTimeout(() => setNjPosted(false), 3000);
+    setTimeout(() => { setNjPosted(false); setTab('listings'); }, 2500);
   };
   const allUsers = [...EMPLOYERS.filter(e=>!e.isTrial).map(e=>({...e,type:"employer"})), ...EMPLOYEES.map(e=>({...e,type:"employee"}))];
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
