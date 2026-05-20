@@ -39,6 +39,7 @@ const C = {
 };
 
 const G = `
+  @keyframes spin { to { transform: rotate(360deg); } }
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; overflow:hidden; }
@@ -1567,7 +1568,7 @@ function MyApplications({ userId, jobs, bookmarks, onExpand }) {
         {tab==="applied" && (
           applied.length===0
             ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No applications yet</div><div style={{ fontSize:13 }}>Apply for a role to track it here</div></div>
-            : applied.map(({ job, app })=>{ const emp=EMPLOYERS.find(e=>e.id===job.empId); const status=app.status||"Sent"; const sc=statusColor[status]||C.textSoft; const first=job.photos[0]; const isd=isData(first); return (
+            : applied.map(({ job, app })=>{ const emp=getEmp(job); const status=app.status||"Sent"; const sc=statusColor[status]||C.textSoft; const first=job.photos[0]; const isd=isData(first); return (
               <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
                 <div style={{ display:"flex", height:70 }}>
                   <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
@@ -1589,7 +1590,7 @@ function MyApplications({ userId, jobs, bookmarks, onExpand }) {
         {tab==="saved" && (
           saved.length===0
             ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>🔖</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No saved jobs yet</div><div style={{ fontSize:13 }}>Tap the bookmark icon on any listing</div></div>
-            : saved.map(job=>{ const emp=EMPLOYERS.find(e=>e.id===job.empId); const first=job.photos[0]; const isd=isData(first); return (
+            : saved.map(job=>{ const emp=getEmp(job); const first=job.photos[0]; const isd=isData(first); return (
               <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
                 <div style={{ display:"flex", height:70 }}>
                   <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
@@ -1738,7 +1739,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
       )}
       <div style={{ flex:1, overflowY:"auto", padding:2 }}>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:2 }}>
-          {filtered.map((j,i)=>{ const first=j.video||j.photos[0]; const hm=isData(first); const pbg=PBG[typeof j.photos[0]==="number"?j.photos[0]%PBG.length:i%PBG.length]; const emp=EMPLOYERS.find(e=>e.id===j.empId); const bk=bookmarks.includes(j.id); return (
+          {filtered.map((j,i)=>{ const first=j.video||j.photos[0]; const hm=isData(first); const pbg=PBG[typeof j.photos[0]==="number"?j.photos[0]%PBG.length:i%PBG.length]; const emp=getEmp(j); const bk=bookmarks.includes(j.id); return (
             <div key={j.id} className="tap" onClick={()=>onOpen(j)} style={{ position:"relative", aspectRatio:"1", cursor:"pointer", overflow:"hidden", background:pbg }}>
               {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:hm?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", background:pbg, display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.45 }}>{emp?.avatar}</span></div>}
               <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.62) 0%, transparent 52%)" }}/>
@@ -1760,7 +1761,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
 
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
-  const emp = EMPLOYERS.find(e=>e.id===job.empId);
+  const emp = getEmp(job);
   const applied = job.apps?.some(a=>a.uid===currentUser?.id);
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
@@ -1833,7 +1834,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 
 // ─── Job Detail ───────────────────────────────────────────────────────────────
 function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick }) {
-  const emp = EMPLOYERS.find(e=>e.id===job.empId);
+  const emp = getEmp(job);
   const applied = job.apps?.some(a=>a.uid===currentUser?.id);
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks?.includes(job.id);
@@ -2908,6 +2909,32 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const pullStartY = useRef(null);
+  const pullDelta = useRef(0);
+
+  const doRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const dbJobs = await fetchJobs();
+      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+    } catch(e) { console.warn('Refresh failed:', e); }
+    setTimeout(() => setRefreshing(false), 600);
+  };
+
+  const onPullStart = e => { pullStartY.current = e.touches[0].clientY; pullDelta.current = 0; };
+  const onPullMove  = e => {
+    if (pullStartY.current === null) return;
+    const delta = e.touches[0].clientY - pullStartY.current;
+    if (delta > 0 && e.currentTarget.scrollTop === 0) {
+      pullDelta.current = Math.min(delta, 80);
+    }
+  };
+  const onPullEnd = () => {
+    if (pullDelta.current > 50) doRefresh();
+    pullStartY.current = null;
+    pullDelta.current = 0;
+  };
   const [venueProfile, setVenueProfile] = useState(null);
   const [storyJob, setStoryJob] = useState(null);
   const [bookmarks, setBookmarks] = useState([]);
@@ -3103,7 +3130,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         {tab==="listings" && (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{jobs.length} total listing{jobs.length!==1?"s":""}</div>
-            {jobs.map(j=>{ const emp=EMPLOYERS.find(e=>e.id===j.empId); const first=j.photos[0]; const isd=isData(first); return (
+            {jobs.map(j=>{ const emp=getEmp(j); const first=j.photos[0]; const isd=isData(first); return (
               <div key={j.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", height:72 }}>
                   <div style={{ width:72, flexShrink:0, background:isd?"transparent":PBG[(typeof first==="number"?first:0)%PBG.length], overflow:"hidden" }}>
