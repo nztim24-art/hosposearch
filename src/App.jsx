@@ -471,40 +471,52 @@ function getEmp(job) {
 
 function Carousel({ photos, video, height=null }) {
   const [cur, setCur] = useState(0);
-  const [dragging, setDragging] = useState(false);
-  const [dragX, setDragX] = useState(0);
+  const [offset, setOffset] = useState(0);   // live drag offset in px
+  const [sliding, setSliding] = useState(false);
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
+  const widthRef = useRef(0);
   const containerRef = useRef(null);
 
   const slides = video
     ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))]
     : photos.map(s=>({ t:"photo", src:s }));
 
-  const goTo = (i) => { setCur(Math.max(0, Math.min(i, slides.length-1))); };
+  const goTo = (i) => {
+    const next = Math.max(0, Math.min(i, slides.length - 1));
+    setSliding(true);
+    setOffset(0);
+    setCur(next);
+    setTimeout(() => setSliding(false), 450);
+  };
 
   const onTouchStart = e => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
-    setDragging(true);
-    setDragX(0);
+    widthRef.current = containerRef.current?.offsetWidth || 300;
+    setOffset(0);
   };
+
   const onTouchMove = e => {
     if (touchStartX.current === null) return;
     const dx = e.touches[0].clientX - touchStartX.current;
     const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (dy > 40) { setDragging(false); return; } // vertical scroll — ignore
-    setDragX(dx);
+    if (dy > 50 && Math.abs(dx) < dy) { touchStartX.current = null; return; }
+    // Apply rubber-band resistance at edges
+    const atStart = cur === 0 && dx > 0;
+    const atEnd = cur === slides.length - 1 && dx < 0;
+    const resistance = (atStart || atEnd) ? 0.2 : 1;
+    setOffset(dx * resistance);
   };
+
   const onTouchEnd = e => {
-    if (!dragging) return;
+    if (touchStartX.current === null) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 55) {
-      if (dx < 0 && cur < slides.length-1) goTo(cur+1);
-      if (dx > 0 && cur > 0) goTo(cur-1);
-    }
-    setDragging(false);
-    setDragX(0);
+    const w = widthRef.current;
+    const threshold = w * 0.3; // 30% of width to trigger
+    if (dx < -threshold && cur < slides.length - 1) goTo(cur + 1);
+    else if (dx > threshold && cur > 0) goTo(cur - 1);
+    else { setSliding(true); setOffset(0); setTimeout(()=>setSliding(false), 400); }
     touchStartX.current = null;
   };
 
@@ -512,51 +524,46 @@ function Carousel({ photos, video, height=null }) {
     ? { position:"relative", width:"100%", height, overflow:"hidden" }
     : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
 
-  // Constrain drag — add resistance at edges, cap at 120px
-  const maxDrag = 120;
-  const constrainedDrag = dragging ? Math.max(-maxDrag, Math.min(maxDrag, dragX * 0.7)) : 0;
-  const translateX = dragging
-    ? `calc(${-cur * 100}% + ${constrainedDrag}px)`
-    : `${-cur * 100}%`;
-
   return (
     <div ref={containerRef} style={containerStyle}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}>
 
-      {/* Sliding strip — all slides side by side */}
-      <div style={{
-        display:"flex",
-        width:`${slides.length * 100}%`,
-        height:"100%",
-        transform:`translateX(${translateX})`,
-        transition: dragging ? "none" : "transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
-        willChange:"transform",
-      }}>
-        {slides.map((slide, i) => {
-          const pbg = PBG[typeof slide.src==="number" ? slide.src%PBG.length : i%PBG.length];
-          return (
-            <div key={i} style={{ width:`${100/slides.length}%`, height:"100%", flexShrink:0, overflow:"hidden", background:pbg }}>
-              {slide.t==="video" ? (
-                <div style={{ position:"relative", width:"100%", height:"100%" }}>
-                  <video src={slide.src} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                  <div style={{ position:"absolute", top:10, left:12, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)", borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:5 }}>
-                    <Icon name="video" size={11} color="#fff" fill="#fff"/><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>Reel</span>
-                  </div>
+      {slides.map((slide, i) => {
+        const pbg = PBG[typeof slide.src==="number" ? slide.src%PBG.length : i%PBG.length];
+        const diff = i - cur;
+        // Each slide positioned relative to current — offset by diff * 100% + live drag
+        const tx = `calc(${diff * 100}% + ${offset}px)`;
+        const isVisible = Math.abs(diff) <= 1; // only render adjacent slides
+
+        return (
+          <div key={i} style={{
+            position:"absolute", inset:0,
+            transform: `translateX(${tx})`,
+            transition: sliding ? "transform 0.45s cubic-bezier(0.32,0.72,0,1)" : "none",
+            willChange:"transform",
+            display: isVisible ? "block" : "none",
+            background: pbg,
+          }}>
+            {slide.t==="video" ? (
+              <div style={{ position:"relative", width:"100%", height:"100%" }}>
+                <video src={slide.src} autoPlay muted loop playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                <div style={{ position:"absolute", top:10, left:12, background:"rgba(0,0,0,0.5)", backdropFilter:"blur(4px)", borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:5 }}>
+                  <Icon name="video" size={11} color="#fff" fill="#fff"/><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>Reel</span>
                 </div>
-              ) : slide.src && isData(slide.src) ? (
-                <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
-              ) : (
-                <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
-                  <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
-                  <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {i+1}</span>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+              </div>
+            ) : slide.src && isData(slide.src) ? (
+              <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+            ) : (
+              <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
+                <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
+                <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {i+1}</span>
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* Dot indicators */}
       {slides.length > 1 && (
