@@ -2292,7 +2292,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
 
       {/* Discount code */}
       <div style={{ marginBottom:16 }}>
-        <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:6, fontWeight:600 }}>Discount Code</div>
+        <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", marginBottom:6, fontWeight:600, fontSize:13 }}>🏷️ Have a discount code?</div>
         {appliedCode ? (
           <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
             <span style={{ flex:1, color:C.sage, fontWeight:700, fontSize:13 }}>✓ {appliedCode.code} — {appliedCode.pct}% off applied</span>
@@ -2503,7 +2503,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const buildJobData = () => {
     const fp = photos.filter(Boolean);
     const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
-    return { empId:user.id, title:nj.title, venue:user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:fp.length>0?fp:[0,1,2], video:videoFile||null, verified:user.verified, featured:nj.featured };
+    // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
+    const photoData = fp.length > 0 ? fp : [0, 1, 2];
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured };
   };
 
   const resetForm = () => {
@@ -2708,6 +2710,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                   <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"6px 10px", background:"linear-gradient(to top,rgba(0,0,0,0.5),transparent)" }}><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>▶ Reel ready</span></div>
                 </div>
               )}
+            </div>
+            {/* Venue Name — above job title */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Name <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — defaults to your profile name)</span></div>
+              <input value={nj.venueName||""} onChange={e=>setNj(j=>({...j,venueName:e.target.value}))} placeholder="Leave blank to use your profile name" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 13px", color:C.textDark, fontSize:14 }}/>
             </div>
             {[["Job Title *","title","e.g. Head Chef…"],["Salary / Rate","salary","e.g. $70k–$85k"],["Apply Link","link","https://…"]].map(([l,k,p])=>(
               <div key={k} style={{ marginBottom:12 }}>
@@ -3024,7 +3031,13 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {/* Content */}
       <div style={{ flex:1, overflow:"hidden" }}>
         {tab==="home" && (
-          <div style={{ height:"100%", overflowY:"auto" }}>
+          <div style={{ height:"100%", overflowY:"auto" }}
+            onTouchStart={e=>{pullStartY.current=e.touches[0]?.clientY||0;}}
+            onTouchEnd={e=>{
+              const delta=(e.changedTouches[0]?.clientY||0)-pullStartY.current;
+              if(tab==="home"&&delta>55) doRefresh();
+              pullStartY.current=0;
+            }}>
             {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             <StoryBar jobs={jobs} following={following} currentUser={user} onOpen={(stories, startIndex)=>setStoryJob({ stories, startIndex })}/>
             {featuredJobs.length>0 && (
@@ -3104,7 +3117,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       id: "j" + Date.now(),
       empId: "admin",
       title: nj.title,
-      venue: "HospoSearch",
+      venue: nj.venue.trim() || "HospoSearch",
       loc: locStr,
       country: nj.country,
       state: nj.state,
@@ -3215,7 +3228,10 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
               {/* Title */}
               <div>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Job Title *</div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Name <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(leave blank to post as HospoSearch)</span></div>
+                <input value={nj.venue||""} onChange={e=>setNj(j=>({...j,venue:e.target.value}))} placeholder="e.g. Attica, Quay, The Grill — leave blank for anonymous" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:14 }}/>
+
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, marginTop:4, fontWeight:600 }}>Job Title *</div>
                 <input value={nj.title} onChange={e=>setNj(j=>({...j,title:e.target.value}))} placeholder="e.g. Head Chef, Bar Manager…" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:14 }}/>
               </div>
 
@@ -3449,7 +3465,16 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       {u.verified && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>VERIFIED</span>}
                     </div>
                   </div>
-                  <button className="tap" onClick={()=>setEditUser({...u})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"6px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>Edit</button>
+                  <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
+                    <button className="tap" onClick={()=>setEditUser({...u})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"6px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>Edit</button>
+                    <button className="tap" onClick={()=>{
+                      if(window.confirm(`Delete ${u.name}? This cannot be undone.`)) {
+                        setAllUsers(p=>p.filter(x=>x.id!==u.id));
+                        // Also delete from Supabase
+                        supabase.from('profiles').delete().eq('id', u.id).then(({error})=>{ if(error) console.warn('Delete user error:',error); });
+                      }
+                    }} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:8, padding:"6px 12px", color:C.error, fontSize:12, fontWeight:600 }}>Delete</button>
+                  </div>
                 </div>
               </div>
             ))}
