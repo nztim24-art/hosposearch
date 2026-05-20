@@ -422,7 +422,13 @@ function FileZone({ label, icon, file, onFile, onRemove }) {
           <div style={{ fontSize:20, marginBottom:4 }}>{icon}</div>
           <div style={{ color:C.textMid, fontSize:13, fontWeight:500 }}>Upload {label}</div>
           <div style={{ color:C.textFaint, fontSize:11, marginTop:1 }}>PDF, DOC or DOCX</div>
-          <input ref={ref} type="file" accept=".pdf,.doc,.docx" onChange={e=>{ const f=e.target.files[0]; if(f) onFile({name:f.name,size:f.size,uploadedAt:Date.now()}); }} style={{ display:"none" }}/>
+          <input ref={ref} type="file" accept=".pdf,.doc,.docx" onChange={e=>{
+            const f = e.target.files[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = ev => onFile({ name:f.name, size:f.size, uploadedAt:Date.now(), data:ev.target.result });
+            reader.readAsDataURL(f);
+          }} style={{ display:"none" }}/>
         </div>
       ) : (
         <div style={{ border:`1.5px solid ${C.sage}`, borderRadius:11, padding:"11px 13px", background:C.sageL, display:"flex", alignItems:"center", gap:9 }}>
@@ -2927,15 +2933,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                           {a.resume && (
                             <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
                               <span style={{ fontSize:12 }}>📋</span>
-                              <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span>
-                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.resume.name||"uploaded"}</span>
+                              {a.resume_url
+                                ? <a href={a.resume_url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, fontWeight:600, textDecoration:"none" }}>Download Résumé ↗</a>
+                                : <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span>
+                              }
+                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.resume_name||a.resume?.name||""}</span>
                             </div>
                           )}
                           {a.cover && (
                             <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
                               <span style={{ fontSize:12 }}>✉️</span>
-                              <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover Letter</span>
-                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.cover.name||"uploaded"}</span>
+                              {a.cover_url
+                                ? <a href={a.cover_url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, fontWeight:600, textDecoration:"none" }}>Download Cover Letter ↗</a>
+                                : <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover Letter</span>
+                              }
+                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.cover_name||a.cover?.name||""}</span>
                             </div>
                           )}
                         </div>

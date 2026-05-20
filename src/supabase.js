@@ -159,7 +159,49 @@ export async function deleteJob(jobId) {
 
 // ─── Applications ─────────────────────────────────────────────────────────────
 
+// Upload resume or cover letter to Supabase Storage
+export async function uploadDocument(file, applicantId, type) {
+  try {
+    const ext = file.name ? file.name.split('.').pop() : 'pdf'
+    const path = `applicants/${applicantId}/${type}_${Date.now()}.${ext}`
+    
+    // Convert base64 or blob
+    let blob
+    if (file.data && file.data.startsWith('data:')) {
+      const res = await fetch(file.data)
+      blob = await res.blob()
+    } else if (file instanceof Blob) {
+      blob = file
+    } else {
+      return null
+    }
+    
+    const { error } = await supabase.storage
+      .from('documents')
+      .upload(path, blob, { upsert: true, contentType: blob.type || 'application/pdf' })
+    
+    if (error) { console.warn('Document upload error:', error); return null; }
+    
+    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
+    return { url: urlData.publicUrl, name: file.name, size: file.size, path }
+  } catch(e) {
+    console.warn('uploadDocument error:', e)
+    return null
+  }
+}
+
 export async function applyForJob(jobId, applicantId, formData) {
+  // Upload documents to Supabase Storage first
+  let resumeData = null
+  let coverData = null
+  
+  if (formData.resume?.data) {
+    resumeData = await uploadDocument(formData.resume, applicantId, 'resume')
+  }
+  if (formData.cover?.data) {
+    coverData = await uploadDocument(formData.cover, applicantId, 'cover')
+  }
+
   const { data, error } = await supabase
     .from('applications')
     .insert({
@@ -173,7 +215,9 @@ export async function applyForJob(jobId, applicantId, formData) {
       notice:       formData.notice || '',
       resume_name:  formData.resume?.name || null,
       resume_size:  formData.resume?.size || null,
+      resume_url:   resumeData?.url || null,
       cover_name:   formData.cover?.name || null,
+      cover_url:    coverData?.url || null,
     })
     .select().single()
   if (error) {
