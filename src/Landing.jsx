@@ -301,13 +301,102 @@ const TICKER_ITEMS = [
   "Kitchen Hand · Adelaide SA","Chef de Partie · Hobart TAS","Venue Manager · Sydney NSW",
 ]
 
+function PricingModal({ onClose, defaultTab='listing' }) {
+  const [tab, setTab] = useState(defaultTab)
+  const [selectedTier, setSelectedTier] = useState(null)
+
+  const listingTiers = [
+    { key:'bronze', icon:'🥉', name:'Bronze', price:55, period:'one-time', color:'#C9A96E', colorD:'#8B6914', features:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
+    { key:'silver', icon:'🥈', name:'Silver', price:77, period:'one-time', color:'#C0D0E0', colorD:'#A8B8C8', popular:true, features:['Everything in Bronze','Pinned to top of feed 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
+    { key:'gold',   icon:'🥇', name:'Gold',   price:110, period:'one-time', color:'#FFD700', colorD:'#D4A017', features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Applicant auto-ranking','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge'] },
+  ]
+  const subTiers = [
+    { key:'starter', icon:'🥉', name:'Starter', price:109, period:'mo', color:'#C9A96E', colorD:'#8B6914', limit:'3 listings/mo', features:['3 active listings at any time','All Bronze features','Cancel anytime'] },
+    { key:'growth',  icon:'🥈', name:'Growth',  price:219, period:'mo', color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 listings/mo', features:['6 active listings at any time','All Silver features','Candidate search & messaging','Cancel anytime'] },
+    { key:'pro',     icon:'🥇', name:'Pro',     price:439, period:'mo', color:'#FFD700', colorD:'#D4A017', limit:'10 listings/mo', features:['10 active listings at any time','All Gold features','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime'] },
+  ]
+  const tiers = tab === 'listing' ? listingTiers : subTiers
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.7)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'20px',backdropFilter:'blur(4px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'var(--ink)',borderRadius:24,padding:'32px 28px',maxWidth:860,width:'100%',maxHeight:'90vh',overflowY:'auto',position:'relative',boxShadow:'0 40px 80px rgba(0,0,0,0.5)'}}>
+        {/* Close */}
+        <button onClick={onClose} style={{position:'absolute',top:16,right:16,background:'rgba(255,255,255,0.1)',border:'none',color:'white',width:32,height:32,borderRadius:'50%',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:'white',marginBottom:8}}>Choose your plan</div>
+          <p style={{color:'rgba(255,255,255,0.55)',fontSize:14,marginBottom:20}}>Post your first role in minutes. Job seekers always browse free.</p>
+          {/* Tab toggle */}
+          <div style={{display:'inline-flex',background:'rgba(255,255,255,0.08)',borderRadius:100,padding:4,gap:4}}>
+            {[['listing','Pay Per Listing'],['subscription','Monthly Plans']].map(([v,l])=>(
+              <button key={v} onClick={()=>setTab(v)}
+                style={{padding:'8px 20px',borderRadius:100,border:'none',background:tab===v?'white':'transparent',color:tab===v?'var(--ink)':'rgba(255,255,255,0.6)',fontWeight:tab===v?700:400,fontSize:13,cursor:'pointer',transition:'all 0.2s'}}>
+                {l}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Tier cards */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20}}>
+          {tiers.map(tier=>(
+            <div key={tier.key}
+              onClick={()=>setSelectedTier(tier.key)}
+              style={{background:selectedTier===tier.key?`rgba(${tier.key==='bronze'?'201,169,110':tier.key==='silver'?'192,208,224':'255,215,0'},0.15)`:'rgba(255,255,255,0.05)',border:`2px solid ${selectedTier===tier.key?tier.color:'rgba(255,255,255,0.1)'}`,borderRadius:16,padding:'20px 16px',cursor:'pointer',transition:'all 0.2s',position:'relative'}}>
+              {tier.popular && <div style={{position:'absolute',top:-10,left:'50%',transform:'translateX(-50%)',background:tier.color,color:'#1A1A2E',fontSize:9,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'3px 12px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>}
+              {selectedTier===tier.key && <div style={{position:'absolute',top:10,right:10,background:tier.color,color:'#1A1A1A',width:20,height:20,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:11,fontWeight:700}}>✓</div>}
+              <div style={{fontSize:24,marginBottom:8}}>{tier.icon}</div>
+              <div style={{color:tier.color,fontSize:10,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase',marginBottom:4}}>{tier.name}</div>
+              {tier.limit && <div style={{color:'rgba(255,255,255,0.4)',fontSize:11,marginBottom:6}}>{tier.limit}</div>}
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-1,marginBottom:2}}>${tier.price}</div>
+              <div style={{color:'rgba(255,255,255,0.35)',fontSize:11,marginBottom:12}}>AUD incl. GST{tier.period==='mo'?' /mo':''}</div>
+              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:5}}>
+                {tier.features.map(f=>(
+                  <li key={f} style={{fontSize:12,color:'rgba(255,255,255,0.6)',display:'flex',alignItems:'flex-start',gap:6}}>
+                    <span style={{color:tier.color,fontWeight:700,flexShrink:0,fontSize:10,marginTop:2}}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{textAlign:'center'}}>
+          <a href={`/app?tier=${selectedTier||tiers[0].key}&mode=${tab}`}
+            style={{display:'inline-flex',alignItems:'center',gap:8,background:selectedTier?'var(--terra)':'rgba(255,255,255,0.2)',color:'white',padding:'14px 36px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:selectedTier?'0 4px 18px rgba(196,98,58,0.35)':'none',transition:'all 0.2s',marginBottom:12}}>
+            {selectedTier ? `Get started with ${tiers.find(t=>t.key===selectedTier)?.name} →` : 'Select a plan to continue →'}
+          </a>
+          <div style={{color:'rgba(255,255,255,0.35)',fontSize:12}}>
+            Already have an account? <a href="/app" style={{color:'var(--terra)',textDecoration:'none',fontWeight:600}}>Log in →</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Landing() {
+  const [showPricingModal, setShowPricingModal] = useState(false)
+  const [modalDefaultTab, setModalDefaultTab] = useState('listing')
   const [pricingTab, setPricingTab] = useState('listing');
   const navRef = useRef()
   const statsRef = useRef()
   const countersAnimated = useRef(false)
 
+  const [followers, setFollowers] = useState(null)
+
   useEffect(() => {
+    // Fetch real Instagram follower count from Behold
+    fetch('https://feeds.behold.so/SVyieFYXHAirbiQqA0Ws')
+      .then(r => r.json())
+      .then(data => {
+        // Behold returns followersCount on the feed object
+        const count = data?.followersCount || data?.userInfo?.followersCount || null
+        if (count) setFollowers(count.toLocaleString())
+      })
+      .catch(() => {})
+
     // Inject fonts
     if (!document.querySelector('#hs-fonts')) {
       const link = document.createElement('link')
@@ -416,7 +505,7 @@ export default function Landing() {
               </div>
             </div>
           </li>
-          <li><Link to="/app" className="hs-nav-cta">Post a Job →</Link></li>
+          <li><button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="hs-nav-cta" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,border:'none',cursor:'pointer'}}>Post a Job →</button></li>
         </ul>
       </nav>
 
@@ -453,7 +542,7 @@ export default function Landing() {
                 <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
               </div>
               <div className="hs-trust-text">
-                <strong>18,000+ hospitality professionals</strong><br/>already on HospoSearch
+                <strong>{followers ? `${followers} Instagram followers` : 'Growing community'}</strong><br/>following @hosposearch
               </div>
             </div>
           </div>
@@ -495,17 +584,7 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="hs-stats" ref={statsRef}>
-        <div className="hs-stats-inner">
-          {[['2,400+','Active job listings'],['18k+','Hospitality professionals'],['850+','Venues hiring now'],['17','Countries covered']].map(([n,l])=>(
-            <div className="hs-stat reveal" key={l}>
-              <div className="hs-stat-num">{n}</div>
-              <div className="hs-stat-label">{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+
 
       {/* App showcase + Instagram feed placeholder */}
       <section className='hs-showcase-section' style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
@@ -630,7 +709,7 @@ export default function Landing() {
               <ul className="hs-feat-list">
                 {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','From just $50 AUD per listing'].map(f=><li key={f}>{f}</li>)}
               </ul>
-              <Link to="/app" className="btn-emp">Post a Job — From $50 →</Link>
+              <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-emp" style={{background:'var(--terra)',color:'white',padding:'13px 26px',borderRadius:100,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'0 3px 12px rgba(196,98,58,0.25)'}}>Post a Job — From $50 →</button>
             </div>
           </div>
         </div>
@@ -825,11 +904,11 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,cursor:'pointer',transition:'all 0.2s'}}
                 onMouseEnter={e=>e.currentTarget.style.background='rgba(201,169,110,0.25)'}
                 onMouseLeave={e=>e.currentTarget.style.background='rgba(201,169,110,0.15)'}>
                 Start Starter Plan
-              </Link>
+              </button>
             </div>
 
             {/* Growth */}
@@ -856,11 +935,11 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s'}}
+              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,border:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s',cursor:'pointer'}}
                 onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
                 onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
                 Start Growth Plan
-              </Link>
+              </button>
             </div>
 
             {/* Pro */}
@@ -886,11 +965,11 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s'}}
+              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,border:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s',cursor:'pointer'}}
                 onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
                 onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
                 Start Pro Plan
-              </Link>
+              </button>
             </div>
           </div>
           )}
@@ -998,7 +1077,7 @@ export default function Landing() {
         <p className="hs-final-sub">Join 18,000+ hospitality professionals who have already found their next opportunity on HospoSearch.</p>
         <div className="hs-final-actions">
           <Link to="/app" className="btn-white">🔍 Find Jobs — Free</Link>
-          <Link to="/app" className="btn-ghost">Hiring? Post a job →</Link>
+          <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-ghost" style={{background:'rgba(255,255,255,0.15)',color:'white',padding:'14px 28px',borderRadius:100,fontSize:15,fontWeight:600,textDecoration:'none',border:'1.5px solid rgba(255,255,255,0.3)',transition:'all 0.2s',cursor:'pointer'}}>Hiring? Post a job →</button>
         </div>
         {/* Employer email capture */}
         <div style={{marginTop:40,background:'rgba(255,255,255,0.1)',borderRadius:16,padding:'24px 28px',maxWidth:480,marginLeft:'auto',marginRight:'auto',border:'1px solid rgba(255,255,255,0.15)'}}>
@@ -1079,6 +1158,9 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+    <>
+      {showPricingModal && <PricingModal onClose={()=>setShowPricingModal(false)} defaultTab={modalDefaultTab}/>}
+    </>
     </>
   )
 }
