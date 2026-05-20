@@ -3183,7 +3183,12 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     <div style={{ color:C.textSoft, fontSize:11, marginBottom:5 }}>{j.venue} · {j.type} · {ago(j.ts)} ago</div>
                     <div style={{ display:"flex", gap:6 }}>
                       <button className="tap" onClick={()=>setEditJob({...j})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:7, padding:"4px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Edit</button>
-                      <button className="tap" onClick={()=>{ if(window.confirm("Delete this listing?")) setJobs(p=>p.filter(x=>x.id!==j.id)); }} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>Delete</button>
+                      <button className="tap" onClick={async ()=>{ if(window.confirm("Delete this listing?")) {
+  setJobs(p=>p.filter(x=>x.id!==j.id));
+  try {
+    await supabase.from('jobs').delete().eq('id', j.id);
+  } catch(e) { console.warn('Delete job error:', e); }
+}}} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>Delete</button>
                       <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>{j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
                     </div>
