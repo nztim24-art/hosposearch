@@ -499,7 +499,7 @@ function Carousel({ photos, video, height=null }) {
   const onTouchEnd = e => {
     if (!dragging) return;
     const dx = e.changedTouches[0].clientX - touchStartX.current;
-    if (Math.abs(dx) > 40) {
+    if (Math.abs(dx) > 55) {
       if (dx < 0 && cur < slides.length-1) goTo(cur+1);
       if (dx > 0 && cur > 0) goTo(cur-1);
     }
@@ -512,8 +512,11 @@ function Carousel({ photos, video, height=null }) {
     ? { position:"relative", width:"100%", height, overflow:"hidden" }
     : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
 
+  // Constrain drag — add resistance at edges, cap at 120px
+  const maxDrag = 120;
+  const constrainedDrag = dragging ? Math.max(-maxDrag, Math.min(maxDrag, dragX * 0.7)) : 0;
   const translateX = dragging
-    ? `calc(${-cur * 100}% + ${dragX}px)`
+    ? `calc(${-cur * 100}% + ${constrainedDrag}px)`
     : `${-cur * 100}%`;
 
   return (
@@ -528,7 +531,7 @@ function Carousel({ photos, video, height=null }) {
         width:`${slides.length * 100}%`,
         height:"100%",
         transform:`translateX(${translateX})`,
-        transition: dragging ? "none" : "transform 0.32s cubic-bezier(0.25,0.46,0.45,0.94)",
+        transition: dragging ? "none" : "transform 0.38s cubic-bezier(0.25,0.46,0.45,0.94)",
         willChange:"transform",
       }}>
         {slides.map((slide, i) => {
