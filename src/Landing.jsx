@@ -578,11 +578,11 @@ export default function Landing() {
             </p>
             <div className="hs-hero-actions fade-up-4" style={{marginBottom:18}}>
               <Link to="/app" className="btn-primary">🔍 Find Jobs — Free</Link>
-              <Link to="/app" style={{background:'transparent',color:'var(--ink)',padding:'14px 24px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',textDecoration:'none',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px'}}
-                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';}}
-                onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';}}>
+              <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} style={{background:'transparent',color:'var(--ink)',padding:'14px 24px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px',cursor:'pointer'}}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';e.currentTarget.style.background='rgba(15,14,12,0.04)';}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.background='transparent';}}>
                 Hiring? Post a job →
-              </Link>
+              </button>
             </div>
             <div className="fade-up-5" style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:28}}>
               <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular:</span>
@@ -597,7 +597,7 @@ export default function Landing() {
                 <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
               </div>
               <div className="hs-trust-text">
-                <strong>{followers ? `${followers} Instagram followers` : 'Growing community'}</strong><br/>following @hosposearch
+                <strong>Join {followers ? `${followers}+` : 'thousands of'} hospitality professionals</strong><br/>already using HospoSearch
               </div>
             </div>
           </div>
