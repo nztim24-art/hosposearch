@@ -24,7 +24,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob, incrementViews, fetchCodes } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -456,7 +456,7 @@ function FileZone({ label, icon, file, onFile, onRemove }) {
 }
 
 // ─── Carousel ─────────────────────────────────────────────────────────────────
-function Carousel({ photos, video, height=380 }) {
+function Carousel({ photos, video, height=null }) {
   const [cur, setCur] = useState(0);
   const sx = useRef(null);
   const slides = video ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))] : photos.map(s=>({ t:"photo", src:s }));
@@ -464,8 +464,12 @@ function Carousel({ photos, video, height=380 }) {
   const prev = e => { e.stopPropagation(); setCur(c=>(c-1+slides.length)%slides.length); };
   const next = e => { e.stopPropagation(); setCur(c=>(c+1)%slides.length); };
   const pbg = PBG[typeof s?.src==="number" ? s.src%PBG.length : cur%PBG.length];
+  // 4:5 aspect ratio (Instagram standard) unless height explicitly overridden
+  const containerStyle = height
+    ? { position:"relative", width:"100%", height, background:C.bgSoft, overflow:"hidden" }
+    : { position:"relative", width:"100%", aspectRatio:"4/5", background:C.bgSoft, overflow:"hidden" };
   return (
-    <div style={{ position:"relative", width:"100%", height, background:C.bgSoft, overflow:"hidden" }}
+    <div style={containerStyle}
       onTouchStart={e=>{ sx.current=e.touches[0].clientX; }}
       onTouchEnd={e=>{ if(!sx.current) return; const d=sx.current-e.changedTouches[0].clientX; if(Math.abs(d)>36) d>0?next(e):prev(e); sx.current=null; }}>
       {s?.t==="video" ? (
@@ -1373,7 +1377,7 @@ function PortfolioSection({ user, profile, setProfile }) {
                 style={{ position:"absolute", top:4, right:4, width:20, height:20, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
             </div>
           ))}
-          <div className="file-zone tap" onClick={addPhoto} style={{ aspectRatio:"1", background:C.bgSoft, border:`1.5px dashed ${C.borderMid}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+          <div className="file-zone tap" onClick={addPhoto} style={{ aspectRatio:"4/5", background:C.bgSoft, border:`1.5px dashed ${C.borderMid}`, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
             <span style={{ color:C.textFaint, fontSize:22 }}>+</span>
           </div>
         </div>
@@ -1813,18 +1817,27 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         </button>
       </div>
       <div style={{ padding:"4px 14px 14px" }}>
+        {/* Venue name first */}
+        <div style={{ color:C.textSoft, fontSize:12, fontWeight:600, marginBottom:3 }}>
+          <span className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer", color:C.textDark }}>{job.venue||emp?.name}</span>
+          {job.verified && <span style={{ color:C.blue, fontSize:11, marginLeft:4 }}>● Verified</span>}
+        </div>
+        {/* Job title */}
         <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:4, flexWrap:"wrap" }}>
-          <span style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:C.textDark }}>{job.title}</span>
+          <span style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{job.title}</span>
           <TypeChip type={job.type}/>
         </div>
-        <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:5 }}>{job.salary}</div>
+        {/* Salary */}
+        <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:6 }}>{job.salary}</div>
+        {/* Tags */}
         {(job.tags||[]).length>0 && (
-          <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:7 }}>
+          <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
             {job.tags.slice(0,3).map(t=><span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{t}</span>)}
           </div>
         )}
-        <div style={{ color:C.textMid, fontSize:13, lineHeight:1.55 }}><span style={{ fontWeight:600, color:C.textDark }}>{emp?.handle} </span>{job.short}</div>
-        <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.textSoft, fontSize:13, marginTop:6, cursor:"pointer" }}>View full role →</div>
+        {/* Description */}
+        <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6 }}>{job.short}</div>
+        <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.terracotta, fontSize:13, marginTop:7, cursor:"pointer", fontWeight:600 }}>View full role →</div>
         <div style={{ color:C.textFaint, fontSize:11, marginTop:5, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
       </div>
     </div>
@@ -1854,7 +1867,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
       <div style={{ maxWidth:560, margin:"0 auto", background:C.bg, minHeight:"100vh" }}>
         <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
           <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
-          <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, flex:1 }}>{job.title}</div>
+          <div style={{ flex:1 }}>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600 }}>{job.venue||emp?.name}</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark }}>{job.title}</div>
+          </div>
           <button className="tap" onClick={()=>onToggleFollow&&onToggleFollow(job.empId)}
             style={{ background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:8, padding:"5px 12px", color:isFollowed?C.sage:C.textDark, fontSize:12, fontWeight:600 }}>
             {isFollowed ? "Following" : "Follow"}
@@ -1865,9 +1881,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={44} fontSize={20}/></div>
-            <div style={{ cursor:"pointer" }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
-              <div style={{ color:C.textDark, fontWeight:600, fontSize:14, display:"flex", alignItems:"center", gap:5 }}>{emp?.handle} {job.verified&&<span style={{ color:C.blue, fontSize:12 }}>●</span>}</div>
-              <div style={{ color:C.textSoft, fontSize:12 }}>{emp?.bio}</div>
+            <div style={{ cursor:"pointer", flex:1 }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
+              <div style={{ color:C.textDark, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:5 }}>{job.venue||emp?.name} {job.verified&&<span style={{ color:C.blue, fontSize:12 }}>●</span>}</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, marginTop:2 }}>{job.title}</div>
+              <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{emp?.bio}</div>
             </div>
             {job.verified && <span style={{ marginLeft:"auto", color:C.sage, fontSize:11, border:`1px solid ${C.sage}`, borderRadius:20, padding:"3px 9px", fontWeight:600 }}>Verified</span>}
           </div>
@@ -2484,13 +2501,49 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
 
-  const buildJob = () => { const fp=photos.filter(Boolean); const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ")||"Australia"; return { id:"j"+Date.now(), empId:user.id, title:nj.title, venue:user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:fp.length>0?fp:[0,1,2], video:videoFile||null, verified:user.verified, featured:nj.featured, ts:Date.now(), apps:[], views:0 }; };
-  const post = () => {
-    if(!nj.title.trim()) return;
-    if(user.isTrial) { setJobs(p=>[buildJob(),...p]); setPosted(true); setTimeout(()=>{ setPosted(false); setTab("feed"); setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false}); setPhotos([null,null,null,null,null]); setVideoFile(null); },2200); }
-    else setCheckoutJob(buildJob());
+  const buildJobData = () => {
+    const fp = photos.filter(Boolean);
+    const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
+    return { empId:user.id, title:nj.title, venue:user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:fp.length>0?fp:[0,1,2], video:videoFile||null, verified:user.verified, featured:nj.featured };
   };
-  const publishAfterPayment = () => { setJobs(p=>[checkoutJob,...p]); setCheckoutJob(null); setPosted(true); setTimeout(()=>{ setPosted(false); setTab("feed"); setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false}); setPhotos([null,null,null,null,null]); setVideoFile(null); },2200); };
+
+  const resetForm = () => {
+    setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false});
+    setPhotos([null,null,null,null,null]);
+    setVideoFile(null);
+  };
+
+  const post = async () => {
+    if(!nj.title.trim()) return;
+    const jobData = buildJobData();
+    if(user.isTrial) {
+      try {
+        const saved = await sbCreateJob(user.id, jobData);
+        setJobs(p=>[saved,...p]);
+      } catch(e) {
+        console.warn('Supabase save failed, using local:', e);
+        setJobs(p=>[{...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0},...p]);
+      }
+      setPosted(true);
+      setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2200);
+    } else {
+      setCheckoutJob(jobData);
+    }
+  };
+  const publishAfterPayment = async () => {
+    let jobToAdd = checkoutJob;
+    try {
+      const saved = await sbCreateJob(user.id, checkoutJob);
+      jobToAdd = saved;
+    } catch(e) {
+      console.warn('Supabase save failed, using local:', e);
+      jobToAdd = { ...checkoutJob, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0 };
+    }
+    setJobs(p=>[jobToAdd,...p]);
+    setCheckoutJob(null);
+    setPosted(true);
+    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2200);
+  };
   const uploadVideo = () => { const r=document.createElement("input"); r.type="file"; r.accept="video/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; if(f.size>50*1048576){alert("Keep reel under 50MB.");return;} const rd=new FileReader(); rd.onload=ev=>setVideoFile(ev.target.result); rd.readAsDataURL(f); }; r.click(); };
   const fmtS = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
 
@@ -2754,7 +2807,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                         <div style={{ width:36, height:36, borderRadius:11, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>👤</div>
                         <div style={{ flex:1 }}><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>{a.name}</div><div style={{ color:C.textFaint, fontSize:11 }}>{ago(a.ts)} ago</div></div>
                         <div style={{ display:"flex", gap:6 }}>
-                          <select value={a.status||"Sent"} onChange={e=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:e.target.value}:ap)}:jj)); }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:C.textMid, fontSize:11, cursor:"pointer" }}>
+                          <select value={a.status||"Sent"} onChange={async e=>{ const newStatus=e.target.value; setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:newStatus}:ap)}:jj)); try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){} }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:C.textMid, fontSize:11, cursor:"pointer" }}>
                             {["Sent","Viewed","Shortlisted","No thanks"].map(s=><option key={s}>{s}</option>)}
                           </select>
                           <button className="tap" onClick={()=>{ const key=`${a.uid}-${user.id}`; setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${j.title}. We'd love to have a chat.`, ts:Date.now() }] })); setTab("messages"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Message</button>
@@ -2865,7 +2918,21 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
 
   const toggleFollow = id => setFollowing(f=>f.includes(id)?f.filter(x=>x!==id):[...f,id]);
   const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
-  const handleApply = (job,fd) => setJobs(p=>p.map(j=>j.id===job.id?{...j,views:(j.views||0)+1,apps:[...(j.apps||[]),{uid:user.id,name:fd.name,msg:fd.msg,resume:fd.resume,cover:fd.cover,ts:Date.now(),status:"Sent"}]}:j));
+  const handleApply = async (job,fd) => {
+    // Save application to Supabase
+    try {
+      await sbApplyForJob(job.id, user.id, fd);
+    } catch(e) {
+      console.warn('Application save failed:', e);
+    }
+    // Update local state regardless
+    setJobs(p=>p.map(j=>j.id===job.id?{...j,views:(j.views||0)+1,apps:[...(j.apps||[]),{uid:user.id,name:fd.name,msg:fd.msg,visa:fd.visa,availability:fd.availability,hours:fd.hours,notice:fd.notice,resume:fd.resume,cover:fd.cover,ts:Date.now(),status:"Sent"}]}:j));
+    // Refresh jobs from Supabase to get latest
+    try {
+      const dbJobs = await fetchJobs();
+      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+    } catch(e) {}
+  };
 
   const followedJobs = jobs.filter(j=>following.includes(j.empId)).sort((a,b)=>b.ts-a.ts);
   const featuredJobs = jobs.filter(j=>j.featured);
@@ -2976,7 +3043,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [njPosted, setNjPosted] = useState(false);
   const [njTagInput, setNjTagInput] = useState("");
 
-  const postJob = () => {
+  const postJob = async () => {
     if (!nj.title.trim() || !nj.short.trim()) return;
     const fp = njPhotos.length > 0 ? njPhotos : [];
     const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
@@ -3006,7 +3073,14 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       apps: [],
       views: 0,
     };
-    setJobs(p => [newJob, ...p]);
+    // Save to Supabase
+    try {
+      const saved = await sbCreateJob('admin', newJob);
+      setJobs(p => [saved, ...p]);
+    } catch(e) {
+      console.warn('Supabase save failed, using local:', e);
+      setJobs(p => [newJob, ...p]);
+    }
     setNjPosted(true);
     setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
     setNjPhotos([]);
@@ -3195,7 +3269,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   <div style={{ display:"flex", gap:7, marginTop:8, flexWrap:"wrap" }}>
                     {njPhotos.map((p,i)=>(
                       <div key={i} style={{ position:"relative" }}>
-                        <img src={p} alt="" style={{ width:60, height:60, borderRadius:8, objectFit:"cover" }}/>
+                        <img src={p} alt="" style={{ width:48, height:60, borderRadius:8, objectFit:"cover" }}/>
                         <button onClick={()=>setNjPhotos(ps=>ps.filter((_,idx)=>idx!==i))} style={{ position:"absolute", top:-5, right:-5, width:18, height:18, borderRadius:"50%", background:C.error, border:"none", color:"white", fontSize:11, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>×</button>
                       </div>
                     ))}
