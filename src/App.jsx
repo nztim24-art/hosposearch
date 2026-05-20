@@ -3097,6 +3097,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [tab, setTab] = useState("listings");
   const [editJob, setEditJob] = useState(null);
   const [editUser, setEditUser] = useState(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editSaved, setEditSaved] = useState(false);
   const [newCode, setNewCode] = useState({ code:"", pct:10, uses:50, desc:"", expires:"" });
   const [codeSaved, setCodeSaved] = useState(false);
 
@@ -3605,17 +3607,17 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Photos */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5 · tap × to delete)</span></div>
-                {/* Existing photos */}
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
-                  {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).map((p,i)=>(
+                  {/* Show ALL photos — both Supabase URLs and base64 */}
+                  {(editJob.photos||[]).filter(p=>isData(p)).map((p,i)=>(
                     <div key={i} style={{ position:"relative" }}>
                       <img src={p} alt="" style={{ width:52, height:65, borderRadius:8, objectFit:"cover", border:`1px solid ${C.border}` }}/>
                       <button onClick={()=>setEditJob(j=>({...j,photos:(j.photos||[]).filter((_,idx)=>idx!==i)}))}
                         style={{ position:"absolute", top:-5, right:-5, width:20, height:20, borderRadius:"50%", background:C.error, border:"2px solid white", color:"white", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>×</button>
                     </div>
                   ))}
-                  {/* Add more photos button */}
-                  {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).length < 5 && (
+                  {/* Add more photos */}
+                  {(editJob.photos||[]).filter(p=>isData(p)).length < 5 && (
                     <label style={{ width:52, height:65, borderRadius:8, border:`1.5px dashed ${C.border}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:3 }}>
                       <input type="file" accept="image/*" multiple style={{ display:"none" }}
                         onChange={e=>{
@@ -3623,7 +3625,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                           files.forEach(file=>{
                             const r = new FileReader();
                             r.onload = ev => setEditJob(j=>{
-                              const existing = (j.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:"));
+                              const existing = (j.photos||[]).filter(p=>isData(p));
                               if(existing.length >= 5) return j;
                               return {...j, photos:[...existing, ev.target.result]};
                             });
@@ -3636,8 +3638,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     </label>
                   )}
                 </div>
-                {(editJob.photos||[]).filter(p=>typeof p==="string"&&p.startsWith("data:")).length === 0 && (
-                  <div style={{ color:C.textFaint, fontSize:12 }}>No photos uploaded yet — tap ADD to upload</div>
+                {(editJob.photos||[]).filter(p=>isData(p)).length === 0 && (
+                  <div style={{ color:C.textFaint, fontSize:12 }}>No photos — tap ADD to upload</div>
                 )}
               </div>
 
@@ -3656,13 +3658,48 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
               {/* Action buttons */}
               <div style={{ display:"flex", gap:9, marginTop:4 }}>
-                <button className="tap" onClick={()=>setEditJob(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
-                <button className="btn-cta tap" onClick={()=>{
+                <button className="tap" onClick={()=>{ setEditJob(null); setEditSaving(false); setEditSaved(false); }} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                <button className="btn-cta tap" disabled={editSaving} onClick={async ()=>{
+                  setEditSaving(true);
+                  // Upload any new base64 photos to Supabase Storage
+                  const updatedPhotos = [];
+                  for (let i = 0; i < (editJob.photos||[]).length; i++) {
+                    const p = editJob.photos[i];
+                    if (typeof p === 'string' && p.startsWith('data:')) {
+                      try {
+                        const res = await fetch(p);
+                        const blob = await res.blob();
+                        const ext = blob.type.includes('png') ? 'png' : 'jpg';
+                        const path = `jobs/${editJob.id}/${Date.now()}_${i}.${ext}`;
+                        const { error } = await supabase.storage.from('job-photos').upload(path, blob, { upsert:true, contentType:blob.type });
+                        if (!error) {
+                          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+                          updatedPhotos.push(urlData.publicUrl);
+                        } else { updatedPhotos.push(p); }
+                      } catch(e) { updatedPhotos.push(p); }
+                    } else { updatedPhotos.push(p); }
+                  }
                   const locStr = [editJob.city,editJob.state,editJob.country].filter(Boolean).join(", ")||editJob.loc||"Australia";
-                  setJobs(p=>p.map(j=>j.id===editJob.id?{...editJob,loc:locStr}:j));
-                  setEditJob(null);
-                }} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
-                  💾 Save Changes
+                  const updated = {...editJob, loc:locStr, photos:updatedPhotos};
+                  // Save to Supabase
+                  try {
+                    await supabase.from('jobs').update({
+                      title: updated.title, venue: updated.venue, loc: updated.loc,
+                      country: updated.country, state: updated.state, city: updated.city,
+                      sector: updated.sector, role_type: updated.roleType,
+                      salary: updated.salary, salary_band: updated.salaryBand,
+                      type: updated.type, tags: updated.tags,
+                      short: updated.short, full_desc: updated.full,
+                      link: updated.link, photos: updatedPhotos,
+                      featured: updated.featured, verified: updated.verified,
+                    }).eq('id', updated.id);
+                  } catch(e) { console.warn('Update job error:', e); }
+                  setJobs(p=>p.map(j=>j.id===updated.id?updated:j));
+                  setEditSaving(false);
+                  setEditSaved(true);
+                  setTimeout(()=>{ setEditSaved(false); setEditJob(null); }, 1800);
+                }} style={{ flex:2, background:editSaved?C.sage:editSaving?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:editSaved?`0 3px 10px ${C.sage}40`:"0 3px 10px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
+                  {editSaved ? "✅ Saved!" : editSaving ? "⏳ Uploading…" : "💾 Save Changes"}
                 </button>
               </div>
             </div>
