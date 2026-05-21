@@ -3455,7 +3455,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
           user_id: id,
           type: 'follow',
           text: `${user.name} is now following your venue`,
-          sub: 'They'll be notified when you post new roles',
+          sub: "They'll be notified when you post new roles",
           icon: '👥',
           read: false,
         });
