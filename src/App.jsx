@@ -63,31 +63,8 @@ const G = `
 `;
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
-const EMPLOYERS = [
-  { id:"emp1", email:"hire@attica.com.au", password:"pass123", name:"Attica", handle:"attica_melb", avatar:"🍽️", verified:true,  bio:"3-Hat fine dining · Ripponlea VIC", cuisine:"Modern Australian", size:"15–20 staff", awards:["3 Chef Hats","World's 50 Best #32"] },
-  { id:"emp2", email:"hire@tetsuyas.com",  password:"pass123", name:"Tetsuya's", handle:"tetsuyas_syd", avatar:"🌸", verified:true,  bio:"Sydney icon · Japanese-French", cuisine:"Japanese-French", size:"30–40 staff", awards:["2 Chef Hats","Sydney icon"] },
-  { id:"emp3", email:"hire@quay.com.au",   password:"pass123", name:"Quay Restaurant", handle:"quay_syd", avatar:"⚓", verified:false, bio:"Harbour views · Peter Gilmore", cuisine:"Contemporary", size:"40–50 staff", awards:["2 Chef Hats"] },
-  { id:"trial", email:"trial@hosposearch.com.au", password:"hospo_trial!", name:"HospoSearch", handle:"hosposearch", avatar:"🔍", verified:true, bio:"Official HospoSearch account", cuisine:"", size:"", awards:[], isTrial:true },
-];
-const EMPLOYEES = [
-  { id:"u1", email:"chef@gmail.com",  password:"pass123", name:"Jordan Lim", handle:"jordan_cooks", avatar:"👨‍🍳", role:"Chef de Partie", experience:"5 years", cuisine:["Modern Australian","French"], location:"Melbourne, VIC", bio:"Passionate CDP with fine dining background. Currently seeking Head Chef opportunities at hatted venues.", available:true,
-    skills:["Knife Skills","Sauce Work","Menu Development","Stock & Stocks","Pastry","Fire Cookery","Fermentation","Foraging"],
-    workHistory:[
-      { venue:"Attica", role:"Chef de Partie", dates:"2021 – Present", desc:"Leading entrée section at 3-hat venue. Helped develop three seasonal menus." },
-      { venue:"Brae", role:"Commis Chef", dates:"2019 – 2021", desc:"Worked across all sections. Specialised in fermentation and preservation program." },
-      { venue:"Vue de Monde", role:"Kitchen Hand / Stagiaire", dates:"2018 – 2019", desc:"Stage program under Shannon Bennett. Introduction to fine dining standards." },
-    ],
-    photos:[]
-  },
-  { id:"u2", email:"front@gmail.com", password:"pass123", name:"Mia Santos", handle:"mia_foh",      avatar:"👩‍🍳", role:"Front of House", experience:"3 years", cuisine:["European","Asian Fusion"], location:"Sydney, NSW", bio:"FOH specialist with sommelier training. Love building genuine guest experiences at the highest level.", available:true,
-    skills:["Sommelier","Guest Relations","Team Leadership","Wine Pairing","POS Systems","Reservations","Private Dining","Upselling"],
-    workHistory:[
-      { venue:"Tetsuya's", role:"Floor Manager", dates:"2022 – Present", desc:"Managing floor for 60-cover service. Responsible for wine program and staff training." },
-      { venue:"Quay Restaurant", role:"Senior Waiter", dates:"2020 – 2022", desc:"Fine dining service for Peter Gilmore's harbour restaurant. Wine certification achieved." },
-    ],
-    photos:[]
-  },
-];
+const EMPLOYERS = [];
+const EMPLOYEES = [];
 const ADMIN = { id:"admin", email:"admin@hosposearch.com.au", password:"hospo2024!", name:"HospoSearch Admin", handle:"admin", avatar:"🛡️" };
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
 const ROLE_TAGS = ["Chef Hat Venue","Fine Dining","Rooftop Bar","Resort","Group Venue","Michelin-Calibre","Hatted Restaurant","Waterfront","CBD","Regional","Award-Winning","Seasonal Menu"];
@@ -2563,6 +2540,44 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [venueProfile, setVenueProfile] = useState(null);
   const [sel, setSel] = useState(null);
   const [appStatusFilter, setAppStatusFilter] = useState("All");
+  const [supabaseApps, setSupabaseApps] = useState([]);
+
+  // Load applications from Supabase when apps tab is opened
+  useEffect(()=>{
+    if(tab!=="apps") return;
+    const loadApps = async () => {
+      try {
+        const { data } = await supabase
+          .from('applications')
+          .select('*')
+          .order('created_at', { ascending:false });
+        if (data) {
+          // Merge into jobs state
+          setSupabaseApps(data);
+          setJobs(prev => prev.map(j => ({
+            ...j,
+            apps: data.filter(a => a.job_id === j.id).map(a => ({
+              id: a.id,
+              uid: a.applicant_id,
+              name: a.name,
+              msg: a.message,
+              visa: a.visa,
+              availability: a.availability || [],
+              hours: a.hours || [],
+              notice: a.notice,
+              resume: a.resume_name ? { name:a.resume_name, size:a.resume_size } : null,
+              resume_url: a.resume_url,
+              cover: a.cover_name ? { name:a.cover_name } : null,
+              cover_url: a.cover_url,
+              status: a.status || 'Sent',
+              ts: new Date(a.created_at).getTime(),
+            }))
+          })));
+        }
+      } catch(e) { console.warn('Load applications error:', e); }
+    };
+    loadApps();
+  }, [tab]);
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
@@ -3258,7 +3273,30 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     setNjPhotos([]);
     setTimeout(() => { setNjPosted(false); setTab('listings'); }, 2500);
   };
-  const allUsers = [...EMPLOYERS.filter(e=>!e.isTrial).map(e=>({...e,type:"employer"})), ...EMPLOYEES.map(e=>({...e,type:"employee"}))];
+  const [allUsers, setAllUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+
+  useEffect(()=>{
+    const loadUsers = async () => {
+      try {
+        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
+        if (data && !error) setAllUsers(data.map(u=>({
+          id: u.id,
+          name: u.name || u.email,
+          email: u.email,
+          handle: u.handle || u.email?.split('@')[0],
+          avatar: u.avatar || (u.type==='employer'?'🍽️':'👨‍🍳'),
+          type: u.type || 'employee',
+          verified: u.verified || false,
+          subscription_tier: u.subscription_tier,
+          subscription_active: u.subscription_active,
+          created_at: u.created_at,
+        })));
+      } catch(e) { console.warn('Load users error:', e); }
+      setUsersLoading(false);
+    };
+    loadUsers();
+  }, []);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
@@ -3562,7 +3600,10 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
         {tab==="users" && (
           <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-            <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{allUsers.length} registered users</div>
+            <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>
+              {usersLoading ? "Loading users…" : `${allUsers.length} registered users`}
+            </div>
+            {usersLoading && <div style={{ textAlign:"center", padding:"30px", color:C.textSoft, fontSize:13 }}>⏳ Loading…</div>}
             {allUsers.map(u=>(
               <div key={u.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, padding:"12px 14px", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
