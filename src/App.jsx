@@ -1526,9 +1526,57 @@ function CandidateProfile({ user, profile, setProfile, following, applications, 
   const [saved, setSaved] = useState(false);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
-  const save = () => {
-    setProfile(p=>({ ...p, resume, coverLetter:cover, bio:draft.bio, location:draft.location, experience:draft.experience }));
-    setSaved(true); setEditing(false); setTimeout(()=>setSaved(false), 2000);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    let resumeResult = resume;
+    let coverResult = cover;
+
+    // Upload resume to Supabase Storage if it has new data
+    if (resume?.data) {
+      try {
+        const res = await fetch(resume.data);
+        const blob = await res.blob();
+        const ext = resume.name?.split('.').pop() || 'pdf';
+        const path = `profiles/${user.id}/resume.${ext}`;
+        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        resumeResult = { name:resume.name, size:resume.size, url:urlData.publicUrl };
+      } catch(e) { console.warn('Resume upload error:', e); }
+    }
+
+    // Upload cover letter to Supabase Storage if it has new data
+    if (cover?.data) {
+      try {
+        const res = await fetch(cover.data);
+        const blob = await res.blob();
+        const ext = cover.name?.split('.').pop() || 'pdf';
+        const path = `profiles/${user.id}/cover.${ext}`;
+        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        coverResult = { name:cover.name, size:cover.size, url:urlData.publicUrl };
+      } catch(e) { console.warn('Cover upload error:', e); }
+    }
+
+    // Save profile to Supabase
+    try {
+      await supabase.from('profiles').update({
+        resume_name: resumeResult?.name || null,
+        resume_url:  resumeResult?.url  || null,
+        cover_name:  coverResult?.name  || null,
+        cover_url:   coverResult?.url   || null,
+        bio:         draft.bio,
+        location:    draft.location,
+        experience:  draft.experience,
+      }).eq('id', user.id);
+    } catch(e) { console.warn('Profile save error:', e); }
+
+    setResume(resumeResult);
+    setCover(coverResult);
+    setProfile(p=>({ ...p, resume:resumeResult, coverLetter:coverResult, bio:draft.bio, location:draft.location, experience:draft.experience }));
+    setSaving(false); setSaved(true); setEditing(false);
+    setTimeout(()=>setSaved(false), 2000);
   };
 
   return (
@@ -1585,7 +1633,11 @@ function CandidateProfile({ user, profile, setProfile, following, applications, 
             {[["Résumé",resume,"📋"],["Cover Letter",cover,"✉️"]].map(([l,f,ic])=>(
               <div key={l} style={{ flex:1, padding:"10px 10px", borderRadius:11, background:f?C.sageL:C.bgSoft, border:`1px solid ${f?C.sage+"50":C.border}`, textAlign:"center" }}>
                 <div style={{ fontSize:18, marginBottom:2 }}>{ic}</div>
-                <div style={{ color:f?C.sage:C.textFaint, fontSize:11, fontWeight:600 }}>{f?"Saved":"Not set"}</div>
+                {f?.url
+                  ? <a href={f.url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:11, fontWeight:600, textDecoration:"none" }}>View ↗</a>
+                  : <div style={{ color:f?C.sage:C.textFaint, fontSize:11, fontWeight:600 }}>{f?"Saved (not uploaded)":"Not set"}</div>
+                }
+                {f?.name && <div style={{ color:C.textFaint, fontSize:10, marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>}
               </div>
             ))}
           </div>
@@ -1608,7 +1660,10 @@ function CandidateProfile({ user, profile, setProfile, following, applications, 
         {(editing||resume||cover) && (
           saved
             ? <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40`, marginBottom:14 }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Profile saved!</span></div>
-            : editing && <button className="btn-cta tap" onClick={save} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 4px 12px rgba(196,98,58,0.22)", marginBottom:14 }}>Save Changes</button>
+            : editing && <button className="btn-cta tap" onClick={save} disabled={saving}
+              style={{ width:"100%", background:saving?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:saving?"none":"0 4px 12px rgba(196,98,58,0.22)", marginBottom:14 }}>
+              {saving ? "⏳ Uploading…" : "Save Changes"}
+            </button>
         )}
 
         <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
@@ -3230,6 +3285,103 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
 }
 
 // ─── Admin Dashboard ──────────────────────────────────────────────────────────
+// ─── Admin Uploads Viewer ────────────────────────────────────────────────────
+function AdminUploads({ supabase }) {
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all | resumes | covers | photos
+
+  useEffect(()=>{
+    const load = async () => {
+      setLoading(true);
+      try {
+        // Get all files from both buckets
+        const [docsRes, photosRes] = await Promise.all([
+          supabase.storage.from('documents').list('', { limit:200, sortBy:{ column:'created_at', order:'desc' } }),
+          supabase.storage.from('job-photos').list('', { limit:200, sortBy:{ column:'created_at', order:'desc' } }),
+        ]);
+
+        const docs = (docsRes.data||[]).filter(f=>f.name!=='.emptyFolderPlaceholder').map(f=>({
+          ...f,
+          bucket: 'documents',
+          url: supabase.storage.from('documents').getPublicUrl(f.name).data.publicUrl,
+          type: f.name.includes('resume') ? 'resume' : f.name.includes('cover') ? 'cover' : 'document',
+        }));
+
+        const photos = (photosRes.data||[]).filter(f=>f.name!=='.emptyFolderPlaceholder').map(f=>({
+          ...f,
+          bucket: 'job-photos',
+          url: supabase.storage.from('job-photos').getPublicUrl(f.name).data.publicUrl,
+          type: 'photo',
+        }));
+
+        setFiles([...docs, ...photos]);
+      } catch(e) { console.warn('Load uploads error:', e); }
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  const filtered = filter==="all" ? files
+    : filter==="resumes" ? files.filter(f=>f.type==="resume")
+    : filter==="covers" ? files.filter(f=>f.type==="cover")
+    : files.filter(f=>f.type==="photo");
+
+  const fmtBytes = b => b > 1024*1024 ? `${(b/1024/1024).toFixed(1)}MB` : b > 1024 ? `${(b/1024).toFixed(0)}KB` : `${b}B`;
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+      <div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>All Uploads</div>
+        <div style={{ color:C.textSoft, fontSize:13, marginBottom:12 }}>{files.length} files across documents and job photos</div>
+
+        {/* Filter tabs */}
+        <div style={{ display:"flex", gap:6, marginBottom:12 }}>
+          {[["all","All"],["resumes","📋 Résumés"],["covers","✉️ Cover Letters"],["photos","📷 Job Photos"]].map(([v,l])=>(
+            <button key={v} className="tap" onClick={()=>setFilter(v)}
+              style={{ flexShrink:0, background:filter===v?C.terracottaL:"#fff", border:`1.5px solid ${filter===v?C.terracotta:C.border}`, borderRadius:20, padding:"5px 12px", color:filter===v?C.terracotta:C.textSoft, fontSize:11, fontWeight:filter===v?700:400 }}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading && <div style={{ textAlign:"center", padding:"30px", color:C.textSoft }}>⏳ Loading uploads…</div>}
+
+      {!loading && filtered.length === 0 && (
+        <div style={{ textAlign:"center", padding:"30px", color:C.textFaint, background:C.bgSoft, borderRadius:12, border:`1px dashed ${C.border}` }}>
+          No {filter === "all" ? "" : filter} uploads yet
+        </div>
+      )}
+
+      {filtered.map((f,i) => (
+        <div key={i} style={{ background:"#fff", borderRadius:12, padding:"12px 14px", border:`1px solid ${C.border}`, display:"flex", alignItems:"center", gap:12 }}>
+          {/* Preview */}
+          {f.type==="photo"
+            ? <img src={f.url} alt="" style={{ width:44, height:55, borderRadius:8, objectFit:"cover", flexShrink:0 }}/>
+            : <div style={{ width:44, height:55, borderRadius:8, background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0, border:`1px solid ${C.sage}30` }}>
+                {f.type==="resume"?"📋":f.type==="cover"?"✉️":"📄"}
+              </div>
+          }
+          {/* Info */}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontWeight:600, fontSize:13, color:C.textDark, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.name}</div>
+            <div style={{ color:C.textSoft, fontSize:11, marginTop:2 }}>
+              {f.type} · {f.metadata?.size ? fmtBytes(f.metadata.size) : ""}
+              {f.created_at && ` · ${new Date(f.created_at).toLocaleDateString('en-AU')}`}
+            </div>
+          </div>
+          {/* Actions */}
+          <a href={f.url} target="_blank" rel="noreferrer"
+            style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"6px 12px", color:C.terracotta, fontSize:12, fontWeight:600, textDecoration:"none", flexShrink:0 }}>
+            View ↗
+          </a>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [tab, setTab] = useState("listings");
   const [editJob, setEditJob] = useState(null);
@@ -3326,7 +3478,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
       </div>
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        {[["listings","📋 Listings"],["post","➕ Post Job"],["users","👥 Users"],["codes","🎟️ Codes"]].map(([t,l])=>(
+        {[["listings","📋 Listings"],["post","➕ Post Job"],["users","👥 Users"],["docs","📁 Uploads"],["codes","🎟️ Codes"]].map(([t,l])=>(
           <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:12, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
         ))}
       </div>
@@ -3528,6 +3680,11 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               </button>
             </div>
           </div>
+        )}
+
+        {/* Uploads / Documents */}
+        {tab==="docs" && (
+          <AdminUploads supabase={supabase}/>
         )}
 
         {/* Discount Codes */}
