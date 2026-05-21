@@ -3519,6 +3519,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
 }
 
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+  const isDesktop = useIsDesktop();
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
