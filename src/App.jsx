@@ -1,5 +1,16 @@
 import { useState, useRef, useEffect } from "react";
 
+// Desktop detection
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 768);
+  useEffect(()=>{
+    const handler = () => setIsDesktop(window.innerWidth >= 768);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isDesktop;
+};
+
 // ─── Stripe ───────────────────────────────────────────────────────────────────
 const STRIPE_PK = "pk_test_51TYwmyGkG9EGtGJgeITW1dBzVae1mfXaac2ccNNjvk89D6s52Mgu4rdImGkCelAZd8UoVrWvf7MHe929Bzzmwokl00K7uBM1kw";
 
@@ -40,6 +51,19 @@ const C = {
 
 const G = `
   @keyframes spin { to { transform: rotate(360deg); } }
+  @media(min-width:768px){
+    .hs-app-root { max-width:1200px; margin:0 auto; display:grid; grid-template-columns:240px 1fr; height:100vh; }
+    .hs-sidebar { display:flex!important; flex-direction:column; border-right:1px solid var(--border,#E8E3DC); padding:24px 16px; height:100vh; position:sticky; top:0; overflow-y:auto; }
+    .hs-main { overflow:hidden; display:flex; flex-direction:column; height:100vh; }
+    .hs-bottom-nav { display:none!important; }
+    .hs-feed-grid { display:grid!important; grid-template-columns:repeat(3,1fr); gap:1px; background:#E8E3DC; }
+    .hs-feed-grid > * { background:#fff; }
+    .hs-card-image { aspect-ratio:1!important; max-height:280px!important; }
+  }
+  @media(min-width:1100px){
+    .hs-feed-grid { grid-template-columns:repeat(4,1fr)!important; }
+    .hs-app-root { grid-template-columns:280px 1fr; }
+  }
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;0,700;1,400&family=DM+Sans:wght@300;400;500;600;700&display=swap');
   *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
   html, body { height:100%; overflow:hidden; }
@@ -3028,8 +3052,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     );
   };
 
+  const isDesktop = useIsDesktop();
+
   return (
-    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden", maxWidth: isDesktop?"1200px":"100%", margin:"0 auto" }}>
       <style>{G}</style>
       {paymentStatus==='success' && (
         <div style={{ background:"#ECFDF5", borderBottom:"1px solid #86EFAC", padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
@@ -3704,6 +3730,39 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       )}
       {tab==="alerts" && null}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+      {/* Desktop grid view */}
+      {isDesktop && tab==="home" && (
+        <div style={{ position:"absolute", inset:0, overflowY:"auto" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:1, background:C.border }}>
+            {jobs.filter(j=>j&&j.id&&j.title).map((j,i)=>{
+              const first = j.video||j.photos?.[0];
+              const hm = isData(first);
+              const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
+              const emp = getEmp(j);
+              return (
+                <div key={j.id} className="tap" onClick={()=>setExpandedJob(j)}
+                  style={{ position:"relative", aspectRatio:"1", cursor:"pointer", overflow:"hidden", background:pbg }}>
+                  {hm&&isVid(first)
+                    ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                    : hm
+                      ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                      : <div style={{ width:"100%", height:"100%", background:pbg, display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:32, opacity:0.3 }}>{emp?.avatar}</span></div>
+                  }
+                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)", opacity:0, transition:"opacity 0.2s" }}
+                    onMouseEnter={e=>e.currentTarget.style.opacity=1}
+                    onMouseLeave={e=>e.currentTarget.style.opacity=0}>
+                    <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"12px 10px" }}>
+                      <div style={{ color:"#fff", fontSize:13, fontWeight:700, marginBottom:2 }}>{j.title}</div>
+                      <div style={{ color:"rgba(255,255,255,0.75)", fontSize:11 }}>{j.venue} · {j.salary}</div>
+                    </div>
+                  </div>
+                  {j.featured && <div style={{ position:"absolute", top:6, left:6 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/></div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {storyJob && <StoryViewer stories={storyJob.stories} startIndex={storyJob.startIndex} currentUser={user} onClose={()=>setStoryJob(null)} onApply={setExpandedJob}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={following} currentUser={user} onToggleFollow={toggleFollow} onApply={setExpandedJob} onBack={()=>setVenueProfile(null)}/>}
     </div>
