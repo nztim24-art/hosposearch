@@ -2082,8 +2082,8 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
   return (
-    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(2px)" }}>
-      <div style={{ maxWidth:560, margin:"0 auto", background:C.bg, minHeight:"100vh" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(2px)" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ maxWidth:560, margin:"0 auto", background:C.bg, minHeight:"100vh" }}>
         <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
           <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
           <div style={{ flex:1 }}>
@@ -3733,8 +3733,8 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
       {/* Desktop grid view */}
       {isDesktop && tab==="home" && (
-        <div style={{ position:"absolute", inset:0, overflowY:"auto" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:1, background:C.border }}>
+        <div style={{ position:"absolute", inset:0, overflowY:"auto", background:C.bg, padding:"16px" }}>
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, maxWidth:1100, margin:"0 auto" }}>
             {jobs.filter(j=>j&&j.id&&j.title).map((j,i)=>{
               const first = j.video||j.photos?.[0];
               const hm = isData(first);
@@ -3742,22 +3742,31 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               const emp = getEmp(j);
               return (
                 <div key={j.id} className="tap" onClick={()=>setExpandedJob(j)}
-                  style={{ position:"relative", aspectRatio:"1", cursor:"pointer", overflow:"hidden", background:pbg }}>
-                  {hm&&isVid(first)
-                    ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                    : hm
-                      ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                      : <div style={{ width:"100%", height:"100%", background:pbg, display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:32, opacity:0.3 }}>{emp?.avatar}</span></div>
-                  }
-                  <div style={{ position:"absolute", inset:0, background:"linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 50%)", opacity:0, transition:"opacity 0.2s" }}
-                    onMouseEnter={e=>e.currentTarget.style.opacity=1}
-                    onMouseLeave={e=>e.currentTarget.style.opacity=0}>
-                    <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"12px 10px" }}>
-                      <div style={{ color:"#fff", fontSize:13, fontWeight:700, marginBottom:2 }}>{j.title}</div>
-                      <div style={{ color:"rgba(255,255,255,0.75)", fontSize:11 }}>{j.venue} · {j.salary}</div>
+                  style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
+                  {/* Image — square crop */}
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"4/3", overflow:"hidden", background:pbg }}>
+                    {hm&&isVid(first)
+                      ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                      : hm
+                        ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
+                    }
+                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    <TypeChip type={j.type} style={{ position:"absolute", top:8, right:8 }}/>
+                  </div>
+                  {/* Card body */}
+                  <div style={{ padding:"12px 14px 14px" }}>
+                    <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
+                      <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
                     </div>
                   </div>
-                  {j.featured && <div style={{ position:"absolute", top:6, left:6 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/></div>}
                 </div>
               );
             })}
