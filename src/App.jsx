@@ -3407,10 +3407,97 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 }
 
 // ─── Employee App ─────────────────────────────────────────────────────────────
+// ─── Following Screen ────────────────────────────────────────────────────────
+function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
+  const [selected, setSelected] = useState(null);
+
+  // Build list of followed employers with their latest jobs
+  const followedEmployers = following.map(id => {
+    const empJobs = jobs.filter(j => j.empId === id);
+    const emp = getEmp(empJobs[0]) || { id, name:"Unknown Venue", handle:id, avatar:"🍽️" };
+    return { emp, jobs:empJobs.sort((a,b)=>b.ts-a.ts) };
+  }).filter(Boolean);
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      <div style={{ padding:"16px 16px 10px", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:2 }}>Following</div>
+        <div style={{ color:C.textSoft, fontSize:13 }}>{following.length} venue{following.length!==1?"s":""} you follow</div>
+      </div>
+
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {followedEmployers.length===0 && (
+          <div style={{ textAlign:"center", padding:"60px 20px", color:C.textFaint }}>
+            <div style={{ fontSize:40, marginBottom:12 }}>💔</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:6 }}>No venues followed yet</div>
+            <div style={{ fontSize:13 }}>Follow venues from the home feed or explore tab</div>
+          </div>
+        )}
+
+        {followedEmployers.map(({ emp, jobs:empJobs }) => (
+          <div key={emp.id}>
+            {/* Venue header */}
+            <div style={{ display:"flex", alignItems:"center", gap:12, padding:"14px 16px", borderBottom:`1px solid ${C.border}`, background:"#fff" }}>
+              <div style={{ width:50, height:50, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0, border:`2px solid ${C.border}` }}>
+                {emp.avatar}
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>{emp.name}</div>
+                <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>
+                  {empJobs.length > 0 ? `${empJobs.length} active listing${empJobs.length!==1?"s":""}` : "No active listings"}
+                </div>
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6, alignItems:"flex-end" }}>
+                {/* Cold apply button if employer has email */}
+                {emp.email && (
+                  <a href={`mailto:${emp.email}?subject=Expression of Interest — HospoSearch&body=Hi ${emp.name},%0D%0A%0D%0AI came across your venue on HospoSearch and would love to express my interest in any upcoming opportunities.%0D%0A%0D%0AKind regards`}
+                    style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 11px", color:C.terracotta, fontSize:11, fontWeight:700, textDecoration:"none" }}>
+                    ✉️ Cold Apply
+                  </a>
+                )}
+                <button className="tap" onClick={()=>onUnfollow(emp.id)}
+                  style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 11px", color:C.textMid, fontSize:11, fontWeight:600 }}>
+                  Unfollow
+                </button>
+              </div>
+            </div>
+
+            {/* Latest listings */}
+            {empJobs.length > 0 && (
+              <div style={{ background:C.bgSoft }}>
+                {empJobs.slice(0,3).map(j => (
+                  <div key={j.id} className="tap" onClick={()=>onOpen(j)}
+                    style={{ display:"flex", alignItems:"center", gap:12, padding:"11px 16px", borderBottom:`1px solid ${C.border}`, cursor:"pointer", background:"#fff", marginBottom:1 }}>
+                    {/* Thumbnail */}
+                    <div style={{ width:48, height:60, borderRadius:8, overflow:"hidden", background:C.bgSoft, flexShrink:0 }}>
+                      {isData(j.photos?.[0])
+                        ? <img src={j.photos[0]} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        : <div style={{ width:"100%", height:"100%", background:PBG[(typeof j.photos?.[0]==="number"?j.photos[0]:0)%PBG.length], display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:16, opacity:0.4 }}>{emp.avatar}</span></div>
+                      }
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:C.textDark, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{j.title}</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{j.salary} · {j.type}</div>
+                      <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>{ago(j.ts)} ago</div>
+                    </div>
+                    <div style={{ color:C.terracotta, fontSize:13, fontWeight:600, flexShrink:0 }}>View →</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Keep avatar_url in sync
+  const [liveAvatarUrl, setLiveAvatarUrl] = useState(user?.avatar_url||null);
   const pullStartY = useRef(null);
   const pullDelta = useRef(0);
 
@@ -3519,13 +3606,22 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const hasDocs = profile?.resume||profile?.coverLetter;
   const unreadMessages = Object.values(messages).filter(msgs=>msgs.some(m=>m.from!==user.id)).length;
 
-  const NavBtn = ({ t, ic, l, badge }) => (
-    <button className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
-      <Icon name={ic} size={24} color={tab===t?C.terracotta:C.textSoft} fill={tab===t&&ic==="person"?C.terracottaL:"none"}/>
-      {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
-      <span style={{ fontSize:10, color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400 }}>{l}</span>
-    </button>
-  );
+  const NavBtn = ({ t, ic, l, badge }) => {
+    const isProfile = t==="profile";
+    const profileAvatar = isProfile && user?.avatar_url;
+    return (
+      <button className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative" }}>
+        {profileAvatar
+          ? <div style={{ width:24, height:24, borderRadius:"50%", overflow:"hidden", border:`2px solid ${tab===t?C.terracotta:C.border}` }}>
+              <img src={profileAvatar} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            </div>
+          : <Icon name={ic} size={24} color={tab===t?C.terracotta:C.textSoft} fill={tab===t&&ic==="person"?C.terracottaL:"none"}/>
+        }
+        {badge>0 && <div style={{ position:"absolute", top:6, right:"calc(50% - 16px)", width:16, height:16, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ color:"#fff", fontSize:9, fontWeight:700 }}>{badge}</span></div>}
+        <span style={{ fontSize:10, color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400 }}>{l}</span>
+      </button>
+    );
+  };
 
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
@@ -3578,18 +3674,19 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             <div style={{ textAlign:"center", padding:"32px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:24, marginBottom:7 }}>🌿</div>You're all caught up!</div>
           </div>
         )}
+        {tab==="following" && <FollowingScreen following={following} jobs={jobs} currentUser={user} onUnfollow={toggleFollow} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }}/>}
         {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
         {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("home")}/>}
         {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={()=>setTab("home")}/>}
-        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
+        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
       {/* Bottom Nav */}
       <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
         <NavBtn t="home"     ic="home"      l="Home"/>
         <NavBtn t="explore"  ic="search"    l="Explore"/>
-        <NavBtn t="activity" ic="briefcase" l="Activity"/>
+        <NavBtn t="following" ic="heart"    l="Following" badge={following.length}/>
         <NavBtn t="messages" ic="chat"      l="Messages" badge={unreadMessages}/>
         <NavBtn t="profile"  ic="person"    l="Profile"/>
       </div>
