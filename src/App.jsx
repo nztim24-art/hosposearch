@@ -24,7 +24,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -1917,6 +1917,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const [resume, setResume] = useState(profile?.resume||null);
   const [cover, setCover] = useState(profile?.coverLetter||null);
   const [done, setDone] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
   const submit = () => {
@@ -2058,7 +2059,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 {/* Buttons */}
                 <div style={{ display:"flex", gap:9, paddingTop:4 }}>
                   <button className="tap" onClick={()=>setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
-                  <button className="btn-cta tap" onClick={submit} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Submit Application</button>
+                  <button className="btn-cta tap" onClick={submit} disabled={submitting}
+                    style={{ flex:2, background:submitting?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:submitting?"none":"0 3px 10px rgba(196,98,58,0.22)" }}>
+                    {submitting ? "⏳ Uploading…" : "Submit Application"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -3093,20 +3097,35 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
 
   const toggleFollow = id => setFollowing(f=>f.includes(id)?f.filter(x=>x!==id):[...f,id]);
   const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
-  const handleApply = async (job,fd) => {
-    // Save application to Supabase
+  const handleApply = async (job, fd) => {
+    // Save application to Supabase (includes document upload inside sbApplyForJob)
+    let savedApp = null;
     try {
-      await sbApplyForJob(job.id, user.id, fd);
+      savedApp = await sbApplyForJob(job.id, user.id, fd);
     } catch(e) {
       console.warn('Application save failed:', e);
     }
-    // Update local state regardless
-    setJobs(p=>p.map(j=>j.id===job.id?{...j,views:(j.views||0)+1,apps:[...(j.apps||[]),{uid:user.id,name:fd.name,msg:fd.msg,visa:fd.visa,availability:fd.availability,hours:fd.hours,notice:fd.notice,resume:fd.resume,cover:fd.cover,ts:Date.now(),status:"Sent"}]}:j));
-    // Refresh jobs from Supabase to get latest
-    try {
-      const dbJobs = await fetchJobs();
-      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
-    } catch(e) {}
+    // Update local state
+    setJobs(p=>p.map(j=>j.id===job.id ? {
+      ...j,
+      views: (j.views||0)+1,
+      apps: [...(j.apps||[]), {
+        id: savedApp?.id,
+        uid: user.id,
+        name: fd.name,
+        msg: fd.msg,
+        visa: fd.visa,
+        availability: fd.availability,
+        hours: fd.hours,
+        notice: fd.notice,
+        resume: fd.resume,
+        resume_url: savedApp?.resume_url || null,
+        cover: fd.cover,
+        cover_url: savedApp?.cover_url || null,
+        ts: Date.now(),
+        status: "Sent"
+      }]
+    } : j));
   };
 
   const followedJobs = jobs.filter(j=>following.includes(j.empId)).sort((a,b)=>b.ts-a.ts);
