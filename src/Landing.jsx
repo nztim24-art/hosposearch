@@ -566,7 +566,7 @@ export default function Landing() {
 
       {/* Hero — two column: left text, right live Instagram feed */}
       <section className="hs-hero" style={{minHeight:'90vh',padding:'110px 40px 60px',alignItems:'center'}}>
-        <div className="hs-hero-inner" className='hs-hero-inner-grid' style={{maxWidth:1160,margin:'0 auto',width:'100%',display:'grid',gridTemplateColumns:'1fr 1fr',gap:64,alignItems:'center'}}>
+        <div className="hs-hero-inner hs-hero-inner-grid" style={{maxWidth:1160,margin:'0 auto',width:'100%',display:'grid',gridTemplateColumns:'1fr 1fr',gap:64,alignItems:'center'}}>
           {/* Left — candidate copy */}
           <div>
             <div className="hs-eyebrow fade-up-1">Now live · Australia &amp; New Zealand</div>

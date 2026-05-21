@@ -2501,7 +2501,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
 
       {/* Discount code */}
       <div style={{ marginBottom:16 }}>
-        <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", marginBottom:6, fontWeight:600, fontSize:13 }}>🏷️ Have a discount code?</div>
+        <div style={{ color:C.textSoft, fontSize:13, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>🏷️ Have a discount code?</div>
         {appliedCode ? (
           <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
             <span style={{ flex:1, color:C.sage, fontWeight:700, fontSize:13 }}>✓ {appliedCode.code} — {appliedCode.pct}% off applied</span>
