@@ -1518,15 +1518,75 @@ function NotifPrefsPanel({ prefs, setPrefs }) {
 }
 
 // ─── Candidate Profile ────────────────────────────────────────────────────────
-function CandidateProfile({ user, profile, setProfile, following, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+function CandidateProfile({ user, profile, setProfile, following, setFollowing, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...user });
-  const [resume, setResume] = useState(profile?.resume||null);
-  const [cover, setCover] = useState(profile?.coverLetter||null);
+  const [resume, setResume] = useState(user.resume_url ? { name:user.resume_name, url:user.resume_url } : profile?.resume||null);
+  const [cover, setCover] = useState(user.cover_url ? { name:user.cover_name, url:user.cover_url } : profile?.coverLetter||null);
   const [saved, setSaved] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url||null);
+  const [avatarEmoji, setAvatarEmoji] = useState(user.avatar||"👨‍🍳");
+  const [docSaving, setDocSaving] = useState(false);
+  const [docSaved, setDocSaved] = useState(false);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
   const [saving, setSaving] = useState(false);
+
+  // Upload avatar photo
+  const uploadAvatar = async (file) => {
+    const reader = new FileReader();
+    reader.onload = async ev => {
+      try {
+        const res = await fetch(ev.target.result);
+        const blob = await res.blob();
+        const path = `profiles/${user.id}/avatar.jpg`;
+        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:'image/jpeg' });
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        setAvatarUrl(urlData.publicUrl);
+        await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
+      } catch(e) { console.warn('Avatar upload error:', e); }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Save docs separately with their own button
+  const saveDocs = async () => {
+    setDocSaving(true);
+    let resumeResult = resume;
+    let coverResult = cover;
+    if (resume?.data) {
+      try {
+        const res = await fetch(resume.data);
+        const blob = await res.blob();
+        const ext = resume.name?.split('.').pop()||'pdf';
+        const path = `profiles/${user.id}/resume.${ext}`;
+        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        resumeResult = { name:resume.name, size:resume.size, url:urlData.publicUrl };
+        setResume(resumeResult);
+      } catch(e) { console.warn('Resume upload error:', e); }
+    }
+    if (cover?.data) {
+      try {
+        const res = await fetch(cover.data);
+        const blob = await res.blob();
+        const ext = cover.name?.split('.').pop()||'pdf';
+        const path = `profiles/${user.id}/cover.${ext}`;
+        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        coverResult = { name:cover.name, size:cover.size, url:urlData.publicUrl };
+        setCover(coverResult);
+      } catch(e) { console.warn('Cover upload error:', e); }
+    }
+    try {
+      await supabase.from('profiles').update({
+        resume_name: resumeResult?.name||null, resume_url: resumeResult?.url||null,
+        cover_name: coverResult?.name||null, cover_url: coverResult?.url||null,
+      }).eq('id', user.id);
+    } catch(e) {}
+    setProfile(p=>({ ...p, resume:resumeResult, coverLetter:coverResult }));
+    setDocSaving(false); setDocSaved(true); setTimeout(()=>setDocSaved(false), 2000);
+  };
 
   const save = async () => {
     setSaving(true);
@@ -1584,7 +1644,18 @@ function CandidateProfile({ user, profile, setProfile, following, applications, 
       {/* IG-style header */}
       <div style={{ padding:"20px 18px 0" }}>
         <div style={{ display:"flex", alignItems:"center", gap:18, marginBottom:14 }}>
-          <div style={{ width:82, height:82, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, border:`3px solid ${C.border}`, flexShrink:0 }}>{user.avatar}</div>
+          <div style={{ position:"relative", flexShrink:0 }}>
+            <div style={{ width:82, height:82, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:40, border:`3px solid ${C.border}`, overflow:"hidden" }}>
+              {avatarUrl
+                ? <img src={avatarUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                : <span>{avatarEmoji}</span>
+              }
+            </div>
+            <label style={{ position:"absolute", bottom:0, right:0, width:26, height:26, borderRadius:"50%", background:C.terracotta, border:"2px solid white", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>
+              <span style={{ fontSize:13 }}>📷</span>
+              <input type="file" accept="image/*" style={{ display:"none" }} onChange={e=>{ const f=e.target.files[0]; if(f) uploadAvatar(f); }}/>
+            </label>
+          </div>
           <div style={{ flex:1 }}>
             <div style={{ display:"flex", gap:18, marginBottom:4 }}>
               {[[applications.length,"Applied"],[bookmarks.length,"Saved"],["—","Views"]].map(([n,l])=>(
@@ -1642,8 +1713,14 @@ function CandidateProfile({ user, profile, setProfile, following, applications, 
             ))}
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-            <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume({...f,fromProfile:true})} onRemove={()=>setResume(null)}/>
-            <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover({...f,fromProfile:true})} onRemove={()=>setCover(null)}/>
+            <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume(f)} onRemove={()=>setResume(null)}/>
+            {resume?.url && !resume?.data && <a href={resume.url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, marginTop:-6, display:"block" }}>View uploaded résumé ↗</a>}
+            <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover(f)} onRemove={()=>setCover(null)}/>
+            {cover?.url && !cover?.data && <a href={cover.url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, marginTop:-6, display:"block" }}>View uploaded cover letter ↗</a>}
+            <button className="btn-cta tap" onClick={saveDocs} disabled={docSaving}
+              style={{ background:docSaved?C.sage:docSaving?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"none", transition:"all 0.3s" }}>
+              {docSaved ? "✅ Documents Saved!" : docSaving ? "⏳ Uploading…" : "💾 Save Documents"}
+            </button>
           </div>
         </div>
 
@@ -2593,13 +2670,226 @@ function SubscribePlans({ user, onSubscribe }) {
   );
 }
 
+// ─── Employer Profile Tab ────────────────────────────────────────────────────
+function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout }) {
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+
+  // Bio section
+  const [bio, setBio] = useState(user.bio||"");
+  const [bioSaving, setBioSaving] = useState(false);
+  const [bioSaved, setBioSaved] = useState(false);
+  const saveBio = async () => {
+    setBioSaving(true);
+    try { await supabase.from("profiles").update({ bio }).eq("id", user.id); } catch(e) {}
+    setBioSaving(false); setBioSaved(true); setTimeout(()=>setBioSaved(false), 2000);
+  };
+
+  // Website / links
+  const [website, setWebsite] = useState(user.website||"");
+  const [instagram, setInstagram] = useState(user.instagram||"");
+  const [linkSaving, setLinkSaving] = useState(false);
+  const [linkSaved, setLinkSaved] = useState(false);
+  const saveLinks = async () => {
+    setLinkSaving(true);
+    try { await supabase.from("profiles").update({ website, instagram }).eq("id", user.id); } catch(e) {}
+    setLinkSaving(false); setLinkSaved(true); setTimeout(()=>setLinkSaved(false), 2000);
+  };
+
+  // Resume / cover letter
+  const [resume, setResume] = useState(user.resume_url ? { name:user.resume_name, url:user.resume_url } : null);
+  const [cover, setCover] = useState(user.cover_url ? { name:user.cover_name, url:user.cover_url } : null);
+  const [docSaving, setDocSaving] = useState(false);
+  const [docSaved, setDocSaved] = useState(false);
+
+  const saveDocs = async () => {
+    setDocSaving(true);
+    let resumeResult = resume;
+    let coverResult = cover;
+
+    if (resume?.data) {
+      try {
+        const res = await fetch(resume.data);
+        const blob = await res.blob();
+        const ext = resume.name?.split(".").pop()||"pdf";
+        const path = `profiles/${user.id}/resume.${ext}`;
+        await supabase.storage.from("documents").upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+        resumeResult = { name:resume.name, size:resume.size, url:urlData.publicUrl };
+      } catch(e) { console.warn("Resume upload error:", e); }
+    }
+
+    if (cover?.data) {
+      try {
+        const res = await fetch(cover.data);
+        const blob = await res.blob();
+        const ext = cover.name?.split(".").pop()||"pdf";
+        const path = `profiles/${user.id}/cover.${ext}`;
+        await supabase.storage.from("documents").upload(path, blob, { upsert:true, contentType:blob.type });
+        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(path);
+        coverResult = { name:cover.name, size:cover.size, url:urlData.publicUrl };
+      } catch(e) { console.warn("Cover upload error:", e); }
+    }
+
+    try {
+      await supabase.from("profiles").update({
+        resume_name: resumeResult?.name||null,
+        resume_url:  resumeResult?.url||null,
+        cover_name:  coverResult?.name||null,
+        cover_url:   coverResult?.url||null,
+      }).eq("id", user.id);
+    } catch(e) {}
+
+    setResume(resumeResult);
+    setCover(coverResult);
+    setDocSaving(false); setDocSaved(true);
+    setTimeout(()=>setDocSaved(false), 2000);
+  };
+
+  const SectionCard = ({ title, children, action }) => (
+    <div style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", marginBottom:12 }}>
+      <div style={{ padding:"13px 16px", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>{title}</div>
+        {action}
+      </div>
+      <div style={{ padding:"14px 16px" }}>{children}</div>
+    </div>
+  );
+
+  const SaveBtn = ({ saving, saved, onClick, label="Save" }) => (
+    <button className="tap" onClick={onClick} disabled={saving}
+      style={{ background:saved?C.sage:saving?"#aaa":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:8, padding:"7px 16px", color:"#fff", fontSize:12, fontWeight:700, transition:"all 0.3s" }}>
+      {saved ? "✓ Saved" : saving ? "⏳" : label}
+    </button>
+  );
+
+  return (
+    <div style={{ height:"100%", overflowY:"auto", padding:"20px 16px 40px" }}>
+
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:16 }}>
+        <div style={{ width:72, height:72, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, border:`3px solid ${C.border}` }}>{user.avatar}</div>
+        <div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{user.name}</div>
+          <div style={{ color:C.textSoft, fontSize:13 }}>@{user.handle}</div>
+          {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginTop:2, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display:"flex", gap:16, padding:"14px 0", borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, marginBottom:16 }}>
+        {[["Listings",mine.length],["Applications",apps],["Views",mine.reduce((s,j)=>s+(j.views||0),0)]].map(([l,v])=>(
+          <div key={l} style={{ textAlign:"center", flex:1 }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{v}</div>
+            <div style={{ color:C.textSoft, fontSize:12 }}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bio */}
+      <SectionCard title="📝 About your venue" action={<SaveBtn saving={bioSaving} saved={bioSaved} onClick={saveBio}/>}>
+        <textarea value={bio} onChange={e=>setBio(e.target.value)} rows={4}
+          placeholder="Tell candidates about your venue — cuisine, culture, team size, awards…"
+          style={{...IS, resize:"none", width:"100%"}}/>
+      </SectionCard>
+
+      {/* Links */}
+      <SectionCard title="🔗 Website & Social" action={<SaveBtn saving={linkSaving} saved={linkSaved} onClick={saveLinks}/>}>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Website</div>
+            <input value={website} onChange={e=>setWebsite(e.target.value)} placeholder="https://yourvenue.com.au" style={IS}/>
+          </div>
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Instagram</div>
+            <input value={instagram} onChange={e=>setInstagram(e.target.value)} placeholder="@yourvenue" style={IS}/>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Documents */}
+      <SectionCard title="📄 Documents" action={<SaveBtn saving={docSaving} saved={docSaved} onClick={saveDocs} label="Upload & Save"/>}>
+        <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>Upload your venue media kit, rate card, or any documents for candidates</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          {[["Company Deck / Media Kit","resume","📋"],["Rate Card / Info Sheet","cover","✉️"]].map(([label, key, icon])=>{
+            const file = key==="resume" ? resume : cover;
+            const setFile = key==="resume" ? setResume : setCover;
+            return (
+              <div key={key}>
+                <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>{label}</div>
+                {file ? (
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
+                    <span style={{ fontSize:18 }}>{icon}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>{file.name}</div>
+                      {file.url && <a href={file.url} target="_blank" rel="noreferrer" style={{ color:C.textSoft, fontSize:11, textDecoration:"none" }}>View uploaded file ↗</a>}
+                    </div>
+                    <button onClick={()=>setFile(null)} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, cursor:"pointer" }}>×</button>
+                  </div>
+                ) : (
+                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 13px", background:C.bgSoft, border:`1.5px dashed ${C.border}`, borderRadius:10, cursor:"pointer" }}>
+                    <span style={{ fontSize:18 }}>{icon}</span>
+                    <span style={{ color:C.textMid, fontSize:13 }}>Tap to upload {label}</span>
+                    <input type="file" accept=".pdf,.doc,.docx" style={{ display:"none" }}
+                      onChange={e=>{
+                        const f = e.target.files[0]; if(!f) return;
+                        const reader = new FileReader();
+                        reader.onload = ev => setFile({ name:f.name, size:f.size, data:ev.target.result });
+                        reader.readAsDataURL(f);
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ color:C.textFaint, fontSize:11, marginTop:10 }}>Tap "Upload & Save" above to save your documents permanently</div>
+      </SectionCard>
+
+      {/* Notification settings */}
+      <div style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", marginBottom:12 }}>
+        <div style={{ padding:"13px 16px", borderBottom:`1px solid ${C.border}` }}>
+          <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>🔔 Application Notifications</div>
+          <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>Get emailed when someone applies to your jobs</div>
+        </div>
+        <div className="tap" onClick={()=>toggleEmailNotifs(!emailNotifs)}
+          style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 16px", cursor:"pointer" }}>
+          <div style={{ flex:1 }}>
+            <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>Email notifications</div>
+            <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>
+              {emailNotifs ? "On — you'll get an email per application" : "Off — check the Apps tab manually"}
+            </div>
+          </div>
+          <div style={{ width:44, height:24, borderRadius:12, background:emailNotifs?C.terracotta:C.border, position:"relative", flexShrink:0, transition:"background 0.2s" }}>
+            <div style={{ width:18, height:18, borderRadius:"50%", background:"#fff", position:"absolute", top:3, left:emailNotifs?23:3, transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}/>
+          </div>
+        </div>
+        <div style={{ padding:"8px 16px", background:C.bgSoft, borderTop:`1px solid ${C.border}` }}>
+          <div style={{ color:C.textFaint, fontSize:11 }}>💡 Agencies: turn off to avoid multiple emails across client accounts</div>
+        </div>
+      </div>
+
+      <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
+    </div>
+  );
+}
+
 function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus }) {
   const [tab, setTab] = useState("browse");
   const [expandedJob, setExpandedJob] = useState(null);
+  const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
+
+  const toggleEmailNotifs = async (val) => {
+    setEmailNotifs(val);
+    localStorage.setItem('hs_email_notifs', val.toString());
+    try { await supabase.from('profiles').update({ email_notifications: val }).eq('id', user.id); } catch(e) {}
+  };
   const [venueProfile, setVenueProfile] = useState(null);
   const [sel, setSel] = useState(null);
   const [appStatusFilter, setAppStatusFilter] = useState("All");
   const [supabaseApps, setSupabaseApps] = useState([]);
+  const [lastSeenApps, setLastSeenApps] = useState(() => parseInt(localStorage.getItem('hs_last_seen_apps')||'0'));
+  const [newAppsCount, setNewAppsCount] = useState(0);
 
   // Load applications from Supabase when apps tab is opened
   useEffect(()=>{
@@ -2611,6 +2901,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
           .select('*')
           .order('created_at', { ascending:false });
         if (data) {
+          // Count new applications since last seen
+          const newCount = data.filter(a => new Date(a.created_at).getTime() > lastSeenApps).length;
+          setNewAppsCount(newCount);
           // Merge into jobs state
           setSupabaseApps(data);
           setJobs(prev => prev.map(j => ({
@@ -2669,6 +2962,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       try {
         const saved = await sbCreateJob(user.id, jobData);
         setJobs(p=>[saved,...p]);
+        // Notify followers of new listing
+        try {
+          const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
+          if (followers?.length > 0) {
+            const notifs = followers.map(f=>({
+              user_id: f.follower_id,
+              type: 'listing',
+              text: `New listing from ${user.name}`,
+              sub: `${jobData.title} · ${jobData.loc}`,
+              icon: '🍽️',
+              read: false,
+            }));
+            await supabase.from('notifications').insert(notifs);
+          }
+        } catch(e) { console.warn('Follower notify error:', e); }
       } catch(e) {
         console.warn('Supabase save failed, using local:', e);
         setJobs(p=>[{...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0},...p]);
@@ -3077,23 +3385,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Profile */}
         {tab==="profile" && (
-          <div style={{ height:"100%", overflowY:"auto", padding:"20px 18px 40px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:16, marginBottom:14 }}>
-              <div style={{ width:76, height:76, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:36, border:`3px solid ${C.border}` }}>{user.avatar}</div>
-              <div>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{user.name}</div>
-                <div style={{ color:C.textSoft, fontSize:13 }}>@{user.handle}</div>
-                {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginTop:3, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
-              </div>
-            </div>
-            <div style={{ display:"flex", gap:16, padding:"14px 0", borderTop:`1px solid ${C.border}`, borderBottom:`1px solid ${C.border}`, marginBottom:16 }}>
-              {[["Listings",mine.length],["Applications",apps],["Views",mine.reduce((s,j)=>s+(j.views||0),0)]].map(([l,v])=>(
-                <div key={l} style={{ textAlign:"center", flex:1 }}><div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{v}</div><div style={{ color:C.textSoft, fontSize:12 }}>{l}</div></div>
-              ))}
-            </div>
-            <div style={{ color:C.textSoft, fontSize:13, lineHeight:1.6, marginBottom:24 }}>{user.bio||"Your venue bio will appear here."}</div>
-            <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
-          </div>
+          <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout}/>
         )}
       </div>
 
@@ -3103,7 +3395,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         <NavBtn t="feed" ic="grid" l="Mine"/>
         <NavBtn t="post" ic="plus" l="Post"/>
         <NavBtn t="talent" ic="users" l="Talent"/>
-        <NavBtn t="apps" ic="briefcase" l="Applications" badge={apps}/>
+        <NavBtn t="apps" ic="briefcase" l="Applications" badge={newAppsCount||apps}/>
         <NavBtn t="profile" ic="person" l="Profile"/>
       </div>
 
@@ -3150,7 +3442,26 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [alerts, setAlerts] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
 
-  const toggleFollow = id => setFollowing(f=>f.includes(id)?f.filter(x=>x!==id):[...f,id]);
+  const toggleFollow = async (id) => {
+    const isFollowing = following.includes(id);
+    setFollowing(f => isFollowing ? f.filter(x=>x!==id) : [...f, id]);
+    try {
+      if (isFollowing) {
+        await supabase.from('following').delete().eq('follower_id', user.id).eq('following_id', id);
+      } else {
+        await supabase.from('following').insert({ follower_id: user.id, following_id: id });
+        // Notify the employer that someone followed them
+        await supabase.from('notifications').insert({
+          user_id: id,
+          type: 'follow',
+          text: `${user.name} is now following your venue`,
+          sub: 'They'll be notified when you post new roles',
+          icon: '👥',
+          read: false,
+        });
+      }
+    } catch(e) { console.warn('Follow error:', e); }
+  };
   const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
   const handleApply = async (job, fd) => {
     // Save application to Supabase (includes document upload inside sbApplyForJob)
@@ -3160,6 +3471,24 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     } catch(e) {
       console.warn('Application save failed:', e);
     }
+    // Send email notification to employer if they have it enabled
+    try {
+      const empProfile = await supabase.from('profiles').select('email,name,email_notifications').eq('id', job.empId).single();
+      if (empProfile.data && empProfile.data.email_notifications !== false) {
+        await fetch('/api/notify-application', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            employerEmail: empProfile.data.email,
+            employerName: empProfile.data.name,
+            applicantName: fd.name,
+            jobTitle: job.title,
+            jobId: job.id,
+          }),
+        });
+      }
+    } catch(e) { console.warn('Email notify error:', e); }
+
     // Update local state
     setJobs(p=>p.map(j=>j.id===job.id ? {
       ...j,
@@ -4092,6 +4421,13 @@ export default function App() {
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
+
+  // Load following from Supabase
+  useEffect(()=>{
+    if (!user?.id) return;
+    supabase.from('following').select('following_id').eq('follower_id', user.id)
+      .then(({ data }) => { if (data) setFollowing(data.map(r=>r.following_id)); });
+  }, [user?.id]);
   const [messages, setMessages]   = useState(INIT_MESSAGES);
   const [refs, setRefs]           = useState(INIT_REFERENCES);
   const [notifs, setNotifs]       = useState(INIT_NOTIFS);
