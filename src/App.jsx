@@ -2237,7 +2237,136 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 }
 
 // ─── Login ────────────────────────────────────────────────────────────────────
+// ─── Public Browse (no login required) ───────────────────────────────────────
+function PublicBrowse({ jobs, onLogin }) {
+  const [expandedJob, setExpandedJob] = useState(null);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const isDesktop = useIsDesktop();
+
+  const handleExpand = (job) => {
+    setExpandedJob(job);
+  };
+
+  return (
+    <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:C.bg, overflow:"hidden" }}>
+      <style>{G}</style>
+
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"center", padding:"12px 20px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:22, color:C.textDark, flex:1 }}>
+          <span style={{ color:C.terracotta }}>Hospo</span>Search
+        </div>
+        <div style={{ display:"flex", gap:10 }}>
+          <button onClick={onLogin} className="tap"
+            style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:100, padding:"8px 18px", color:C.textDark, fontSize:13, fontWeight:600 }}>
+            Log in
+          </button>
+          <button onClick={onLogin} className="btn-cta tap"
+            style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:100, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.25)" }}>
+            Sign up free
+          </button>
+        </div>
+      </div>
+
+      {/* Job grid */}
+      <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"20px":"12px" }}>
+        <div style={{ maxWidth:1100, margin:"0 auto" }}>
+          {/* Hero text */}
+          <div style={{ textAlign:"center", padding:isDesktop?"24px 0 28px":"16px 0 20px" }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:isDesktop?36:24, fontWeight:700, color:C.textDark, marginBottom:8 }}>
+              Find your next great <em style={{ color:C.terracotta }}>hospitality role</em>
+            </div>
+            <div style={{ color:C.textSoft, fontSize:15 }}>{jobs.length} roles across Australia, New Zealand & beyond</div>
+          </div>
+
+          {/* Grid */}
+          <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(3,1fr)":"1fr", gap:isDesktop?16:12 }}>
+            {jobs.filter(j=>j&&j.id&&j.title).map((j,i)=>{
+              const first = j.video||j.photos?.[0];
+              const hm = isData(first);
+              const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
+              const emp = getEmp(j);
+              return (
+                <div key={j.id} className="tap" onClick={()=>handleExpand(j)}
+                  style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
+                  {/* Image */}
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
+                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center" }}/>
+                      : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
+                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                  </div>
+                  {/* Text */}
+                  <div style={{ padding:"12px 14px 14px" }}>
+                    <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
+                      <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Expanded job — shows preview, prompts login to apply */}
+      {expandedJob && (
+        <div onClick={()=>setExpandedJob(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:3000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(4px)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:"22px 22px 0 0", width:"100%", maxWidth:560, maxHeight:"90vh", overflowY:"auto", padding:"6px 0 40px" }}>
+            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 16px" }}/>
+
+            {/* Job header */}
+            <div style={{ padding:"0 18px 16px" }}>
+              <div style={{ color:C.textSoft, fontSize:12, fontWeight:600, marginBottom:4 }}>{expandedJob.venue}</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:700, color:C.textDark, marginBottom:6 }}>{expandedJob.title}</div>
+              <div style={{ color:C.sand, fontWeight:700, fontSize:15, marginBottom:10 }}>{expandedJob.salary}</div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
+                {[expandedJob.type, expandedJob.loc, ...(expandedJob.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
+                  <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
+                ))}
+              </div>
+              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }}>{expandedJob.short}</div>
+
+              {/* Blurred full description teaser */}
+              <div style={{ position:"relative", marginBottom:20 }}>
+                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }}>
+                  {expandedJob.full||expandedJob.short}
+                </div>
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent, #fff 60%)" }}/>
+              </div>
+
+              {/* Login prompt */}
+              <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Sign up to view the full listing & apply</div>
+                <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Free for job seekers — takes 30 seconds</div>
+                <button onClick={onLogin} className="btn-cta tap"
+                  style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
+                  🔍 Create Free Account
+                </button>
+                <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, cursor:"pointer" }}>
+                  Already have an account? Log in →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Login({ onLogin }) {
+  useEffect(()=>{
+    const handler = () => {};
+    document.addEventListener('hs-show-login', handler);
+    return () => document.removeEventListener('hs-show-login', handler);
+  }, []);
   const [screen, setScreen] = useState("login"); // login | signup
   const [mode, setMode] = useState("employee");
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
@@ -3746,7 +3875,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                   onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                   {/* Image — square crop */}
-                  <div style={{ position:"relative", width:"100%", aspectRatio:"4/3", overflow:"hidden", background:pbg }}>
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
                     {hm&&isVid(first)
                       ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                       : hm
