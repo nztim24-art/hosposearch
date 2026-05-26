@@ -360,6 +360,107 @@ const DEFAULT_NOTIF_PREFS = {
 const ago = ts => { const d=Math.floor((Date.now()-ts)/1000); if(d<60) return `${d}s`; if(d<3600) return `${Math.floor(d/60)}m`; if(d<86400) return `${Math.floor(d/3600)}h`; return `${Math.floor(d/86400)}d`; };
 const fmtSize = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
 const isData  = s => typeof s==="string" && (s.startsWith("data:") || s.startsWith("http"));
+
+// Smart hierarchical search
+// 1. Exact title match
+// 2. Abbreviation/alias match (cdp = chef de partie, etc)
+// 3. Title contains query
+// 4. Related roles (same department/category)
+const ROLE_ALIASES = {
+  "cdp": "chef de partie",
+  "chef de partie": "chef de partie",
+  "sous": "sous chef",
+  "exec chef": "executive chef",
+  "exec sous": "executive sous chef",
+  "head chef": "head chef",
+  "hc": "head chef",
+  "foh": "front of house",
+  "boh": "back of house",
+  "gm": "general manager",
+  "f&b": "food & beverage manager",
+  "fnb": "food & beverage manager",
+  "bm": "bar manager",
+  "rm": "restaurant manager",
+  "fm": "floor manager",
+  "sm": "sommelier",
+  "pp": "pastry chef",
+  "kh": "kitchen hand",
+};
+
+const ROLE_GROUPS = {
+  "chef": ["head chef","sous chef","executive chef","chef de partie","commis chef","pastry chef","demi chef","kitchen hand","apprentice chef","executive sous chef","catering chef","pastry sous chef"],
+  "front of house": ["restaurant manager","floor manager","maitre d'","senior waiter","waiter / wait staff","host / hostess","runner / food runner","sommelier","functions coordinator"],
+  "bar": ["bar manager","bartender","barista","barback"],
+  "management": ["general manager","operations manager","food & beverage manager","venue manager","events manager","catering manager","hotel manager"],
+  "pastry": ["pastry chef","pastry sous chef","demi chef"],
+  "sommelier": ["sommelier"],
+  "hotel": ["night auditor","reservations manager","concierge","housekeeping"],
+};
+
+function smartSearch(jobs, query) {
+  if (!query || !query.trim()) return jobs;
+  const q = query.trim().toLowerCase();
+  
+  // Resolve alias
+  const resolved = ROLE_ALIASES[q] || q;
+  
+  // Score each job
+  const scored = jobs.map(j => {
+    const title = (j.title||"").toLowerCase();
+    const venue = (j.venue||"").toLowerCase();
+    const sector = (j.sector||"").toLowerCase();
+    const roleType = (j.roleType||"").toLowerCase();
+    const tags = (j.tags||[]).map(t=>t.toLowerCase()).join(" ");
+    const short = (j.short||"").toLowerCase();
+    const loc = (j.loc||"").toLowerCase();
+    
+    let score = 0;
+    
+    // Tier 1: exact title match (100)
+    if (title === resolved) score = 100;
+    // Tier 2: title starts with query (90)
+    else if (title.startsWith(resolved)) score = 90;
+    // Tier 3: title contains exact resolved query (80)
+    else if (title.includes(resolved)) score = 80;
+    // Tier 4: title contains original query (70)
+    else if (title.includes(q)) score = 70;
+    // Tier 5: related role group (50)
+    else {
+      for (const [group, roles] of Object.entries(ROLE_GROUPS)) {
+        if (q.includes(group) || group.includes(q)) {
+          if (roles.some(r => title.includes(r) || r.includes(title))) {
+            score = 50;
+            break;
+          }
+        }
+        // If query matches a role in a group, show all roles in that group
+        if (roles.some(r => r.includes(q) || q.includes(r.split(" ")[0]))) {
+          if (roles.some(r => title.includes(r.split(" ")[0]))) {
+            score = 40;
+            break;
+          }
+        }
+      }
+    }
+    // Bonus: venue or location match
+    if (score === 0 && (venue.includes(q) || loc.includes(q))) score = 30;
+    // Bonus: sector or tags match  
+    if (score === 0 && (sector.includes(q) || tags.includes(q) || roleType.includes(q))) score = 20;
+    // Bonus: description match
+    if (score === 0 && short.includes(q)) score = 10;
+    
+    return { job: j, score };
+  }).filter(x => x.score > 0);
+  
+  // Sort by score desc, then by featured, then by date
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (b.job.featured !== a.job.featured) return b.job.featured ? 1 : -1;
+    return b.job.ts - a.job.ts;
+  });
+  
+  return scored.map(x => x.job);
+}
 const isVid   = s => typeof s==="string" && s.startsWith("data:video");
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -2241,7 +2342,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 function PublicBrowse({ jobs, onLogin }) {
   const [expandedJob, setExpandedJob] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [pubSearch, setPubSearch] = useState("");
   const isDesktop = useIsDesktop();
+
+  const pubFiltered = pubSearch.trim() ? smartSearch(jobs.filter(j=>j&&j.id&&j.title), pubSearch) : jobs.filter(j=>j&&j.id&&j.title);
 
   const handleExpand = (job) => {
     setExpandedJob(job);
@@ -2271,17 +2375,46 @@ function PublicBrowse({ jobs, onLogin }) {
       {/* Job grid */}
       <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"20px":"12px" }}>
         <div style={{ maxWidth:1100, margin:"0 auto" }}>
-          {/* Hero text */}
+          {/* Hero text + search */}
           <div style={{ textAlign:"center", padding:isDesktop?"24px 0 28px":"16px 0 20px" }}>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:isDesktop?36:24, fontWeight:700, color:C.textDark, marginBottom:8 }}>
               Find your next great <em style={{ color:C.terracotta }}>hospitality role</em>
             </div>
-            <div style={{ color:C.textSoft, fontSize:15 }}>{jobs.length} roles across Australia, New Zealand & beyond</div>
+            <div style={{ color:C.textSoft, fontSize:15, marginBottom:20 }}>{jobs.length} roles across Australia, New Zealand & beyond</div>
+            {/* Search bar */}
+            <div style={{ maxWidth:520, margin:"0 auto", position:"relative" }}>
+              <div style={{ display:"flex", alignItems:"center", background:"#fff", border:`2px solid ${pubSearch?C.terracotta:C.border}`, borderRadius:100, padding:"10px 16px", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", transition:"border-color 0.2s" }}>
+                <Icon name="search" size={20} color={pubSearch?C.terracotta:C.textSoft}/>
+                <input
+                  value={pubSearch}
+                  onChange={e=>setPubSearch(e.target.value)}
+                  placeholder="Search roles — Chef, Sommelier, Floor Manager…"
+                  style={{ flex:1, border:"none", background:"transparent", fontSize:15, color:C.textDark, outline:"none" }}
+                />
+                {pubSearch && (
+                  <button onClick={()=>setPubSearch("")} style={{ background:"none", border:"none", color:C.textSoft, fontSize:18, cursor:"pointer", padding:0, lineHeight:1 }}>×</button>
+                )}
+              </div>
+              {pubSearch && pubFiltered.length > 0 && (
+                <div style={{ position:"absolute", top:"100%", left:0, right:0, marginTop:4, background:"#fff", borderRadius:12, boxShadow:"0 8px 24px rgba(0,0,0,0.12)", border:`1px solid ${C.border}`, overflow:"hidden", zIndex:10 }}>
+                  <div style={{ padding:"8px 14px", background:C.terracottaL, borderBottom:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:12, fontWeight:600 }}>
+                    {pubFiltered.length} role{pubFiltered.length!==1?"s":""} found for "{pubSearch}"
+                  </div>
+                </div>
+              )}
+            </div>
+            {pubSearch && (
+              <div style={{ color:C.textSoft, fontSize:13, marginTop:10 }}>
+                {pubFiltered.length === 0
+                  ? `No roles found for "${pubSearch}"`
+                  : `Showing ${pubFiltered.length} result${pubFiltered.length!==1?"s":""} for "${pubSearch}"`}
+              </div>
+            )}
           </div>
 
           {/* Grid */}
           <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(3,1fr)":"1fr", gap:isDesktop?16:12 }}>
-            {jobs.filter(j=>j&&j.id&&j.title).map((j,i)=>{
+            {pubFiltered.filter(j=>j&&j.id&&j.title).map((j,i)=>{
               const first = j.video||j.photos?.[0];
               const hm = isData(first);
               const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
@@ -3688,6 +3821,8 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [homeSearch, setHomeSearch] = useState("");
+  const homeFiltered = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
   // Keep avatar_url in sync
   const [liveAvatarUrl, setLiveAvatarUrl] = useState(user?.avatar_url||null);
   const pullStartY = useRef(null);
@@ -3900,7 +4035,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {isDesktop && tab==="home" && (
         <div style={{ position:"absolute", inset:0, overflowY:"auto", background:C.bg, padding:"16px" }}>
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, maxWidth:1100, margin:"0 auto" }}>
-            {jobs.filter(j=>j&&j.id&&j.title).map((j,i)=>{
+            {homeFiltered.filter(j=>j&&j.id&&j.title).map((j,i)=>{
               const first = j.video||j.photos?.[0];
               const hm = isData(first);
               const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
