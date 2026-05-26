@@ -2293,7 +2293,7 @@ function PublicBrowse({ jobs, onLogin }) {
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                   {/* Image */}
                   <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center" }}/>
+                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center center" }}/>
                       : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
                     {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                   </div>
@@ -3403,6 +3403,42 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
               <textarea value={nj.full} onChange={e=>setNj(j=>({...j,full:e.target.value}))} placeholder="Full details, requirements, benefits…" rows={5} style={{...IS,resize:"vertical"}}/>
             </div>
+
+            {/* Key selling points */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4, fontWeight:600 }}>Key Selling Points <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
+              <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>Up to 3 reasons candidates should choose this role</div>
+              {[0,1,2].map(i=>(
+                <input key={i} value={(nj.sellingPoints||[])[i]||""} onChange={e=>setNj(j=>{ const sp=[...(j.sellingPoints||["","",""])]; sp[i]=e.target.value; return {...j,sellingPoints:sp}; })} placeholder={["e.g. Staff meals & drinks provided","e.g. 4-day work week available","e.g. Above award wages + tips"][i]} style={{...IS,marginBottom:6}}/>
+              ))}
+            </div>
+
+            {/* Screening questions */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
+              <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>Candidates must answer selected questions when applying</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {[
+                  ["rightToWork",        "🛂 Right to work in this country?"],
+                  ["yearsExperience",    "📅 Years of hospitality experience?"],
+                  ["noticePeriod",       "⏱ Notice period / when can you start?"],
+                  ["policeCheck",        "🔒 Current police check?"],
+                  ["availableWeekends",  "📆 Available to work weekends?"],
+                  ["availablePublicHols","🎉 Available to work public holidays?"],
+                  ["driverLicence",      "🚗 Current driver's licence?"],
+                  ["willingToRelocate",  "✈️ Willing to relocate?"],
+                ].map(([key,label])=>(
+                  <div key={key} className="tap" onClick={()=>setNj(j=>({...j,screeningQ:{...(j.screeningQ||{}),[key]:!(j.screeningQ||{})[key]}}))}
+                    style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:(nj.screeningQ||{})[key]?C.sageL:C.bgSoft, border:`1px solid ${(nj.screeningQ||{})[key]?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer" }}>
+                    <div style={{ width:18, height:18, borderRadius:4, background:(nj.screeningQ||{})[key]?C.sage:"#ddd", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      {(nj.screeningQ||{})[key] && <Icon name="check" size={11} color="#fff"/>}
+                    </div>
+                    <span style={{ color:(nj.screeningQ||{})[key]?C.sage:C.textMid, fontSize:13 }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {!user.isTrial && (
               <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sandL, borderRadius:12, border:`1px solid ${C.sand}40`, marginBottom:12 }}>
                 <span style={{ fontSize:20 }}>💳</span>
@@ -4294,6 +4330,32 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Application Link <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
                 <input value={nj.link} onChange={e=>setNj(j=>({...j,link:e.target.value}))} placeholder="https://venue.com/apply or leave blank" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+              </div>
+
+              {/* Screening Questions */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(candidates must answer when applying)</span></div>
+                <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                  {[
+                    ["rightToWork", "Right to work in Australia?"],
+                    ["yearsExperience", "Years of hospitality experience?"],
+                    ["noticePeriod", "Notice period required?"],
+                    ["policeCheck", "Do you have a current police check?"],
+                    ["relocate", "Are you willing to relocate for this role?"],
+                    ["availableWeekends", "Are you available to work weekends?"],
+                    ["availablePublicHolidays", "Are you available to work public holidays?"],
+                    ["driverLicence", "Do you hold a current driver's licence?"],
+                  ].map(([key, label]) => (
+                    <div key={key} className="tap" onClick={()=>setNj(j=>({...j, screeningQ:{...(j.screeningQ||{}), [key]:!(j.screeningQ||{})[key]}}))}
+                      style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:(nj.screeningQ||{})[key]?C.sageL:C.bgSoft, border:`1px solid ${(nj.screeningQ||{})[key]?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer", transition:"all 0.15s" }}>
+                      <div style={{ width:18, height:18, borderRadius:4, background:(nj.screeningQ||{})[key]?C.sage:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {(nj.screeningQ||{})[key] && <Icon name="check" size={11} color="#fff"/>}
+                      </div>
+                      <span style={{ color:(nj.screeningQ||{})[key]?C.sage:C.textMid, fontSize:13, fontWeight:(nj.screeningQ||{})[key]?600:400 }}>{label}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ color:C.textFaint, fontSize:11, marginTop:7 }}>Selected questions appear on the application form for this role</div>
               </div>
 
               {/* Post button */}
