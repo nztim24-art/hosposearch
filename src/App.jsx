@@ -1643,7 +1643,7 @@ function NotifPrefsPanel({ prefs, setPrefs }) {
 }
 
 // ─── Candidate Profile ────────────────────────────────────────────────────────
-function CandidateProfile({ user, profile, setProfile, following, setFollowing, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+function CandidateProfile({ user, profile, setProfile, following, setFollowing, altAccount, onSwitchAccount, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ ...user });
   const [resume, setResume] = useState(user.resume_url ? { name:user.resume_name, url:user.resume_url } : profile?.resume||null);
@@ -1799,6 +1799,12 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
           {user.location && <div style={{ color:C.textMid, fontSize:13, marginTop:3 }}>📍 {user.location}</div>}
           {(profile?.bio||user.bio) && <div style={{ color:C.textMid, fontSize:13, marginTop:4, lineHeight:1.5 }}>{profile?.bio||user.bio}</div>}
           {user.available && <div style={{ display:"inline-flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:20, marginTop:6 }}><span style={{ width:6, height:6, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
+          {(user.instagram||profile?.instagram) && (
+            <a href={"https://instagram.com/"+(user.instagram||profile?.instagram||"").replace(/^@/,"")} target="_blank" rel="noreferrer"
+              style={{ display:"inline-flex", alignItems:"center", gap:5, color:C.textSoft, fontSize:12, marginTop:5, textDecoration:"none" }}>
+              <span>📸</span> @{(user.instagram||profile?.instagram||"").replace(/^@/,"")}
+            </a>
+          )}
         </div>
         <div style={{ display:"flex", gap:8, margin:"12px 0 16px" }}>
           <button className="tap" onClick={()=>setEditing(!editing)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textDark, fontSize:13, fontWeight:600 }}>{editing ? "Cancel" : "Edit profile"}</button>
@@ -1876,7 +1882,14 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
 
         <NotifPrefsPanel prefs={notifPrefs} setPrefs={setNotifPrefs}/>
 
-        <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"12px 0", color:C.textMid, fontSize:14, fontWeight:500, marginTop:8 }}>Sign Out</button>
+        <AccountSettings user={user} onLogout={onLogout}/>
+        {altAccount && (
+          <button className="tap" onClick={onSwitchAccount}
+            style={{ width:"100%", background:C.terracottaL, border:"1px solid #E8CFBF", borderRadius:11, padding:"12px 0", color:C.terracotta, fontSize:14, fontWeight:600, marginBottom:8 }}>
+            Switch to Employer Account
+          </button>
+        )}
+        <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:11, padding:"12px 0", color:C.textMid, fontSize:14, fontWeight:500, marginTop:8 }}>Sign Out</button>
       </div>
     </div>
   );
@@ -2956,8 +2969,107 @@ function SubscribePlans({ user, onSubscribe }) {
   );
 }
 
+
+// ─── Account Settings ─────────────────────────────────────────────────────────
+function AccountSettings({ user, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const [handle, setHandle] = useState(user?.handle||"");
+  const [instagram, setInstagram] = useState(user?.instagram||"");
+  const [oldPass, setOldPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [passMsg, setPassMsg] = useState("");
+  const [handleMsg, setHandleMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:10, padding:"10px 13px", color:C.textDark, fontSize:14 };
+
+  const saveHandle = async () => {
+    if (!handle.trim()) return;
+    setSaving(true);
+    // Check if handle is taken
+    const { data } = await supabase.from('profiles').select('id').eq('handle', handle.trim()).neq('id', user.id);
+    if (data && data.length > 0) {
+      setHandleMsg("That username is already taken");
+    } else {
+      await supabase.from('profiles').update({ handle: handle.trim(), instagram: instagram.trim()||null }).eq('id', user.id);
+      setHandleMsg("Username saved!");
+      setTimeout(()=>setHandleMsg(""), 2000);
+    }
+    setSaving(false);
+  };
+
+  const changePassword = async () => {
+    if (newPass.length < 6) { setPassMsg("Password must be at least 6 characters"); return; }
+    setSaving(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPass });
+      if (error) setPassMsg(error.message);
+      else { setPassMsg("Password updated!"); setOldPass(""); setNewPass(""); }
+    } catch(e) { setPassMsg("Failed to update password"); }
+    setSaving(false);
+    setTimeout(()=>setPassMsg(""), 3000);
+  };
+
+  return (
+    <div style={{ marginBottom:12 }}>
+      <button className="tap" onClick={()=>setOpen(!open)}
+        style={{ width:"100%", background:open?C.terracottaL:"#fff", border:"1px solid #E8E3DC", borderRadius:11, padding:"12px 16px", color:C.textDark, fontSize:14, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <span>⚙️ Account Settings</span>
+        <span style={{ color:C.textSoft, fontSize:12 }}>{open?"▲":"▼"}</span>
+      </button>
+      {open && (
+        <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:14 }}>
+
+          {/* Username */}
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Username</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ position:"relative", flex:1 }}>
+                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.textFaint, fontSize:14 }}>@</span>
+                <input value={handle} onChange={e=>setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} style={{...IS, paddingLeft:26}}/>
+              </div>
+              <button className="tap" onClick={saveHandle} disabled={saving}
+                style={{ background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"10px 16px", color:"#fff", fontSize:13, fontWeight:700 }}>
+                Save
+              </button>
+            </div>
+            {handleMsg && <div style={{ color:handleMsg.includes("taken")?"#C4623A":"#6B8F71", fontSize:12, marginTop:4 }}>{handleMsg}</div>}
+          </div>
+
+          {/* Instagram link */}
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Instagram Handle <span style={{ color:C.textFaint, textTransform:"none", letterSpacing:0, fontWeight:400 }}>(optional — shown to employers)</span></div>
+            <div style={{ display:"flex", gap:8 }}>
+              <div style={{ position:"relative", flex:1 }}>
+                <span style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", color:C.textFaint, fontSize:14 }}>@</span>
+                <input value={instagram} onChange={e=>setInstagram(e.target.value.replace(/^@/,""))} placeholder="yourhandle" style={{...IS, paddingLeft:26}}/>
+              </div>
+              <button className="tap" onClick={saveHandle} disabled={saving}
+                style={{ background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"10px 16px", color:"#fff", fontSize:13, fontWeight:700 }}>
+                Save
+              </button>
+            </div>
+            {instagram && <a href={"https://instagram.com/"+instagram.replace(/^@/,"")} target="_blank" rel="noreferrer" style={{ color:"#6B8F71", fontSize:12, marginTop:4, display:"block" }}>instagram.com/{instagram} ↗</a>}
+          </div>
+
+          {/* Change password */}
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Change Password</div>
+            <input value={newPass} onChange={e=>setNewPass(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={{...IS, marginBottom:8}}/>
+            <button className="tap" onClick={changePassword} disabled={saving}
+              style={{ width:"100%", background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
+              Update Password
+            </button>
+            {passMsg && <div style={{ color:passMsg.includes("updated")?"#6B8F71":"#C4623A", fontSize:12, marginTop:4 }}>{passMsg}</div>}
+          </div>
+
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Employer Profile Tab ────────────────────────────────────────────────────
-function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout }) {
+function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout, altAccount, onSwitchAccount }) {
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
   // Bio section
@@ -3155,12 +3267,18 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
         </div>
       </div>
 
-      <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
+      {altAccount && (
+        <button className="tap" onClick={onSwitchAccount}
+          style={{ width:"100%", background:C.terracottaL, border:"1px solid #E8CFBF", borderRadius:11, padding:"12px 0", color:C.terracotta, fontSize:14, fontWeight:600, marginBottom:8 }}>
+          Switch to {altAccount.type === 'employer' ? 'Employer' : 'Job Seeker'} Account
+        </button>
+      )}
+      <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
     </div>
   );
 }
 
-function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus }) {
+function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
   const [tab, setTab] = useState("browse");
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
@@ -3709,7 +3827,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Profile */}
         {tab==="profile" && (
-          <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout}/>
+          <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout} altAccount={altAccount} onSwitchAccount={onSwitchAccount}/>
         )}
       </div>
 
@@ -3816,7 +3934,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
   );
 }
 
-function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
   const isDesktop = useIsDesktop();
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
@@ -4006,7 +4124,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
         {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("home")}/>}
         {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={()=>setTab("home")}/>}
-        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
+        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
       {/* Bottom Nav */}
@@ -4909,6 +5027,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 export default function App() {
   const [user, setUser]     = useState(null);
   const [type, setType]     = useState(null);
+  const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
@@ -4989,11 +5108,27 @@ export default function App() {
 
   const handleLogin = async (u, t) => {
     setUser(u); setType(t);
-    // Reload jobs after login
+    if (u?.id) localStorage.setItem('hs_pref_type_' + u.id, t);
+    if (u?.email && t !== 'admin') {
+      try {
+        const otherType = t === 'employer' ? 'employee' : 'employer';
+        const { data } = await supabase.from('profiles').select('*').eq('email', u.email).eq('type', otherType).single();
+        if (data) setAltAccount({ profile: data, type: otherType });
+        else setAltAccount(null);
+      } catch(e) { setAltAccount(null); }
+    }
     try {
       const dbJobs = await fetchJobs();
       if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
     } catch(e) {}
+  };
+
+  const switchAccount = () => {
+    if (!altAccount) return;
+    const prev = { profile: user, type };
+    setUser(altAccount.profile);
+    setType(altAccount.type);
+    setAltAccount({ profile: prev.profile, type: prev.type });
   };
 
   if (loading) return (
@@ -5007,6 +5142,6 @@ export default function App() {
 
   if (!user) return <Login onLogin={handleLogin}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
-  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus}/>;
-  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout}/>;
+  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
+  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
 }
