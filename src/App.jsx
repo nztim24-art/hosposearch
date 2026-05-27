@@ -2690,7 +2690,7 @@ function Login({ onLogin, onClose, defaultScreen="login" }) {
 }
 
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
-function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TYxkgGgUkBXedj25MHNk2OX" }) {
+function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TYxkgGgUkBXedj25MHNk2OX", user=null }) {
   const basePrice = tierPrice;
   const tierLabel = tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
 
@@ -4020,7 +4020,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         <NavBtn t="profile" ic="person" l="Profile"/>
       </div>
 
-      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TYxkgGgUkBXedj25MHNk2OX"}/>}
+      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TYxkgGgUkBXedj25MHNk2OX"} user={user}/>}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
     </div>
