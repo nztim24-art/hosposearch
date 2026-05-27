@@ -4266,7 +4266,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       <style>{G}</style>
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", padding:"10px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.97)", backdropFilter:"blur(10px)", flexShrink:0, zIndex:50 }}>
-        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:24, color:C.textDark, flex:1, letterSpacing:-0.3 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
+        <a href="/" style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:24, color:C.textDark, flex:1, letterSpacing:-0.3, textDecoration:"none" }}><span style={{ color:C.terracotta }}>Hospo</span>Search</a>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <button className="tap" onClick={()=>setNotifOpen(true)} style={{ background:"none", border:"none", padding:2, position:"relative" }}>
             <Icon name="bell" size={22} color={C.textDark}/>
@@ -4294,6 +4294,18 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               pullStartY.current=0;
             }}>
             {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
+            {/* Hero + Search */}
+            <div style={{ textAlign:"center", padding:isDesktop?"24px 20px 20px":"16px 16px 12px", background:C.bg, borderBottom:`1px solid ${C.border}` }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:isDesktop?32:22, fontWeight:700, color:C.textDark, marginBottom:6 }}>
+                Find your next great <em style={{ color:C.terracotta }}>hospitality role</em>
+              </div>
+              <div style={{ color:C.textSoft, fontSize:14, marginBottom:14 }}>{jobs.length} role{jobs.length!==1?"s":""} across Australia, New Zealand & beyond</div>
+              <div style={{ maxWidth:520, margin:"0 auto", display:"flex", alignItems:"center", background:"#fff", border:`2px solid ${homeSearch?C.terracotta:C.border}`, borderRadius:100, padding:"10px 16px", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", transition:"border-color 0.2s" }}>
+                <Icon name="search" size={16} color={C.textSoft}/>
+                <input value={homeSearch} onChange={e=>setHomeSearch(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
+                {homeSearch && <button className="tap" onClick={()=>setHomeSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, cursor:"pointer" }}>×</button>}
+              </div>
+            </div>
             <StoryBar jobs={jobs} following={following} currentUser={user} onOpen={(stories, startIndex)=>setStoryJob({ stories, startIndex })}/>
             {featuredJobs.length>0 && (
               <div style={{ background:C.featuredL, padding:"9px 16px", borderBottom:`1px solid ${C.featured}30`, display:"flex", alignItems:"center", gap:8 }}>
@@ -4303,9 +4315,9 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             )}
             {following.length>0&&followedJobs.length>0 && <div style={{ background:`linear-gradient(135deg,${C.sageL},#F4F9F4)`, padding:"9px 16px", borderBottom:`1px solid ${C.sage}25`, display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:14 }}>⭐</span><span style={{ color:C.textMid, fontSize:13 }}><strong style={{ color:C.sage }}>{followedJobs.length}</strong> {followedJobs.length===1?"role":"roles"} from venues you follow</span></div>}
             {!hasDocs && <div className="tap" onClick={()=>setTab("profile")} style={{ background:`linear-gradient(135deg,${C.sandL},${C.terracottaL})`, padding:"11px 16px", borderBottom:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}><span style={{ fontSize:17 }}>💡</span><div style={{ flex:1 }}><div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>Speed up your applications</div><div style={{ color:C.textSoft, fontSize:12 }}>Save résumé & cover letter to auto-attach</div></div><span style={{ color:C.terracotta, fontSize:13, fontWeight:600 }}>Set up →</span></div>}
-            {sortedJobs.map((j,i)=>(
+            {(homeSearch.trim() ? homeFiltered : sortedJobs).map((j,i)=>(
               <div key={j.id}>
-                {i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 16px 4px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
+                {!homeSearch.trim() && i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 16px 4px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
                 {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
               </div>
             ))}
