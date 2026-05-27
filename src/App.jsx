@@ -625,7 +625,7 @@ function Carousel({ photos, video, height=null }) {
 
   const containerStyle = height
     ? { position:"relative", width:"100%", height, overflow:"hidden" }
-    : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
+    : { position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden" };
 
   return (
     <div ref={containerRef} style={containerStyle}
@@ -2124,7 +2124,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
   return (
-    <div style={{ background:"#fff", marginBottom:8, borderBottom:`1px solid ${C.border}` }}>
+    <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
       {job.featured && (
         <div style={{ background:C.featuredL, borderBottom:`1px solid ${C.featured}30`, padding:"5px 14px", display:"flex", alignItems:"center", gap:6 }}>
           <Icon name="star" size={12} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:11, fontWeight:700 }}>Featured Listing</span>
@@ -4315,12 +4315,14 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             )}
             {following.length>0&&followedJobs.length>0 && <div style={{ background:`linear-gradient(135deg,${C.sageL},#F4F9F4)`, padding:"9px 16px", borderBottom:`1px solid ${C.sage}25`, display:"flex", alignItems:"center", gap:8 }}><span style={{ fontSize:14 }}>⭐</span><span style={{ color:C.textMid, fontSize:13 }}><strong style={{ color:C.sage }}>{followedJobs.length}</strong> {followedJobs.length===1?"role":"roles"} from venues you follow</span></div>}
             {!hasDocs && <div className="tap" onClick={()=>setTab("profile")} style={{ background:`linear-gradient(135deg,${C.sandL},${C.terracottaL})`, padding:"11px 16px", borderBottom:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", gap:10, cursor:"pointer" }}><span style={{ fontSize:17 }}>💡</span><div style={{ flex:1 }}><div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>Speed up your applications</div><div style={{ color:C.textSoft, fontSize:12 }}>Save résumé & cover letter to auto-attach</div></div><span style={{ color:C.terracotta, fontSize:13, fontWeight:600 }}>Set up →</span></div>}
-            {(homeSearch.trim() ? homeFiltered : sortedJobs).map((j,i)=>(
-              <div key={j.id}>
-                {!homeSearch.trim() && i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 16px 4px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
-                {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
-              </div>
-            ))}
+            <div style={{ padding:"12px 14px" }}>
+              {(homeSearch.trim() ? homeFiltered : sortedJobs).map((j,i)=>(
+                <div key={j.id}>
+                  {!homeSearch.trim() && i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 12px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
+                  {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+                </div>
+              ))}
+            </div>
             <div style={{ textAlign:"center", padding:"32px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:24, marginBottom:7 }}>🌿</div>You're all caught up!</div>
           </div>
         )}
