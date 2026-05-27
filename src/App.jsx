@@ -3343,6 +3343,12 @@ function EmployerBrowse({ jobs, user, onExpand }) {
 
       {/* Grid */}
       <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"16px":"0" }}>
+        {jobs.length === 0 && (
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", height:"100%", flexDirection:"column", gap:12, color:C.textFaint }}>
+            <div style={{ width:32, height:32, borderRadius:"50%", border:`3px solid ${C.terracotta}`, borderTopColor:"transparent", animation:"spin 0.8s linear infinite" }}/>
+            <span style={{ fontSize:13 }}>Loading listings…</span>
+          </div>
+        )}
         {isDesktop ? (
           <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, maxWidth:1100, margin:"0 auto" }}>
             {filtered.map((j,i)=>{
@@ -3387,7 +3393,7 @@ function EmployerBrowse({ jobs, user, onExpand }) {
 }
 
 function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
-  const [tab, setTab] = useState("listings");
+  const [tab, setTab] = useState("feed");
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
 
