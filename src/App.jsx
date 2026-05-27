@@ -2370,9 +2370,9 @@ function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", padding:"12px 20px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
-        <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:22, color:C.textDark, flex:1 }}>
+        <a href="/" style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:22, color:C.textDark, flex:1, textDecoration:"none", cursor:"pointer" }}>
           <span style={{ color:C.terracotta }}>Hospo</span>Search
-        </div>
+        </a>
         <div style={{ display:"flex", gap:10 }}>
           <button onClick={onLogin} className="tap"
             style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:100, padding:"8px 18px", color:C.textDark, fontSize:13, fontWeight:600 }}>
@@ -5267,9 +5267,9 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
-  // Show login modal over PublicBrowse if triggered
+  // Show login modal if triggered from PublicBrowse
   if (showLogin && !user) return <Login onLogin={(u,t)=>{ setShowLogin(false); handleLogin(u,t); }} onClose={()=>setShowLogin(false)}/>;
+  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>; 
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
