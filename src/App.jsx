@@ -3293,8 +3293,94 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
   );
 }
 
+// ─── Employer Browse (logged-in, full access, no login prompt) ───────────────
+function EmployerBrowse({ jobs, user, onExpand }) {
+  const [browseSearch, setBrowseSearch] = useState("");
+  const [browseCountry, setBrowseCountry] = useState("");
+  const isDesktop = useIsDesktop();
+
+  const filtered = browseSearch.trim()
+    ? smartSearch(jobs.filter(j=>j&&j.id&&j.title), browseSearch)
+    : browseCountry
+      ? jobs.filter(j=>j&&j.id&&j.title&&(j.country===browseCountry||j.loc?.includes(browseCountry)))
+      : jobs.filter(j=>j&&j.id&&j.title);
+
+  const countries = [...new Set(jobs.filter(j=>j&&j.country).map(j=>j.country))].slice(0,8);
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+      {/* Search */}
+      <div style={{ padding:"10px 14px 8px", background:"#fff", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        <div style={{ display:"flex", alignItems:"center", background:C.bgSoft, border:`1.5px solid ${browseSearch?C.terracotta:C.border}`, borderRadius:100, padding:"8px 14px", gap:8, transition:"border-color 0.2s" }}>
+          <Icon name="search" size={16} color={browseSearch?C.terracotta:C.textSoft}/>
+          <input value={browseSearch} onChange={e=>setBrowseSearch(e.target.value)} placeholder="Search all listings — role, venue, location…" style={{ flex:1, border:"none", background:"transparent", fontSize:13, color:C.textDark, outline:"none" }}/>
+          {browseSearch && <button onClick={()=>setBrowseSearch("")} style={{ background:"none", border:"none", color:C.textSoft, fontSize:16, cursor:"pointer", padding:0 }}>×</button>}
+        </div>
+        {/* Location chips */}
+        {countries.length > 0 && (
+          <div style={{ display:"flex", gap:6, marginTop:8, overflowX:"auto", scrollbarWidth:"none" }}>
+            {["All",...countries].map(c=>(
+              <button key={c} className="tap" onClick={()=>setBrowseCountry(c==="All"?"":c)}
+                style={{ flexShrink:0, background:(browseCountry===c||(c==="All"&&!browseCountry))?C.terracotta:"#fff", border:`1px solid ${(browseCountry===c||(c==="All"&&!browseCountry))?C.terracotta:C.border}`, borderRadius:20, padding:"4px 12px", color:(browseCountry===c||(c==="All"&&!browseCountry))?"#fff":C.textSoft, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+        {(browseSearch||browseCountry) && (
+          <div style={{ color:C.textSoft, fontSize:12, marginTop:6 }}>
+            {filtered.length} result{filtered.length!==1?"s":""}{browseSearch?` for "${browseSearch}`:""}
+          </div>
+        )}
+      </div>
+
+      {/* Grid */}
+      <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"16px":"0" }}>
+        {isDesktop ? (
+          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, maxWidth:1100, margin:"0 auto" }}>
+            {filtered.map((j,i)=>{
+              const first = j.video||j.photos?.[0];
+              const hm = isData(first);
+              const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
+              const emp = getEmp(j);
+              return (
+                <div key={j.id} className="tap" onClick={()=>onExpand(j)}
+                  style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
+                  onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
+                  onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
+                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/> : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
+                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                  </div>
+                  <div style={{ padding:"12px 14px 14px" }}>
+                    <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                      <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
+                      <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div>
+            {filtered.map(j=>(
+              <JobCard key={j.id} job={j} currentUser={user} following={[]} bookmarks={[]} onApply={onExpand} onExpand={onExpand} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={()=>{}}/>
+            ))}
+            {filtered.length === 0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>🔍</div><div style={{ color:C.textMid, fontSize:14 }}>No listings found</div></div>}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
-  const [tab, setTab] = useState("browse");
+  const [tab, setTab] = useState("listings");
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
 
@@ -3497,12 +3583,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       <div style={{ flex:1, overflow:"hidden" }}>
         {/* Browse */}
         {tab==="browse" && (
-          <div style={{ height:"100%", overflowY:"auto" }}>
-            {jobs.sort((a,b)=>b.ts-a.ts).map(j=>(
-              <JobCard key={j.id} job={j} currentUser={user} following={[]} bookmarks={[]} onApply={setExpandedJob} onExpand={setExpandedJob} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>
-            ))}
-            <div style={{ textAlign:"center", padding:"28px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:22, marginBottom:6 }}>🌿</div>All listings shown</div>
-          </div>
+          <EmployerBrowse jobs={jobs} user={user} onExpand={setExpandedJob}/>
         )}
 
         {/* Mine */}
