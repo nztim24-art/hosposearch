@@ -2352,7 +2352,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 // ─── Public Browse (no login required) ───────────────────────────────────────
-function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
+function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
   const [expandedJob, setExpandedJob] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pubSearch, setPubSearch] = useState(initialSearch);
@@ -2378,7 +2378,7 @@ function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
             style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:100, padding:"8px 18px", color:C.textDark, fontSize:13, fontWeight:600 }}>
             Log in
           </button>
-          <button onClick={onLogin} className="btn-cta tap"
+          <button onClick={onSignup||onLogin} className="btn-cta tap"
             style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:100, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.25)" }}>
             Sign up free
           </button>
@@ -2506,7 +2506,7 @@ function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
               <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Sign up to view the full listing & apply</div>
                 <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Free for job seekers — takes 30 seconds</div>
-                <button onClick={onLogin} className="btn-cta tap"
+                <button onClick={onSignup||onLogin} className="btn-cta tap"
                   style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                   🔍 Create Free Account
                 </button>
@@ -2522,13 +2522,13 @@ function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
   );
 }
 
-function Login({ onLogin, onClose }) {
+function Login({ onLogin, onClose, defaultScreen="login" }) {
   useEffect(()=>{
     const handler = () => {};
     document.addEventListener('hs-show-login', handler);
     return () => document.removeEventListener('hs-show-login', handler);
   }, []);
-  const [screen, setScreen] = useState("login"); // login | signup
+  const [screen, setScreen] = useState(defaultScreen); // login | signup
   const [mode, setMode] = useState("employee");
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
   // Sign up fields
@@ -5156,6 +5156,7 @@ export default function App() {
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
@@ -5267,9 +5268,9 @@ export default function App() {
     </div>
   );
 
-  // Show login modal if triggered from PublicBrowse
-  if (showLogin && !user) return <Login onLogin={(u,t)=>{ setShowLogin(false); handleLogin(u,t); }} onClose={()=>setShowLogin(false)}/>;
-  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>; 
+  // Show login/signup modal if triggered from PublicBrowse
+  if ((showLogin||showSignup) && !user) return <Login defaultScreen={showSignup?"signup":"login"} onLogin={(u,t)=>{ setShowLogin(false); setShowSignup(false); handleLogin(u,t); }} onClose={()=>{ setShowLogin(false); setShowSignup(false); }}/>;
+  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>; 
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
