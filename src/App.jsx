@@ -2690,8 +2690,7 @@ function Login({ onLogin, onClose, defaultScreen="login" }) {
 }
 
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
-function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tier, user }) {
-  const tierKey = tier || (isFeatured ? 'gold' : 'bronze');
+function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TYxkgGgUkBXedj25MHNk2OX" }) {
   const basePrice = tierPrice;
   const tierLabel = tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
 
