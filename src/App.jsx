@@ -4358,7 +4358,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
       {/* Desktop grid view */}
       {isDesktop && tab==="home" && (
-        <div style={{ position:"absolute", inset:0, overflowY:"auto", background:C.bg, zIndex:5 }}>
+        <div style={{ position:"absolute", top:"53px", left:0, right:0, bottom:0, overflowY:"auto", background:C.bg, zIndex:5 }}>
           {/* Hero + Search */}
           <div style={{ textAlign:"center", padding:"28px 20px 24px", borderBottom:`1px solid ${C.border}` }}>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:34, fontWeight:700, color:C.textDark, marginBottom:8 }}>
