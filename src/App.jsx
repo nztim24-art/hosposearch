@@ -4358,43 +4358,54 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
       {/* Desktop grid view */}
       {isDesktop && tab==="home" && (
-        <div style={{ position:"absolute", inset:0, overflowY:"auto", background:C.bg, padding:"16px" }}>
-          <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16, maxWidth:1100, margin:"0 auto" }}>
-            {homeFiltered.filter(j=>j&&j.id&&j.title).map((j,i)=>{
-              const first = j.video||j.photos?.[0];
-              const hm = isData(first);
-              const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
-              const emp = getEmp(j);
-              return (
-                <div key={j.id} className="tap" onClick={()=>setExpandedJob(j)}
-                  style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
-                  onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
-                  onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
-                  {/* Image — square crop */}
-                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                    {hm&&isVid(first)
-                      ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                      : hm
-                        ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                        : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
-                    }
-                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
-                    <TypeChip type={j.type} style={{ position:"absolute", top:8, right:8 }}/>
-                  </div>
-                  {/* Card body */}
-                  <div style={{ padding:"12px 14px 14px" }}>
-                    <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
-                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
-                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
-                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
-                    <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
-                      <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+        <div style={{ position:"absolute", inset:0, overflowY:"auto", background:C.bg, zIndex:5 }}>
+          {/* Hero + Search */}
+          <div style={{ textAlign:"center", padding:"28px 20px 24px", borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:34, fontWeight:700, color:C.textDark, marginBottom:8 }}>
+              Find your next great <em style={{ color:C.terracotta }}>hospitality role</em>
+            </div>
+            <div style={{ color:C.textSoft, fontSize:15, marginBottom:20 }}>{jobs.length} role{jobs.length!==1?"s":""} across Australia, New Zealand & beyond</div>
+            <div style={{ maxWidth:560, margin:"0 auto", display:"flex", alignItems:"center", background:"#fff", border:`2px solid ${homeSearch?C.terracotta:C.border}`, borderRadius:100, padding:"12px 20px", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", transition:"border-color 0.2s" }}>
+              <Icon name="search" size={16} color={C.textSoft}/>
+              <input value={homeSearch} onChange={e=>setHomeSearch(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
+              {homeSearch && <button className="tap" onClick={()=>setHomeSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, cursor:"pointer" }}>×</button>}
+            </div>
+          </div>
+          <div style={{ padding:"20px", maxWidth:1100, margin:"0 auto" }}>
+            <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:16 }}>
+              {homeFiltered.filter(j=>j&&j.id&&j.title).map((j,i)=>{
+                const first = j.video||j.photos?.[0];
+                const hm = isData(first);
+                const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
+                const emp = getEmp(j);
+                return (
+                  <div key={j.id} className="tap" onClick={()=>setExpandedJob(j)}
+                    style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
+                    onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
+                    onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
+                    <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
+                      {hm&&isVid(first)
+                        ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        : hm
+                          ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/>
+                          : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
+                      }
+                      {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    </div>
+                    <div style={{ padding:"12px 14px 14px" }}>
+                      <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
+                      <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
+                      <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                      <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                        <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
+                        <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
