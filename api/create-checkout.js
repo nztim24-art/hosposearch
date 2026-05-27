@@ -16,9 +16,12 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { tier, jobTitle, venueEmail, jobId } = req.body;
+    const { tier, jobTitle, venueEmail, jobId, discountCode, priceId } = req.body;
 
-    if (!PRICES[tier]) {
+    // Use explicitly passed priceId if provided, otherwise fall back to tier lookup
+    const resolvedPriceId = priceId || PRICES[tier];
+
+    if (!resolvedPriceId) {
       return res.status(400).json({ error: 'Invalid listing tier' });
     }
 
@@ -26,15 +29,15 @@ export default async function handler(req, res) {
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
-      line_items: [{ price: PRICES[tier], quantity: 1 }],
+      line_items: [{ price: resolvedPriceId, quantity: 1 }],
       automatic_tax: { enabled: true },
       customer_email: venueEmail || undefined,
-      metadata: { tier, jobTitle: jobTitle || '', jobId: jobId || '' },
+      metadata: { tier: tier||'bronze', jobTitle: jobTitle || '', jobId: jobId || '' },
       payment_intent_data: {
-        metadata: { tier, jobTitle: jobTitle || '', jobId: jobId || '' },
+        metadata: { tier: tier||'bronze', jobTitle: jobTitle || '', jobId: jobId || '' },
         statement_descriptor: 'HOSPOSEARCH',
       },
-      success_url: `${origin}/app?payment=success&tier=${tier}&jobId=${jobId || ''}&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${origin}/app?payment=success&tier=${tier||'bronze'}&jobId=${jobId || ''}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/app?payment=cancelled`,
     });
 

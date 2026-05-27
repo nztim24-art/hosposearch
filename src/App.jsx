@@ -2352,10 +2352,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 // ─── Public Browse (no login required) ───────────────────────────────────────
-function PublicBrowse({ jobs, onLogin }) {
+function PublicBrowse({ jobs, onLogin, initialSearch="" }) {
   const [expandedJob, setExpandedJob] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  const [pubSearch, setPubSearch] = useState("");
+  const [pubSearch, setPubSearch] = useState(initialSearch);
   const isDesktop = useIsDesktop();
 
   const pubFiltered = pubSearch.trim() ? smartSearch(jobs.filter(j=>j&&j.id&&j.title), pubSearch) : jobs.filter(j=>j&&j.id&&j.title);
@@ -2425,6 +2425,21 @@ function PublicBrowse({ jobs, onLogin }) {
             )}
           </div>
 
+          {/* Location quick-filter bar */}
+          {(() => {
+            const locs = [...new Set(jobs.filter(j=>j&&j.country).map(j=>j.country))].slice(0,8);
+            return locs.length > 0 ? (
+              <div style={{ display:"flex", gap:6, flexWrap:"wrap", justifyContent:"center", marginBottom:16 }}>
+                {["All",...locs].map(loc=>(
+                  <button key={loc} className="tap" onClick={()=>setPubSearch(loc==="All"?"":loc)}
+                    style={{ background:(pubSearch===loc||(loc==="All"&&!pubSearch))?"#C4623A":"#fff", border:(pubSearch===loc||(loc==="All"&&!pubSearch))?"none":"1px solid #E8E3DC", borderRadius:20, padding:"6px 14px", color:(pubSearch===loc||(loc==="All"&&!pubSearch))?"#fff":"#555", fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                    {loc}
+                  </button>
+                ))}
+              </div>
+            ) : null;
+          })()}
+
           {/* Grid */}
           <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(3,1fr)":"1fr", gap:isDesktop?16:12 }}>
             {pubFiltered.filter(j=>j&&j.id&&j.title).map((j,i)=>{
@@ -2439,7 +2454,7 @@ function PublicBrowse({ jobs, onLogin }) {
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                   {/* Image */}
                   <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center center" }}/>
+                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/>
                       : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
                     {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                   </div>
@@ -2507,7 +2522,7 @@ function PublicBrowse({ jobs, onLogin }) {
   );
 }
 
-function Login({ onLogin }) {
+function Login({ onLogin, onClose }) {
   useEffect(()=>{
     const handler = () => {};
     document.addEventListener('hs-show-login', handler);
@@ -2670,8 +2685,8 @@ function Login({ onLogin }) {
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
 function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tier, user }) {
   const tierKey = tier || (isFeatured ? 'gold' : 'bronze');
-  const basePrice = tierKey==='gold' ? 100 : tierKey==='silver' ? 70 : 50;
-  const tierLabel = tierKey==='gold' ? '🥇 Gold Premium' : tierKey==='silver' ? '🥈 Silver Featured' : '🥉 Bronze Standard';
+  const basePrice = tierPrice;
+  const tierLabel = tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
 
   const [codeInput, setCodeInput]     = useState("");
   const [appliedCode, setAppliedCode] = useState(null);
@@ -3636,13 +3651,40 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </div>
             </div>
             {!user.isTrial && (
-              <div style={{ marginBottom:12 }}>
-                <div className="tap" onClick={()=>setNj(j=>({...j,featured:!j.featured}))} style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:nj.featured?C.featuredL:C.bgSoft, borderRadius:12, border:`1px solid ${nj.featured?C.featured+"40":C.border}`, cursor:"pointer" }}>
-                  <div style={{ width:20, height:20, borderRadius:5, background:nj.featured?C.featured:C.border, display:"flex", alignItems:"center", justifyContent:"center" }}>{nj.featured&&<Icon name="check" size={12} color="#fff"/>}</div>
-                  <div style={{ flex:1 }}>
-                    <div style={{ fontWeight:600, fontSize:13, color:nj.featured?C.featured:C.textMid }}>⭐ Feature this listing (+$20)</div>
-                    <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Pin to top of feed for 7 days · More visibility</div>
-                  </div>
+              <div style={{ marginBottom:16 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Choose Your Listing Type</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {[
+                    { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TYxkgGgUkBXedj25MHNk2OX", perks:["Listed in the feed","Candidates can apply","7-day listing"], missing:["Not featured","No priority placement"] },
+                    { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TYxkbGgUkBXedj236i5jbeg", perks:["Everything in Bronze","⭐ Pinned to top of feed","Priority placement for 7 days","Featured badge on listing"], missing:[] },
+                    { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
+                  ].map(tier=>(
+                    <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
+                      style={{ border:`2px solid ${nj.tier===tier.key?C.terracotta:C.border}`, borderRadius:13, padding:"14px 15px", background:nj.tier===tier.key?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
+                      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                          <div style={{ width:22, height:22, borderRadius:"50%", background:nj.tier===tier.key?C.terracotta:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            {nj.tier===tier.key && <Icon name="check" size={13} color="#fff"/>}
+                          </div>
+                          <span style={{ fontWeight:700, fontSize:14, color:nj.tier===tier.key?C.terracotta:C.textDark }}>{tier.label}</span>
+                        </div>
+                        <div style={{ textAlign:"right" }}>
+                          <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:700, color:nj.tier===tier.key?C.terracotta:C.textDark }}>${tier.price}</div>
+                          <div style={{ color:C.textFaint, fontSize:10 }}>+ GST one-time</div>
+                        </div>
+                      </div>
+                      <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                        {tier.perks.map(p=><span key={p} style={{ background:nj.tier===tier.key?"rgba(196,98,58,0.12)":C.bgSoft, color:nj.tier===tier.key?C.terracotta:C.textSoft, fontSize:11, padding:"2px 8px", borderRadius:20, border:`1px solid ${nj.tier===tier.key?C.terracottaM:C.border}` }}>{p}</span>)}
+                        {tier.missing.map(p=><span key={p} style={{ background:"#f5f5f5", color:C.textFaint, fontSize:11, padding:"2px 8px", borderRadius:20, border:"1px solid #eee", textDecoration:"line-through" }}>{p}</span>)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {/* Subscription option */}
+                <div style={{ marginTop:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
+                  <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:2 }}>💡 Hiring regularly? Save with a subscription</div>
+                  <div style={{ color:C.textSoft, fontSize:11 }}>Starter $99/mo · Growth $199/mo · Pro $399/mo — unlimited listings, priority support</div>
+                  <button className="tap" onClick={()=>setTab("plans")} style={{ marginTop:6, background:"none", border:`1px solid ${C.sage}`, borderRadius:20, padding:"4px 12px", color:C.sage, fontSize:11, fontWeight:600, cursor:"pointer" }}>View Plans →</button>
                 </div>
               </div>
             )}
@@ -3694,10 +3736,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sandL, borderRadius:12, border:`1px solid ${C.sand}40`, marginBottom:12 }}>
                 <span style={{ fontSize:20 }}>💳</span>
                 <div style={{ flex:1 }}>
-                  <div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>${nj.featured?70:50}.00 AUD {nj.featured?"(listing + featured)":"per listing"}</div>
-                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>One-time · GST included · Powered by Stripe</div>
+                  <div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>
+                    {nj.tier==="gold"?"🥇 Gold Premium":nj.tier==="silver"?"🥈 Silver Featured":"🥉 Bronze Standard"} — ${nj.tierPrice||50}.00 AUD
+                  </div>
+                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>One-time · GST added at checkout · Powered by Stripe</div>
                 </div>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>${nj.featured?70:50}</div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>${nj.tierPrice||50}</div>
               </div>
             )}
             {user.isTrial && <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>🎁</span><div style={{ flex:1 }}><div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>HospoSearch Trial — Free Post</div><div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Posting on behalf of a new venue</div></div><span style={{ color:C.sage, fontWeight:700 }}>FREE</span></div>}
@@ -3841,7 +3885,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         <NavBtn t="profile" ic="person" l="Profile"/>
       </div>
 
-      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured}/>}
+      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TYxkgGgUkBXedj25MHNk2OX"}/>}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
     </div>
@@ -4202,6 +4246,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
 function AdminUploads({ supabase }) {
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
   const [filter, setFilter] = useState("all"); // all | resumes | covers | photos
 
   useEffect(()=>{
@@ -4306,7 +4351,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
   // Post job state
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
-  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TYxkgGgUkBXedj25MHNk2OX" });
   const [njPhotos, setNjPhotos] = useState([]);
   const [njPosted, setNjPosted] = useState(false);
   const [njPosting, setNjPosting] = useState(false);
@@ -4338,7 +4383,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       photos: fp.length > 0 ? fp : [0, 1, 2],
       video: null,
       verified: true,
-      featured: nj.tier !== "standard",
+      featured: nj.tier !== "bronze" && nj.tier !== "standard",
       ts: Date.now(),
       apps: [],
       views: 0,
@@ -5140,7 +5185,9 @@ export default function App() {
     </div>
   );
 
-  if (!user) return <Login onLogin={handleLogin}/>;
+  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
+  // Show login modal over PublicBrowse if triggered
+  if (showLogin && !user) return <Login onLogin={(u,t)=>{ setShowLogin(false); handleLogin(u,t); }} onClose={()=>setShowLogin(false)}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
