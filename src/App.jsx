@@ -5074,6 +5074,7 @@ export default function App() {
   const [type, setType]     = useState(null);
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
