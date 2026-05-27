@@ -2613,7 +2613,14 @@ function Login({ onLogin, onClose, defaultScreen="login" }) {
   const demo = t => { if(t==="employer"){setEmail("hire@attica.com.au");setPass("pass123");setMode("employer");}else{setEmail("chef@gmail.com");setPass("pass123");setMode("employee");} };
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 14px", color:C.textDark, fontSize:15 };
   return (
-    <div style={{ minHeight:"100vh", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", overflow:"auto" }}>
+    <div style={{ minHeight:"100vh", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", overflow:"auto", position:"relative" }}>
+      {onClose && (
+        <button onClick={onClose} style={{ position:"fixed", top:16, left:16, display:"flex", alignItems:"center", gap:6, background:"none", border:"none", color:C.textSoft, fontSize:14, fontWeight:600, cursor:"pointer", padding:"8px 12px", borderRadius:20, transition:"background 0.15s" }}
+          onMouseEnter={e=>e.currentTarget.style.background=C.bgSoft}
+          onMouseLeave={e=>e.currentTarget.style.background="none"}>
+          <span style={{ fontSize:18 }}>←</span> Back to jobs
+        </button>
+      )}
       <style>{G}</style>
       <div style={{ position:"fixed", top:-80, right:-80, width:240, height:240, borderRadius:"50%", background:`radial-gradient(circle,${C.terracottaM},transparent 70%)`, opacity:0.5, pointerEvents:"none" }}/>
       <div style={{ position:"fixed", bottom:-60, left:-60, width:200, height:200, borderRadius:"50%", background:`radial-gradient(circle,${C.sageL},transparent 70%)`, pointerEvents:"none" }}/>
@@ -3450,7 +3457,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     const locStr = [nj.city, nj.state, nj.country].filter(Boolean).join(", ") || "Australia";
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured };
+    const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true };
   };
 
   const resetForm = () => {
@@ -3826,10 +3834,51 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </div>
             )}
             {user.isTrial && <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>🎁</span><div style={{ flex:1 }}><div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>HospoSearch Trial — Free Post</div><div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Posting on behalf of a new venue</div></div><span style={{ color:C.sage, fontWeight:700 }}>FREE</span></div>}
-            <button className="btn-cta tap" onClick={post} disabled={posting}
-              style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
-              {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : user.isTrial ? "🚀 Publish Free Listing" : "Continue to Payment →"}
-            </button>
+            {/* Listing limit check */}
+            {(() => {
+              const activeListings = mine.filter(j=>j.active!==false).length;
+              const subLimit = user.subscription_limit || 0;
+              const hasActiveSub = user.subscription_active && subLimit > 0;
+              const atLimit = hasActiveSub && activeListings >= subLimit;
+
+              if (atLimit) return (
+                <div style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:12, padding:"16px", textAlign:"center" }}>
+                  <div style={{ fontSize:24, marginBottom:8 }}>🚫</div>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.error, marginBottom:4 }}>Active listing limit reached</div>
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:12 }}>
+                    You have {activeListings}/{subLimit} active listings on your {user.subscription_tier} plan.
+                    Remove a listing or upgrade to post more.
+                  </div>
+                  <div style={{ display:"flex", gap:8 }}>
+                    <button className="tap" onClick={()=>setTab("listings")}
+                      style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>
+                      Manage Listings
+                    </button>
+                    <button className="tap" onClick={()=>setTab("plans")}
+                      style={{ flex:1, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
+                      Upgrade Plan
+                    </button>
+                  </div>
+                </div>
+              );
+
+              return (
+                <>
+                  {hasActiveSub && (
+                    <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40`, marginBottom:8 }}>
+                      <span style={{ fontSize:14 }}>📊</span>
+                      <span style={{ color:C.sage, fontSize:12 }}>
+                        {activeListings}/{subLimit} active listings used on {user.subscription_tier} plan
+                      </span>
+                    </div>
+                  )}
+                  <button className="btn-cta tap" onClick={post} disabled={posting}
+                    style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
+                    {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : user.isTrial ? "🚀 Publish Free Listing" : "Continue to Payment →"}
+                  </button>
+                </>
+              );
+            })()}
           </div>
         )}
 

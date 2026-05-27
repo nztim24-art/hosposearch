@@ -33,13 +33,26 @@ export async function signOut() {
 export async function getSession() {
   const { data } = await supabase.auth.getSession()
   if (!data.session) return null
-  const { data: profile } = await supabase.from('profiles').select('*').eq('auth_id', data.session.user.id).single()
+  const { data: profile } = await supabase.from('profiles')
+    .select('*, subscription_tier, subscription_active, subscription_limit, stripe_customer_id, stripe_subscription_id')
+    .eq('auth_id', data.session.user.id)
+    .single()
   return profile
 }
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 export async function fetchJobs() {
+  // Auto-expire listings older than 30 days (60 for Gold/Pro)
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  try {
+    await supabase.from('jobs')
+      .update({ active: false })
+      .eq('active', true)
+      .neq('tier', 'gold')
+      .lt('created_at', thirtyDaysAgo);
+  } catch(e) { /* non-critical */ }
+
   const { data, error } = await supabase
     .from('jobs')
     .select('*')

@@ -587,7 +587,7 @@ export default function Landing() {
             <div className="fade-up-5" style={{display:'flex',alignItems:'center',gap:6,flexWrap:'wrap',marginBottom:28}}>
               <span style={{fontSize:12,color:'var(--ink-soft)',flexShrink:0}}>Popular:</span>
               {['Head Chef','Sous Chef','Barista','Sommelier','Bar Manager','Floor Manager'].map(r=>(
-                <Link key={r} to="/app" style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 10px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
+                <Link key={r} to={"/app?search="+encodeURIComponent(r)} style={{background:'var(--cream)',border:'1px solid var(--border)',color:'var(--ink-mid)',fontSize:11,fontWeight:500,padding:'4px 10px',borderRadius:20,textDecoration:'none',whiteSpace:'nowrap',transition:'all 0.15s'}}
                   onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';e.currentTarget.style.color='var(--terra)';}}
                   onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.color='var(--ink-mid)';}}>{r}</Link>
               ))}
