@@ -327,7 +327,7 @@ const styles = `
 
     /* Hero CTAs full width */
     .hs-hero-actions{flex-direction:column;align-items:stretch!important;}
-    .hs-hero-actions a{width:100%!important;justify-content:center!important;text-align:center;}
+    .hs-hero-actions a,.hs-hero-actions button{width:100%!important;justify-content:center!important;text-align:center;}
 
     /* Final CTA */
     .hs-final-actions{flex-direction:column;align-items:center;}
