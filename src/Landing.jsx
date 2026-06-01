@@ -465,7 +465,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
                         <div style={{color:'rgba(255,255,255,0.35)',fontSize:11,marginTop:4,lineHeight:1.4}}>
                           {cur.isAU
                             ? <>{cur.code}{tier.period==='mo'?' · per month':' · one-time'}</>
-                            : <>Billed in A${tier.price} AUD{tier.period==='mo'?'/mo':''} · local price is an estimate</>}
+                            : <>Billed at A${tier.price} AUD{tier.period==='mo'?'/mo':''}</>}
                         </div>
                       </>
                     )
@@ -511,7 +511,7 @@ export default function Landing() {
   // Sub-label under each price. No GST until registered. Overseas → AUD billing note.
   const taxLabel = (period, audPrice) => cur.isAU
     ? `${cur.code} · ${period}`
-    : `Billed A$${audPrice} AUD · estimate`
+    : `Billed at A$${audPrice} AUD`
   const navRef = useRef()
   const statsRef = useRef()
   const countersAnimated = useRef(false)
@@ -1033,7 +1033,7 @@ export default function Landing() {
                 <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2}}>{px(99)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime · estimate'}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime'}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -1064,7 +1064,7 @@ export default function Landing() {
                 <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2}}>{px(199)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime · estimate'}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime'}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -1094,7 +1094,7 @@ export default function Landing() {
                 <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2}}>{px(399)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime · estimate'}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.isAU ? cur.code+' · cancel anytime' : 'Billed in AUD · cancel anytime'}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
