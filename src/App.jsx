@@ -2506,13 +2506,11 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                   <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
                 ))}
               </div>
-              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }}>{expandedJob.short}</div>
+              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: expandedJob.short }}/>
 
               {/* Blurred full description teaser */}
               <div style={{ position:"relative", marginBottom:20 }}>
-                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }}>
-                  {expandedJob.full||expandedJob.short}
-                </div>
+                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }} dangerouslySetInnerHTML={{ __html: expandedJob.full||expandedJob.short }}/>
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent, #fff 60%)" }}/>
               </div>
 
@@ -4756,10 +4754,34 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="2–3 punchy sentences about the role…" rows={3} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13, resize:"none" }}/>
               </div>
 
-              {/* Full description */}
+              {/* Full description — rich text */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on detail page)</span></div>
-                <textarea value={nj.full} onChange={e=>setNj(j=>({...j,full:e.target.value}))} placeholder="Full job description, responsibilities, requirements…" rows={5} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13, resize:"none" }}/>
+                {/* Toolbar */}
+                <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"9px 9px 0 0" }}>
+                  {[
+                    { label:"B", cmd:"bold", style:{ fontWeight:700 }, title:"Bold" },
+                    { label:"I", cmd:"italic", style:{ fontStyle:"italic" }, title:"Italic" },
+                    { label:"U", cmd:"underline", style:{ textDecoration:"underline" }, title:"Underline" },
+                    { label:"• List", cmd:"insertUnorderedList", style:{}, title:"Bullet list" },
+                    { label:"1. List", cmd:"insertOrderedList", style:{}, title:"Numbered list" },
+                  ].map(btn=>(
+                    <button key={btn.cmd} title={btn.title} onMouseDown={e=>{ e.preventDefault(); document.execCommand(btn.cmd,false,null); }}
+                      style={{ ...btn.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+                {/* Editable area */}
+                <div
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={e=>setNj(j=>({...j,full:e.currentTarget.innerHTML}))}
+                  data-placeholder="Full job description, responsibilities, requirements…"
+                  style={{ width:"100%", minHeight:120, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 9px 9px", padding:"10px 12px", color:C.textDark, fontSize:13, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
+                  dangerouslySetInnerHTML={{ __html: nj.full || "" }}
+                />
+                <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
               </div>
 
               {/* Tags */}
