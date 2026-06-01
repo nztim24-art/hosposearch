@@ -1426,6 +1426,8 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
             )}
 
             {/* Message */}
+            <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+              <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:9 }}>Send a message</div>
               {msgSent ? (
                 <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Message sent to {selected.name}!</span></div>
               ) : (
