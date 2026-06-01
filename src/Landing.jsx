@@ -238,7 +238,7 @@ const styles = `
   .hs-final-actions{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap;position:relative;z-index:1;}
   .btn-white{background:white;color:var(--terra);padding:15px 32px;border-radius:100px;font-size:15px;font-weight:700;text-decoration:none;transition:all 0.2s;box-shadow:0 4px 18px rgba(0,0,0,0.15);display:inline-flex;align-items:center;gap:7px;}
   .btn-white:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,0.2);}
-  .btn-ghost{background:rgba(255,255,255,0.15);color:white;padding:14px 28px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,0.3);transition:all 0.2s;}
+  .btn-ghost{background:rgba(255,255,255,0.15);color:white;padding:14px 28px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;border:1.5px solid rgba(255,255,255,0.3);transition:all 0.2s;display:inline-flex;align-items:center;justify-content:center;gap:7px;}
   .btn-ghost:hover{background:rgba(255,255,255,0.25);border-color:rgba(255,255,255,0.5);}
 
   /* Footer */
@@ -297,6 +297,7 @@ const styles = `
     /* Pricing — single column */
     .hs-pricing{padding:60px 20px;}
     .hs-pricing-tier-grid{grid-template-columns:1fr!important;max-width:420px!important;margin:0 auto!important;}
+    .hs-modal-tier-grid{grid-template-columns:1fr!important;gap:14px!important;}
     .hs-pricing-tier-grid>div:nth-child(2){transform:none!important;box-shadow:0 8px 24px rgba(0,0,0,0.3)!important;}
 
     /* Seek compare table — horizontal scroll */
@@ -330,7 +331,7 @@ const styles = `
 
     /* Final CTA */
     .hs-final-actions{flex-direction:column;align-items:center;}
-    .hs-final-actions a{width:100%;max-width:320px;justify-content:center;}
+    .hs-final-actions a,.hs-final-actions button{width:100%;max-width:320px;justify-content:center;text-align:center;display:inline-flex;align-items:center;}
 
     /* Locations 2 cols */
     .hs-locs-grid{grid-template-columns:repeat(2,1fr);}
@@ -430,7 +431,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
         </div>
 
         {/* Tier cards */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:28}}>
+        <div className="hs-modal-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:28}}>
           {tiers.map(tier=>{
             const isSel = selectedTier===tier.key
             return (
