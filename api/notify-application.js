@@ -1,37 +1,92 @@
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).end();
+// /api/notify-application.js
+// Sends an email to the employer when a candidate applies.
+// Uses Resend (https://resend.com) — set RESEND_API_KEY in Vercel env vars.
 
-  const { employerEmail, employerName, applicantName, jobTitle, jobId } = req.body;
-  if (!employerEmail) return res.status(400).json({ error: 'Missing employer email' });
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const {
+    employerEmail,
+    employerName,
+    applicantName,
+    applicantMessage,
+    jobTitle,
+    jobId,
+    dashboardUrl,
+  } = req.body || {};
+
+  if (!employerEmail || !applicantName || !jobTitle) {
+    return res.status(400).json({ error: 'Missing required fields' });
+  }
+
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    console.error('RESEND_API_KEY not set');
+    return res.status(500).json({ error: 'Email service not configured' });
+  }
+
+  const viewUrl = dashboardUrl || 'https://www.hosposearch.com.au/app';
+
+  const html = `
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;background:#FAF8F4;padding:32px 24px;border-radius:16px;">
+      <div style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:#0F0E0C;margin-bottom:4px;">
+        <span style="color:#C4623A;">Hospo</span>Search
+      </div>
+      <div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#7A7570;margin-bottom:24px;">New Application</div>
+
+      <div style="background:#fff;border:1px solid #E8E2D8;border-radius:14px;padding:24px;">
+        <p style="font-size:16px;color:#0F0E0C;margin:0 0 6px;">Hi ${employerName || 'there'},</p>
+        <p style="font-size:15px;color:#3A3733;line-height:1.6;margin:0 0 18px;">
+          <strong>${applicantName}</strong> has applied for your role:
+        </p>
+        <div style="background:#F5EDE7;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+          <div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#0F0E0C;">${jobTitle}</div>
+        </div>
+        ${applicantMessage ? `
+        <div style="margin-bottom:18px;">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7A7570;font-weight:600;margin-bottom:6px;">Their message</div>
+          <div style="font-size:14px;color:#3A3733;line-height:1.6;font-style:italic;">"${applicantMessage.replace(/</g,'&lt;')}"</div>
+        </div>` : ''}
+        <a href="${viewUrl}" style="display:inline-block;background:#C4623A;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:100px;">
+          View all applicants &rarr;
+        </a>
+      </div>
+
+      <p style="font-size:12px;color:#C0BAB2;text-align:center;margin-top:24px;line-height:1.5;">
+        This application is also saved in your HospoSearch dashboard under "Applications".<br/>
+        You're receiving this because you posted a role on HospoSearch.
+      </p>
+    </div>
+  `;
 
   try {
-    await fetch('https://formspree.io/f/xwpkgvqj', {
+    const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({
-        email: employerEmail,
-        _replyto: 'hello@hosposearch.com.au',
-        _subject: `🔔 New application for ${jobTitle} — HospoSearch`,
-        message: `Hi ${employerName||'there'},
-
-You have a new application on HospoSearch!
-
-Role: ${jobTitle}
-Applicant: ${applicantName}
-
-Log in to review the application:
-https://hosposearch.com.au/app
-
-— The HospoSearch Team`,
+        from: 'HospoSearch <applications@hosposearch.com.au>',
+        to: [employerEmail],
+        reply_to: 'hello@hosposearch.com.au',
+        subject: `New application for ${jobTitle} — ${applicantName}`,
+        html,
       }),
     });
-    res.status(200).json({ ok: true });
-  } catch(err) {
-    console.error('Notify application error:', err);
-    res.status(500).json({ error: err.message });
+
+    if (!r.ok) {
+      const errText = await r.text();
+      console.error('Resend error:', errText);
+      return res.status(502).json({ error: 'Failed to send email', detail: errText });
+    }
+
+    const data = await r.json();
+    return res.status(200).json({ ok: true, id: data.id });
+  } catch (e) {
+    console.error('notify-application error:', e);
+    return res.status(500).json({ error: 'Internal error' });
   }
 }

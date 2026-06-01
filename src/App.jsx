@@ -3475,7 +3475,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true };
   };
 
   const resetForm = () => {
@@ -3704,6 +3704,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 <input value={nj[k]} onChange={e=>setNj(j=>({...j,[k]:e.target.value}))} placeholder={p} style={IS}/>
               </div>
             ))}
+            {/* Application contact email */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Application Email <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(where to send applications)</span></div>
+              <input value={nj.applyEmail||""} onChange={e=>setNj(j=>({...j,applyEmail:e.target.value}))} placeholder={user.email||"hiring@yourvenue.com"} type="email" style={IS}/>
+              <div style={{ color:C.textFaint, fontSize:11, marginTop:5, lineHeight:1.4 }}>📥 You'll get an email for each applicant, and every application is also saved to your dashboard under "Applications". Leave blank to use your account email.</div>
+            </div>
             {[["Employment Type","type",["Full-time","Part-time","Casual","Contract"]],["Salary Band","salaryBand",SALARY_BANDS]].map(([l,k,opts])=>(
               <div key={k} style={{ marginBottom:12 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>{l}</div>
@@ -3800,7 +3806,29 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
-              <textarea value={nj.full} onChange={e=>setNj(j=>({...j,full:e.target.value}))} placeholder="Full details, requirements, benefits…" rows={5} style={{...IS,resize:"vertical"}}/>
+              <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"10px 10px 0 0" }}>
+                {[
+                  { label:"B", cmd:"bold", style:{ fontWeight:700 }, title:"Bold" },
+                  { label:"I", cmd:"italic", style:{ fontStyle:"italic" }, title:"Italic" },
+                  { label:"U", cmd:"underline", style:{ textDecoration:"underline" }, title:"Underline" },
+                  { label:"• List", cmd:"insertUnorderedList", style:{}, title:"Bullet list" },
+                  { label:"1. List", cmd:"insertOrderedList", style:{}, title:"Numbered list" },
+                ].map(btn=>(
+                  <button key={btn.cmd} type="button" title={btn.title} onMouseDown={e=>{ e.preventDefault(); document.execCommand(btn.cmd,false,null); }}
+                    style={{ ...btn.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
+                    {btn.label}
+                  </button>
+                ))}
+              </div>
+              <div
+                contentEditable
+                suppressContentEditableWarning
+                onInput={e=>setNj(j=>({...j,full:e.currentTarget.innerHTML}))}
+                data-placeholder="Full details, requirements, benefits…"
+                style={{ width:"100%", minHeight:120, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"12px 13px", color:C.textDark, fontSize:14, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
+                dangerouslySetInnerHTML={{ __html: nj.full || "" }}
+              />
+              <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
             </div>
 
             {/* Key selling points */}
@@ -4194,19 +4222,22 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     } catch(e) {
       console.warn('Application save failed:', e);
     }
-    // Send email notification to employer if they have it enabled
+    // Send email notification to employer (job's applyEmail, fallback to profile email)
     try {
       const empProfile = await supabase.from('profiles').select('email,name,email_notifications').eq('id', job.empId).single();
-      if (empProfile.data && empProfile.data.email_notifications !== false) {
+      const targetEmail = job.applyEmail || empProfile.data?.email;
+      if (targetEmail && empProfile.data?.email_notifications !== false) {
         await fetch('/api/notify-application', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            employerEmail: empProfile.data.email,
-            employerName: empProfile.data.name,
+            employerEmail: targetEmail,
+            employerName: empProfile.data?.name || job.venue,
             applicantName: fd.name,
+            applicantMessage: fd.msg || '',
             jobTitle: job.title,
             jobId: job.id,
+            dashboardUrl: 'https://www.hosposearch.com.au/app',
           }),
         });
       }
