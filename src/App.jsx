@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -1210,19 +1210,32 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
   const [msgDraft, setMsgDraft] = useState("");
   const [msgSent, setMsgSent] = useState(false);
 
+  const [profiles, setProfiles] = useState([]);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    fetchPublicProfiles()
+      .then(data => { if (alive) { setProfiles(data); setLoadingProfiles(false); } })
+      .catch(() => { if (alive) setLoadingProfiles(false); });
+    return () => { alive = false; };
+  }, []);
+
   const [discCountry, setDiscCountry] = useState("");
   const [discState, setDiscState]     = useState("");
   const [discSector, setDiscSector]   = useState("");
 
   const discStates = discCountry ? Object.keys(LOCATIONS[discCountry]||{}) : [];
 
-  const candidates = EMPLOYEES.filter(e=>{
+  const candidates = profiles.filter(e=>{
     const q = search.toLowerCase();
-    const matchQ = !q || e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q) || (e.location||"").toLowerCase().includes(q) || (e.bio||"").toLowerCase().includes(q) || (e.skills||[]).some(s=>s.toLowerCase().includes(q));
-    const matchR = roleFilter==="All" || e.role===roleFilter || e.role.toLowerCase().includes(roleFilter.toLowerCase());
-    const matchL = !discCountry || (e.location||"").toLowerCase().includes(discCountry.toLowerCase()) || (e.location||"").toLowerCase().includes((discState||"").toLowerCase());
+    const matchQ = !q || e.name.toLowerCase().includes(q) || (e.role||"").toLowerCase().includes(q) || (e.location||"").toLowerCase().includes(q) || (e.bio||"").toLowerCase().includes(q) || (e.skills||[]).some(s=>s.toLowerCase().includes(q)) || (e.cuisine||[]).some(c=>c.toLowerCase().includes(q));
+    const matchR = roleFilter==="All" || e.role===roleFilter || (e.role||"").toLowerCase().includes(roleFilter.toLowerCase());
+    const matchC = !discCountry || (e.country||"").toLowerCase().includes(discCountry.toLowerCase()) || (e.location||"").toLowerCase().includes(discCountry.toLowerCase());
+    const matchL = !discState || (e.location||"").toLowerCase().includes(discState.toLowerCase());
+    const matchS = !discSector || (e.sector||"").toLowerCase().includes(discSector.toLowerCase());
     const matchA = !availableOnly || e.available;
-    return matchQ && matchR && matchL && matchA;
+    return matchQ && matchR && matchC && matchL && matchS && matchA;
   });
 
   const activeDiscFilters = [discCountry, discState, discSector, roleFilter!=="All"?roleFilter:"", locFilter!=="All"?locFilter:""].filter(Boolean).length;
@@ -1290,7 +1303,7 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
           return (
             <div key={cand.id} className="tap" onClick={()=>setSelected(cand)} style={{ background:"#fff", borderRadius:14, padding:"14px 15px", border:`1px solid ${C.border}`, marginBottom:10, boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
               <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
-                <div style={{ width:52, height:52, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, border:`2px solid ${C.border}` }}>{cand.avatar}</div>
+                <div style={{ width:52, height:52, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, flexShrink:0, border:`2px solid ${C.border}`, overflow:"hidden" }}>{cand.avatarUrl ? <img src={cand.avatarUrl} alt={cand.name} style={{ width:"100%", height:"100%", objectFit:"cover" }}/> : cand.avatar}</div>
                 <div style={{ flex:1, minWidth:0 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
                     <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>{cand.name}</div>
@@ -1319,7 +1332,10 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
             </div>
           );
         })}
-        {candidates.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>👥</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No candidates found</div><div style={{ fontSize:13 }}>Try adjusting your filters</div></div>}
+        {candidates.length===0 && (loadingProfiles
+          ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>⏳</div><div style={{ fontSize:13 }}>Loading talent…</div></div>
+          : <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>👥</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No candidates found</div><div style={{ fontSize:13 }}>{profiles.length===0 ? "No job seekers are discoverable yet — check back soon" : "Try adjusting your filters"}</div></div>
+        )}
       </div>
 
       {/* Candidate detail modal */}
@@ -1367,9 +1383,49 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
                 ))}
               </div>
             )}
+            {/* Work photos */}
+            {selected.photos?.length>0 && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:8 }}>Work & Profile Photos</div>
+                <div style={{ display:"flex", gap:8, overflowX:"auto", scrollbarWidth:"none", paddingBottom:4 }}>
+                  {selected.photos.map((p,i)=>(
+                    <a key={i} href={p} target="_blank" rel="noreferrer" style={{ flexShrink:0 }}>
+                      <img src={p} alt={`${selected.name} work ${i+1}`} style={{ width:96, height:96, objectFit:"cover", borderRadius:10, border:`1px solid ${C.border}` }}/>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Resume download */}
+            {selected.resumeUrl && (
+              <div style={{ marginBottom:16 }}>
+                <a href={selected.resumeUrl} target="_blank" rel="noreferrer" download
+                  style={{ display:"flex", alignItems:"center", gap:11, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 15px", textDecoration:"none" }}>
+                  <div style={{ width:38, height:38, borderRadius:9, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, flexShrink:0 }}>📄</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{selected.resumeName||"Resume / CV"}</div>
+                    <div style={{ color:C.textSoft, fontSize:11 }}>Tap to download</div>
+                  </div>
+                  <span style={{ color:C.terracotta, fontSize:13, fontWeight:700 }}>↓</span>
+                </a>
+              </div>
+            )}
+
+            {/* Contact email */}
+            {selected.contactEmail && (
+              <div style={{ marginBottom:16 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:7 }}>Contact</div>
+                <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`Opportunity via HospoSearch`)}&body=${encodeURIComponent(`Hi ${selected.name},\n\nI found your profile on HospoSearch and would love to talk about a role.\n\n`)}`}
+                  className="btn-cta tap"
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, textDecoration:"none", boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                  ✉️ Email {selected.name.split(" ")[0]}
+                </a>
+                {selected.instagram && <a href={`https://instagram.com/${selected.instagram.replace(/^@/,"")}`} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.sage, fontSize:12, marginTop:8, fontWeight:600 }}>@{selected.instagram.replace(/^@/,"")} on Instagram ↗</a>}
+              </div>
+            )}
+
             {/* Message */}
-            <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
-              <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:9 }}>Send a message</div>
               {msgSent ? (
                 <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Message sent to {selected.name}!</span></div>
               ) : (
@@ -3013,7 +3069,32 @@ function AccountSettings({ user, onLogout }) {
   const [passMsg, setPassMsg] = useState("");
   const [handleMsg, setHandleMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [isPublic, setIsPublic] = useState(user?.is_public===true);
+  const [contactEmail, setContactEmail] = useState(user?.contact_email||user?.email||"");
+  const [discMsg, setDiscMsg] = useState("");
   const IS = { width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:10, padding:"10px 13px", color:C.textDark, fontSize:14 };
+
+  const toggleDiscoverable = async () => {
+    const next = !isPublic;
+    setIsPublic(next);
+    setSaving(true);
+    try {
+      await supabase.from('profiles').update({ is_public: next, contact_email: contactEmail.trim()||user.email }).eq('id', user.id);
+      setDiscMsg(next ? "You're now discoverable by employers" : "Your profile is now private");
+      setTimeout(()=>setDiscMsg(""), 2500);
+    } catch(e) { setDiscMsg("Couldn't update — try again"); setIsPublic(!next); }
+    setSaving(false);
+  };
+
+  const saveContactEmail = async () => {
+    setSaving(true);
+    try {
+      await supabase.from('profiles').update({ contact_email: contactEmail.trim() }).eq('id', user.id);
+      setDiscMsg("Contact email saved");
+      setTimeout(()=>setDiscMsg(""), 2000);
+    } catch(e) { setDiscMsg("Couldn't save email"); }
+    setSaving(false);
+  };
 
   const saveHandle = async () => {
     if (!handle.trim()) return;
@@ -3052,7 +3133,32 @@ function AccountSettings({ user, onLogout }) {
       {open && (
         <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:14 }}>
 
-          {/* Username */}
+          {/* Discoverable by employers */}
+          <div style={{ background:isPublic?C.sageL:C.bgSoft, border:`1px solid ${isPublic?C.sage+"55":C.border}`, borderRadius:12, padding:"14px 15px" }}>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom:isPublic?12:0 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:3 }}>🔍 Discoverable by employers</div>
+                <div style={{ color:C.textSoft, fontSize:12, lineHeight:1.5 }}>When on, employers can find your profile in talent search and reach out to you. Turn off any time to go private.</div>
+              </div>
+              <button className="tap" onClick={toggleDiscoverable} disabled={saving}
+                style={{ flexShrink:0, width:50, height:28, borderRadius:20, border:"none", background:isPublic?C.sage:C.borderMid, position:"relative", cursor:"pointer", transition:"background 0.2s" }}>
+                <span style={{ position:"absolute", top:3, left:isPublic?25:3, width:22, height:22, borderRadius:"50%", background:"#fff", transition:"left 0.2s", boxShadow:"0 1px 3px rgba(0,0,0,0.2)" }}/>
+              </button>
+            </div>
+            {isPublic && (
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Contact email for employers</div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} placeholder="you@email.com" type="email" style={{...IS, flex:1}}/>
+                  <button className="tap" onClick={saveContactEmail} disabled={saving}
+                    style={{ background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"10px 16px", color:"#fff", fontSize:13, fontWeight:700 }}>Save</button>
+                </div>
+                <div style={{ color:C.textFaint, fontSize:11, marginTop:5 }}>Employers will email you here. Make sure your resume and work photos are uploaded on your profile.</div>
+              </div>
+            )}
+            {discMsg && <div style={{ color:C.sage, fontSize:12, marginTop:8, fontWeight:600 }}>{discMsg}</div>}
+          </div>
+
           <div>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Username</div>
             <div style={{ display:"flex", gap:8 }}>

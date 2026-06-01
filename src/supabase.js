@@ -311,6 +311,47 @@ export async function updateProfile(profileId, updates) {
   if (error) throw error
 }
 
+// Fetch all job-seeker profiles that have opted into being discoverable by employers
+export async function fetchPublicProfiles() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('type', 'employee')
+    .eq('is_public', true)
+    .order('updated_at', { ascending: false })
+  if (error) {
+    console.error('fetchPublicProfiles error:', error)
+    return []
+  }
+  return (data || []).map(normaliseProfile)
+}
+
+function normaliseProfile(row) {
+  if (!row) return null
+  return {
+    id:          row.id,
+    name:        row.name || '',
+    handle:      row.handle || '',
+    avatar:      row.avatar || '👨‍🍳',
+    avatarUrl:   row.avatar_url || null,
+    role:        row.role || row.headline || 'Hospitality Professional',
+    experience:  row.experience || '',
+    location:    row.location || '',
+    country:     row.country || '',
+    bio:         row.bio || '',
+    skills:      Array.isArray(row.skills) ? row.skills : [],
+    cuisine:     Array.isArray(row.cuisine) ? row.cuisine : [],
+    available:   row.available !== false,
+    isPublic:    row.is_public === true,
+    contactEmail: row.contact_email || row.email || '',
+    instagram:   row.instagram || '',
+    resumeUrl:   row.resume_url || null,
+    resumeName:  row.resume_name || null,
+    photos:      Array.isArray(row.work_photos) ? row.work_photos : [],
+    sector:      row.sector || '',
+  }
+}
+
 // ─── Normalise DB row → app format ────────────────────────────────────────────
 function normaliseJob(row) {
   if (!row) return null;
