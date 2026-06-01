@@ -1,6 +1,64 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 
+// ─── Multi-currency ───────────────────────────────────────────────────────────
+// Rates are AUD → target. Update periodically, or wire to a live FX feed later.
+const CURRENCIES = {
+  AUD: { symbol:'$',  code:'AUD', rate:1,     tax:'GST', taxRate:0.10, billedNote:null },
+  NZD: { symbol:'$',  code:'NZD', rate:1.09,  tax:'GST', taxRate:0.15, billedNote:null },
+  GBP: { symbol:'£',  code:'GBP', rate:0.52,  tax:null,  taxRate:0,    billedNote:'Billed in AUD' },
+  USD: { symbol:'$',  code:'USD', rate:0.66,  tax:null,  taxRate:0,    billedNote:'Billed in AUD' },
+  EUR: { symbol:'€',  code:'EUR', rate:0.61,  tax:null,  taxRate:0,    billedNote:'Billed in AUD' },
+}
+
+// Map a country code (from geo lookup) to a currency
+const COUNTRY_CURRENCY = {
+  AU:'AUD', NZ:'NZD', GB:'GBP', UK:'GBP', US:'USD',
+  IE:'EUR', FR:'EUR', DE:'EUR', ES:'EUR', IT:'EUR', NL:'EUR', AT:'EUR', BE:'EUR', PT:'EUR',
+  CA:'USD', SG:'USD', AE:'USD', HK:'USD',
+}
+
+// Decide currency from the domain; .com geolocates
+function currencyFromHost(host) {
+  const h = (host || '').toLowerCase()
+  if (h.endsWith('.com.au')) return 'AUD'
+  if (h.endsWith('.co.nz'))  return 'NZD'
+  if (h.endsWith('.co.uk'))  return 'GBP'
+  return null // .com (or localhost) → geolocate
+}
+
+// Round to a tidy local price (nearest whole unit, ending in 0 or 5 where sensible)
+function tidyPrice(aud, rate) {
+  const raw = aud * rate
+  if (raw < 100) return Math.round(raw)
+  return Math.round(raw / 5) * 5
+}
+
+function useCurrency() {
+  const [cur, setCur] = useState(() => {
+    const fromHost = typeof window !== 'undefined' ? currencyFromHost(window.location.hostname) : 'AUD'
+    return CURRENCIES[fromHost || 'AUD']
+  })
+
+  useEffect(() => {
+    const fromHost = currencyFromHost(window.location.hostname)
+    if (fromHost) { setCur(CURRENCIES[fromHost]); return }
+    // .com → geolocate via free, key-less IP lookup; fall back to USD
+    let alive = true
+    fetch('https://ipapi.co/json/')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(data => {
+        if (!alive) return
+        const code = COUNTRY_CURRENCY[(data.country_code || '').toUpperCase()] || 'USD'
+        setCur(CURRENCIES[code])
+      })
+      .catch(() => { if (alive) setCur(CURRENCIES.USD) })
+    return () => { alive = false }
+  }, [])
+
+  return cur
+}
+
 const styles = `
   :root {
     --terra:#C4623A; --terra-l:#F5EDE7; --terra-d:#9E4B2A;
@@ -304,6 +362,7 @@ const TICKER_ITEMS = [
 function PricingModal({ onClose, defaultTab='listing' }) {
   const [tab, setTab] = useState(defaultTab)
   const [selectedTier, setSelectedTier] = useState(null)
+  const cur = useCurrency()
 
   const listingTiers = [
     {
@@ -391,15 +450,27 @@ function PricingModal({ onClose, defaultTab='listing' }) {
                   </div>
                 </div>
 
-                {/* Price — pre-GST large, GST small underneath */}
+                {/* Price — pre-tax large, tax/total small underneath */}
                 <div style={{marginBottom:16}}>
-                  <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-2}}>${tier.price}</div>
-                    {tier.period==='mo' && <div style={{color:'rgba(255,255,255,0.4)',fontSize:14,fontWeight:500}}>/mo</div>}
-                  </div>
-                  <div style={{color:'rgba(255,255,255,0.3)',fontSize:11,marginTop:3}}>
-                    + ${tier.gst.toFixed(2)} GST = <span style={{color:'rgba(255,255,255,0.5)',fontWeight:600}}>${(tier.price+tier.gst).toFixed(2)} AUD total{tier.period==='mo'?'/mo':''}</span>
-                  </div>
+                  {(() => {
+                    const localPrice = tidyPrice(tier.price, cur.rate)
+                    const localTax = cur.taxRate ? +(localPrice * cur.taxRate).toFixed(2) : 0
+                    const total = +(localPrice + localTax).toFixed(2)
+                    return (
+                      <>
+                        <div style={{display:'flex',alignItems:'baseline',gap:4}}>
+                          <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-2}}>{cur.symbol}{localPrice}</div>
+                          {tier.period==='mo' && <div style={{color:'rgba(255,255,255,0.4)',fontSize:14,fontWeight:500}}>/mo</div>}
+                        </div>
+                        <div style={{color:'rgba(255,255,255,0.3)',fontSize:11,marginTop:3}}>
+                          {cur.tax
+                            ? <>+ {cur.symbol}{localTax.toFixed(2)} {cur.tax} = <span style={{color:'rgba(255,255,255,0.5)',fontWeight:600}}>{cur.symbol}{total.toFixed(2)} {cur.code} total{tier.period==='mo'?'/mo':''}</span></>
+                            : <span style={{color:'rgba(255,255,255,0.5)',fontWeight:600}}>{cur.symbol}{localPrice} {cur.code}{tier.period==='mo'?'/mo':''}</span>}
+                          {cur.billedNote && <span style={{display:'block',color:'rgba(255,255,255,0.25)',fontSize:10,marginTop:2}}>{cur.billedNote}</span>}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
 
                 {/* Features */}
@@ -435,6 +506,12 @@ export default function Landing() {
   const [showPricingModal, setShowPricingModal] = useState(false)
   const [modalDefaultTab, setModalDefaultTab] = useState('listing')
   const [pricingTab, setPricingTab] = useState('listing');
+  const cur = useCurrency()
+  // Formats an AUD base price into the visitor's local currency for inline display
+  const px = (aud) => `${cur.symbol}${tidyPrice(aud, cur.rate)}`
+  const taxLabel = (period) => cur.tax
+    ? `${cur.code} · ${period} · ${cur.tax} incl.`
+    : `${cur.code} · ${period}${cur.billedNote ? ' · '+cur.billedNote : ''}`
   const navRef = useRef()
   const statsRef = useRef()
   const countersAnimated = useRef(false)
@@ -762,9 +839,9 @@ export default function Landing() {
               <h3 className="hs-split-title">Hire exceptional hospitality talent</h3>
               <p className="hs-split-desc">Post your role in minutes. Reach thousands of qualified candidates across Australia, New Zealand, and beyond.</p>
               <ul className="hs-feat-list">
-                {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','From just $50 AUD per listing'].map(f=><li key={f}>{f}</li>)}
+                {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','Affordable per-listing pricing'].map(f=><li key={f}>{f}</li>)}
               </ul>
-              <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-emp" style={{background:'var(--terra)',color:'white',padding:'13px 26px',borderRadius:100,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'0 3px 12px rgba(196,98,58,0.25)'}}>Post a Job — From $50 →</button>
+              <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-emp" style={{background:'var(--terra)',color:'white',padding:'13px 26px',borderRadius:100,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'0 3px 12px rgba(196,98,58,0.25)'}}>Post a Job →</button>
             </div>
           </div>
         </div>
@@ -822,7 +899,7 @@ export default function Landing() {
           <div className="reveal">
             <div className="hs-section-tag" style={{color:'var(--terra)'}}>Simple pricing</div>
             <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>Transparent pricing.<br/>No hidden fees.</h2>
-            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free. GST included.</p>
+            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free.{cur.tax ? ' '+cur.tax+' included.' : ''}</p>
             {/* Toggle */}
             <div style={{display:'inline-flex',background:'rgba(255,255,255,0.08)',borderRadius:100,padding:4,marginBottom:48,gap:4}}>
               {[['listing','Pay Per Listing'],['subscription','Subscriptions']].map(([v,l])=>(
@@ -849,8 +926,8 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Standard Listing</div>
                 </div>
               </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$50</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(50)}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -877,8 +954,8 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Featured Listing</div>
                 </div>
               </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$70</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(70)}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -905,8 +982,8 @@ export default function Landing() {
                   <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Premium Listing</div>
                 </div>
               </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>$100</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · one-time · GST incl.</div>
+              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(100)}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {[
                   'Everything in Silver',
@@ -948,10 +1025,10 @@ export default function Landing() {
                 </div>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2}}>$99</div>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2}}>{px(99)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.tax ? cur.code+' · +'+cur.tax+' · cancel anytime' : cur.code+' · cancel anytime'+(cur.billedNote?' · '+cur.billedNote:'')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -979,10 +1056,10 @@ export default function Landing() {
                 </div>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2}}>$199</div>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2}}>{px(199)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.tax ? cur.code+' · +'+cur.tax+' · cancel anytime' : cur.code+' · cancel anytime'+(cur.billedNote?' · '+cur.billedNote:'')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -1009,10 +1086,10 @@ export default function Landing() {
                 </div>
               </div>
               <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2}}>$399</div>
+                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2}}>{px(399)}</div>
                 <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
               </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>AUD · +GST · cancel anytime</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{cur.tax ? cur.code+' · +'+cur.tax+' · cancel anytime' : cur.code+' · cancel anytime'+(cur.billedNote?' · '+cur.billedNote:'')}</div>
               <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
                 {['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'].map(f=>(
                   <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
@@ -1046,7 +1123,7 @@ export default function Landing() {
                 </thead>
                 <tbody>
                   {[
-                    ['Price per listing','$275–$695','$50','$70','$100'],
+                    ['Price per listing', cur.symbol+tidyPrice(275,cur.rate)+'–'+cur.symbol+tidyPrice(695,cur.rate), px(50), px(70), px(100)],
                     ['Hospitality-specific','✗','✓','✓','✓'],
                     ['Instagram-style feed','✗','✓','✓','✓'],
                     ['Story-style profiles','✗','✓','✓','✓'],
