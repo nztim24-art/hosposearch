@@ -211,6 +211,10 @@ const styles = `
   .hs-price-card.featured .btn-price{background:rgba(255,255,255,0.2);color:white;}
   .hs-price-card.featured .btn-price:hover{background:rgba(255,255,255,0.3);}
   .hs-pricing-note{margin-top:24px;font-size:13px;color:rgba(255,255,255,0.4);display:flex;align-items:center;gap:8px;}
+  /* Equal-height tier cards with buttons aligned at the bottom */
+  .hs-pricing-tier-grid>div{display:flex;flex-direction:column;transform:none!important;}
+  .hs-pricing-tier-grid>div>ul{flex:1 1 auto;}
+  .hs-pricing-tier-grid>div>a:last-child,.hs-pricing-tier-grid>div>button:last-child{margin-top:auto;}
   .hs-pricing-note::before{content:'🔒';}
 
   /* Testimonials */
