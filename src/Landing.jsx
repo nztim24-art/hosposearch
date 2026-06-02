@@ -728,12 +728,12 @@ export default function Landing() {
       {/* Pricing */}
       <section className="hs-pricing" id="pricing">
         <div className="hs-pricing-inner">
-          <div className="reveal">
+          <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag" style={{color:'var(--terra)'}}>Simple pricing</div>
             <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>Transparent pricing.<br/>No hidden fees.</h2>
-            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free.</p>
+            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free.</p>
             {!cur.isAU && (
-              <p style={{color:'rgba(255,255,255,0.35)',fontSize:'12px',marginTop:'-20px',marginBottom:'28px',maxWidth:'460px',lineHeight:'1.6'}}>
+              <p style={{color:'rgba(255,255,255,0.35)',fontSize:'12px',marginTop:'-20px',marginBottom:'28px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.6'}}>
                 All payments are processed and billed in Australian dollars (AUD). Prices shown in {cur.code} are an estimate based on current exchange rates and may vary slightly at checkout depending on your bank's conversion.
               </p>
             )}
@@ -750,7 +750,7 @@ export default function Landing() {
 
           {/* ── Pay Per Listing ── */}
           {pricingTab==='listing' && (
-          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left'}}>
 
             {/* Bronze — $50 */}
             <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
@@ -848,7 +848,7 @@ export default function Landing() {
 
           {/* ── Subscriptions ── */}
           {pricingTab==='subscription' && (
-          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,marginBottom:60}}>
+          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left'}}>
 
             {/* Starter */}
             <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
