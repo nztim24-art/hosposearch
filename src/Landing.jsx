@@ -730,235 +730,106 @@ export default function Landing() {
 
 
       {/* Pricing */}
-      <section className="hs-pricing" id="pricing">
+      <section className="hs-pricing" id="pricing" style={{background:'var(--cream)'}}>
         <div className="hs-pricing-inner">
           <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag" style={{color:'var(--terra)'}}>Simple pricing</div>
-            <h2 className="hs-section-title" style={{color:'white',marginBottom:'14px'}}>Transparent pricing.<br/>No hidden fees.</h2>
-            <p style={{color:'rgba(255,255,255,0.55)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free.</p>
+            <h2 className="hs-section-title" style={{color:'var(--ink)',marginBottom:'14px'}}>Transparent pricing.<br/>No hidden fees.</h2>
+            <p style={{color:'var(--ink-soft)',fontSize:'16px',marginBottom:'32px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.7'}}>Pay per listing or subscribe for regular hiring. Job seekers are always free.</p>
             {!cur.isAU && (
-              <p style={{color:'rgba(255,255,255,0.35)',fontSize:'12px',marginTop:'-20px',marginBottom:'28px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.6'}}>
+              <p style={{color:'var(--ink-soft)',opacity:0.7,fontSize:'12px',marginTop:'-20px',marginBottom:'28px',maxWidth:'460px',marginLeft:'auto',marginRight:'auto',lineHeight:'1.6'}}>
                 All payments are processed and billed in Australian dollars (AUD). Prices shown in {cur.code} are an estimate based on current exchange rates and may vary slightly at checkout depending on your bank's conversion.
               </p>
             )}
             {/* Toggle */}
-            <div style={{display:'inline-flex',background:'rgba(255,255,255,0.08)',borderRadius:100,padding:4,marginBottom:48,gap:4}}>
+            <div style={{display:'inline-flex',background:'#fff',border:'1px solid var(--border)',borderRadius:100,padding:4,marginBottom:48,gap:4}}>
               {[['listing','Pay Per Listing'],['subscription','Subscriptions']].map(([v,l])=>(
                 <button key={v} onClick={()=>setPricingTab(v)}
-                  style={{padding:'9px 22px',borderRadius:100,border:'none',background:pricingTab===v?'white':'transparent',color:pricingTab===v?'var(--ink)':'rgba(255,255,255,0.6)',fontWeight:pricingTab===v?700:400,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
+                  style={{padding:'9px 22px',borderRadius:100,border:'none',background:pricingTab===v?'var(--terra)':'transparent',color:pricingTab===v?'#fff':'var(--ink-soft)',fontWeight:pricingTab===v?700:500,fontSize:14,cursor:'pointer',transition:'all 0.2s'}}>
                   {l}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* ── Pay Per Listing ── */}
-          {pricingTab==='listing' && (
-          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left'}}>
-
-            {/* Bronze — $50 */}
-            <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#C9A96E'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#8B6914'}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥉</div>
-                <div>
-                  <div style={{color:'#C9A96E',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Bronze</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Standard Listing</div>
-                </div>
-              </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(50)}</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time',50)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#C9A96E',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
+          {(() => {
+            const DOT = '#C4623A';
+            const listingTiers = [
+              { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
+                feats:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
+              { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
+                feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
+              { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
+                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Applicant auto-ranking by answers','Priority application inbox','Listing reviewed & copy improved by our team','Gold "Premium Venue" verified badge'] },
+            ];
+            const subTiers = [
+              { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
+                feats:['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'] },
+              { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
+                feats:['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'] },
+              { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
+                feats:['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'] },
+            ];
+            const isSub = pricingTab==='subscription';
+            const tiers = isSub ? subTiers : listingTiers;
+            const onCta = isSub ? ()=>{setModalDefaultTab('subscription');setShowPricingModal(true);} : null;
+            return (
+              <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left',alignItems:'stretch'}}>
+                {tiers.map(t=>(
+                  <div key={t.name} style={{background:'#fff',border:t.featured?'2px solid #C4623A':'1px solid #E8E2D8',borderRadius:18,padding:'30px 26px',position:'relative',display:'flex',flexDirection:'column',boxShadow:t.featured?'0 12px 32px rgba(196,98,58,0.14)':'0 2px 10px rgba(0,0,0,0.04)',transition:'all 0.22s'}}
+                    onMouseEnter={e=>{ if(!t.featured) e.currentTarget.style.borderColor='#C4623A'; e.currentTarget.style.transform='translateY(-3px)'; }}
+                    onMouseLeave={e=>{ if(!t.featured) e.currentTarget.style.borderColor='#E8E2D8'; e.currentTarget.style.transform='none'; }}>
+                    {t.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#C4623A',color:'#fff',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>}
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                      <span style={{width:9,height:9,borderRadius:'50%',background:DOT,flexShrink:0}}/>
+                      <div>
+                        <div style={{color:t.featured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{t.name}</div>
+                        <div style={{color:'#A8A29A',fontSize:11,marginTop:1}}>{t.sub}</div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',alignItems:'baseline',gap:6}}>
+                      <div style={{fontFamily:"'Playfair Display',serif",fontSize:46,fontWeight:800,color:'#0F0E0C',lineHeight:1,letterSpacing:-1.5}}>{px(t.price)}</div>
+                      {isSub && <div style={{color:'#A8A29A',fontSize:13}}>/mo</div>}
+                    </div>
+                    <div style={{fontSize:12,color:'#A8A29A',margin:'5px 0 20px'}}>{isSub?subLabel(t.price):taxLabel('one-time',t.price)}</div>
+                    <ul style={{listStyle:'none',padding:0,display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:'1 1 auto'}}>
+                      {t.feats.map(f=>(
+                        <li key={f} style={{fontSize:13,color:'#3A3733',display:'flex',alignItems:'flex-start',gap:8,lineHeight:1.45}}>
+                          <span style={{color:'#C4623A',fontWeight:700,flexShrink:0}}>✓</span>{f}
+                        </li>
+                      ))}
+                    </ul>
+                    {onCta ? (
+                      <button onClick={onCta} style={{marginTop:'auto',width:'100%',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,cursor:'pointer',transition:'all 0.2s'}}
+                        onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
+                        {t.cta}
+                      </button>
+                    ) : (
+                      <Link to="/app" style={{marginTop:'auto',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                        onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
+                        onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
+                        {t.cta}
+                      </Link>
+                    )}
+                  </div>
                 ))}
-              </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
-                onMouseEnter={e=>{e.currentTarget.style.background='rgba(201,169,110,0.25)';}}
-                onMouseLeave={e=>{e.currentTarget.style.background='rgba(201,169,110,0.15)';}}>
-                Post a Job
-              </Link>
-            </div>
-
-            {/* Silver — $70 */}
-            <div style={{background:'linear-gradient(145deg,#1E2228,#151A20)',border:'2px solid #A8B8C8',borderRadius:24,padding:'32px 28px',position:'relative',transform:'translateY(-8px)',boxShadow:'0 20px 50px rgba(0,0,0,0.4)',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#D0E0F0'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#A8B8C8'}>
-              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#A8B8C8,#D0E0F0)',color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥈</div>
-                <div>
-                  <div style={{color:'#C0D0E0',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Silver</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Featured Listing</div>
-                </div>
               </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(70)}</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time',70)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#C0D0E0',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s'}}
-                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
-                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-                Post Featured
-              </Link>
-            </div>
-
-            {/* Gold — $100 */}
-            <div style={{background:'linear-gradient(145deg,#231A08,#1A1205)',border:'1px solid #D4A017',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#FFD700'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#D4A017'}>
-              <div style={{position:'absolute',top:12,right:12,background:'linear-gradient(135deg,#D4A017,#FFD700)',color:'#1A1000',fontSize:9,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'3px 10px',borderRadius:100}}>NEW</div>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥇</div>
-                <div>
-                  <div style={{color:'#FFD700',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Gold</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>Premium Listing</div>
-                </div>
-              </div>
-              <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2,marginBottom:4}}>{px(100)}</div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{taxLabel('one-time',100)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {[
-                  'Everything in Silver',
-                  'Shared on @hosposearch Instagram',
-                  'Shared on HospoSearch Facebook',
-                  'Up to 5 employer screening questions',
-                  'Applicant auto-ranking by answers',
-                  'Priority application inbox',
-                  'Listing reviewed & copy improved by our team',
-                  'Gold "Premium Venue" verified badge',
-                ].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#FFD700',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <Link to="/app" style={{display:'block',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s'}}
-                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
-                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-                Post Premium Gold
-              </Link>
-            </div>
-          </div>
-          )}
-
-          {/* ── Subscriptions ── */}
-          {pricingTab==='subscription' && (
-          <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left'}}>
-
-            {/* Starter */}
-            <div style={{background:'linear-gradient(145deg,#2A2118,#1E180F)',border:'1px solid #8B6914',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#C9A96E'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#8B6914'}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥉</div>
-                <div>
-                  <div style={{color:'#C9A96E',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Starter</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>3 active listings</div>
-                </div>
-              </div>
-              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C9A96E',lineHeight:1,letterSpacing:-2}}>{px(99)}</div>
-                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
-              </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{subLabel(99)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#C9A96E',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'rgba(201,169,110,0.15)',border:'1px solid #C9A96E',color:'#C9A96E',padding:'11px 0',borderRadius:100,fontSize:14,fontWeight:700,cursor:'pointer',transition:'all 0.2s'}}
-                onMouseEnter={e=>e.currentTarget.style.background='rgba(201,169,110,0.25)'}
-                onMouseLeave={e=>e.currentTarget.style.background='rgba(201,169,110,0.15)'}>
-                Start Starter Plan
-              </button>
-            </div>
-
-            {/* Growth */}
-            <div style={{background:'linear-gradient(145deg,#1E2228,#151A20)',border:'2px solid #A8B8C8',borderRadius:24,padding:'32px 28px',position:'relative',transform:'translateY(-8px)',boxShadow:'0 20px 50px rgba(0,0,0,0.4)',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#D0E0F0'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#A8B8C8'}>
-              <div style={{position:'absolute',top:-14,left:'50%',transform:'translateX(-50%)',background:'linear-gradient(135deg,#A8B8C8,#D0E0F0)',color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥈</div>
-                <div>
-                  <div style={{color:'#C0D0E0',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Growth</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>6 active listings</div>
-                </div>
-              </div>
-              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#C0D0E0',lineHeight:1,letterSpacing:-2}}>{px(199)}</div>
-                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
-              </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{subLabel(199)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#C0D0E0',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'linear-gradient(135deg,#A8B8C8,#8090A0)',color:'white',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,border:'none',boxShadow:'0 4px 14px rgba(168,184,200,0.3)',transition:'all 0.2s',cursor:'pointer'}}
-                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
-                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-                Start Growth Plan
-              </button>
-            </div>
-
-            {/* Pro */}
-            <div style={{background:'linear-gradient(145deg,#231A08,#1A1205)',border:'1px solid #D4A017',borderRadius:24,padding:'32px 28px',position:'relative',transition:'all 0.22s'}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor='#FFD700'}
-              onMouseLeave={e=>e.currentTarget.style.borderColor='#D4A017'}>
-              <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:20}}>
-                <div style={{fontSize:28}}>🥇</div>
-                <div>
-                  <div style={{color:'#FFD700',fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>Pro</div>
-                  <div style={{color:'rgba(255,255,255,0.5)',fontSize:11,marginTop:1}}>10 active listings</div>
-                </div>
-              </div>
-              <div style={{display:'flex',alignItems:'baseline',gap:6,marginBottom:2}}>
-                <div className='hs-price-big' style={{fontFamily:"'Playfair Display',serif",fontSize:52,fontWeight:900,color:'#FFD700',lineHeight:1,letterSpacing:-2}}>{px(399)}</div>
-                <div style={{color:'rgba(255,255,255,0.4)',fontSize:13}}>/mo</div>
-              </div>
-              <div style={{fontSize:12,color:'rgba(255,255,255,0.4)',marginBottom:22}}>{subLabel(399)}</div>
-              <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:8,marginBottom:28}}>
-                {['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'].map(f=>(
-                  <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.75)',display:'flex',alignItems:'flex-start',gap:8}}>
-                    <span style={{color:'#FFD700',fontWeight:700,flexShrink:0}}>✓</span>{f}
-                  </li>
-                ))}
-              </ul>
-              <button onClick={()=>{setModalDefaultTab('subscription');setShowPricingModal(true)}} style={{display:'block',width:'100%',textAlign:'center',background:'linear-gradient(135deg,#D4A017,#F0C040)',color:'#1A1000',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,border:'none',boxShadow:'0 4px 18px rgba(212,160,23,0.4)',transition:'all 0.2s',cursor:'pointer'}}
-                onMouseEnter={e=>e.currentTarget.style.opacity='0.9'}
-                onMouseLeave={e=>e.currentTarget.style.opacity='1'}>
-                Start Pro Plan
-              </button>
-            </div>
-          </div>
-          )}
+            );
+          })()}
 
           {/* Seek comparison table */}
-          <div className="reveal hs-compare-table" style={{maxWidth:900,background:'rgba(255,255,255,0.04)',borderRadius:20,border:'1px solid rgba(255,255,255,0.08)',overflow:'hidden',marginBottom:28}}>
-            <div style={{padding:'20px 28px',borderBottom:'1px solid rgba(255,255,255,0.08)',display:'flex',alignItems:'center',gap:10}}>
-              <span style={{fontSize:14,fontWeight:700,color:'white'}}>How we compare</span>
-              <span style={{fontSize:12,color:'rgba(255,255,255,0.4)'}}>— vs the alternatives</span>
+          <div className="reveal hs-compare-table" style={{maxWidth:900,margin:'0 auto',background:'#fff',borderRadius:20,border:'1px solid var(--border)',overflow:'hidden',marginBottom:28,boxShadow:'0 2px 10px rgba(0,0,0,0.04)'}}>
+            <div style={{padding:'20px 28px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:10}}>
+              <span style={{fontSize:14,fontWeight:700,color:'var(--ink)'}}>How we compare</span>
+              <span style={{fontSize:12,color:'var(--ink-soft)'}}>— vs the alternatives</span>
             </div>
             <div style={{overflowX:'auto'}}>
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                 <thead>
-                  <tr style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                  <tr style={{borderBottom:'1px solid var(--border)'}}>
                     {['Feature','Seek','HospoSearch Bronze','HospoSearch Silver','HospoSearch Gold'].map((h,i)=>(
-                      <th key={h} style={{padding:'12px 20px',textAlign:i===0?'left':'center',color:i===0?'rgba(255,255,255,0.4)':i===1?'rgba(255,255,255,0.4)':i===2?'#C9A96E':i===3?'#C0D0E0':'#FFD700',fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{h}</th>
+                      <th key={h} style={{padding:'12px 20px',textAlign:i===0?'left':'center',color:i<=1?'var(--ink-soft)':'var(--terra)',fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -975,11 +846,12 @@ export default function Landing() {
                     ['Listing copy review','✗','✗','✗','✓'],
                     ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
                   ].map(([feat,...vals])=>(
-                    <tr key={feat} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-                      <td style={{padding:'11px 20px',color:'rgba(255,255,255,0.65)',fontWeight:500}}>{feat}</td>
-                      {vals.map((v,i)=>(
-                        <td key={i} style={{padding:'11px 20px',textAlign:'center',color:v==='✓'||v.startsWith('✓')?i===1?'#C9A96E':i===2?'#C0D0E0':'#FFD700':v==='✗'?'rgba(255,255,255,0.2)':i===0?'rgba(255,255,255,0.35)':'rgba(255,255,255,0.55)',fontWeight:v==='✓'||v.startsWith('✓')||v==='✗'?700:400,whiteSpace:'nowrap'}}>{v}</td>
-                      ))}
+                    <tr key={feat} style={{borderBottom:'1px solid var(--border)'}}>
+                      <td style={{padding:'11px 20px',color:'var(--ink)',fontWeight:500}}>{feat}</td>
+                      {vals.map((v,i)=>{
+                        const isYes = v==='✓'||v.startsWith('✓');
+                        return <td key={i} style={{padding:'11px 20px',textAlign:'center',color:isYes?'var(--terra)':v==='✗'?'#C8C2B8':'var(--ink-soft)',fontWeight:isYes||v==='✗'?700:400,whiteSpace:'nowrap'}}>{v}</td>;
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -987,7 +859,7 @@ export default function Landing() {
             </div>
           </div>
 
-          <div className="hs-pricing-note reveal">Job seekers always browse and apply for free</div>
+          <div className="hs-pricing-note reveal" style={{justifyContent:'center',color:'var(--ink-soft)'}}>Job seekers always browse and apply for free</div>
         </div>
       </section>
 
