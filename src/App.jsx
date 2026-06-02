@@ -4350,6 +4350,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [tab, setTab] = useState("home");
   const [expandedJob, setExpandedJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
   const homeFiltered = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
   // Keep avatar_url in sync
@@ -4518,17 +4519,31 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       {/* Content */}
       <div style={{ flex:1, overflow:"hidden" }}>
         {tab==="home" && (
-          <div style={{ height:"100%", overflowY:"auto" }}
-            onTouchStart={e=>{ const sc=e.currentTarget.scrollTop; pullStartY.current = sc<=0 ? (e.touches[0]?.clientY||0) : null; pullDelta.current=0; }}
+          <div style={{ height:"100%", overflowY:"auto", WebkitOverflowScrolling:"touch", overscrollBehaviorY:"contain" }}
+            onTouchStart={e=>{ pullStartY.current = e.currentTarget.scrollTop<=0 ? (e.touches[0]?.clientY||0) : null; pullDelta.current=0; }}
             onTouchMove={e=>{
-              if(pullStartY.current===null) return;
+              if(pullStartY.current===null || refreshing) return;
               const delta=(e.touches[0]?.clientY||0)-pullStartY.current;
-              if(delta>0 && e.currentTarget.scrollTop<=0) pullDelta.current=Math.min(delta,90);
+              if(delta>0 && e.currentTarget.scrollTop<=0){
+                pullDelta.current=Math.min(delta,110);
+                // Resistance curve so it feels natural
+                setPullDist(Math.min(delta*0.5,70));
+              } else {
+                setPullDist(0);
+              }
             }}
             onTouchEnd={()=>{
-              if(pullDelta.current>55 && !refreshing) doRefresh();
+              if(pullDelta.current>60 && !refreshing) doRefresh();
+              setPullDist(0);
               pullStartY.current=null; pullDelta.current=0;
             }}>
+            {/* Pull indicator */}
+            <div style={{ height:pullDist, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", transition:pullStartY.current===null?"height 0.25s":"none" }}>
+              {pullDist>5 && <div style={{ display:"flex", alignItems:"center", gap:8, color:C.sage, fontSize:13, fontWeight:600 }}>
+                <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", transform:`rotate(${pullDist*5}deg)`, transition:"transform 0.1s" }}/>
+                {pullDist>50 ? "Release to refresh" : "Pull to refresh"}
+              </div>}
+            </div>
             {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             {/* Hero + Search */}
             <div style={{ textAlign:"center", padding:isDesktop?"24px 20px 20px":"16px 16px 12px", background:C.bg, borderBottom:`1px solid ${C.border}` }}>
