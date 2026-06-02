@@ -665,16 +665,13 @@ function ImageCropper({ src, onConfirm, onCancel }) {
   );
 }
 
-// ─── BlurFillImage ────────────────────────────────────────────────────────────
-// Shows the WHOLE image (object-fit:contain) inside a fixed box, with a blurred
-// copy of the same image filling the empty space behind it — like Instagram.
+// ─── CardImage ────────────────────────────────────────────────────────────────
+// Clean Instagram-style fill: image covers the fixed-ratio box edge-to-edge.
+// Photos are pre-cropped at upload via ImageCropper, so cover is always accurate.
 function BlurFillImage({ src, alt="", ratio="4/5", radius=0 }) {
   return (
-    <div style={{ position:"relative", width:"100%", aspectRatio:ratio, overflow:"hidden", borderRadius:radius, background:"#1a1a1a" }}>
-      {/* Blurred background fill */}
-      <img src={src} alt="" aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/>
-      {/* Sharp full image in front */}
-      <img src={src} alt={alt} loading="lazy" style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain", display:"block" }}/>
+    <div style={{ position:"relative", width:"100%", aspectRatio:ratio, overflow:"hidden", borderRadius:radius, background:C.bgSoft }}>
+      <img src={src} alt={alt} loading="lazy" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
     </div>
   );
 }
@@ -896,10 +893,7 @@ function Carousel({ photos, video, height=null }) {
                 </div>
               </div>
             ) : slide.src && isData(slide.src) ? (
-              <div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}>
-                <img src={slide.src} alt="" aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/>
-                <img src={slide.src} alt="" style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain", display:"block" }}/>
-              </div>
+              <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
             ) : (
               <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
                 <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
@@ -2390,7 +2384,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
               onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
               {/* Image */}
               <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
-                {hm&&isVid(first)?<div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}><video src={first} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/><video src={first} muted playsInline style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain" }}/></div>
+                {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                   :hm?<BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                   :<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
                 {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
@@ -4805,7 +4799,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                     onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                     <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
                       {hm&&isVid(first)
-                        ? <div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}><video src={first} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/><video src={first} muted playsInline style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain" }}/></div>
+                        ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                         : hm
                           ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                           : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
