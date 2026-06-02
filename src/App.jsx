@@ -534,6 +534,20 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+// ─── BlurFillImage ────────────────────────────────────────────────────────────
+// Shows the WHOLE image (object-fit:contain) inside a fixed box, with a blurred
+// copy of the same image filling the empty space behind it — like Instagram.
+function BlurFillImage({ src, alt="", ratio="4/5", radius=0 }) {
+  return (
+    <div style={{ position:"relative", width:"100%", aspectRatio:ratio, overflow:"hidden", borderRadius:radius, background:"#1a1a1a" }}>
+      {/* Blurred background fill */}
+      <img src={src} alt="" aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/>
+      {/* Sharp full image in front */}
+      <img src={src} alt={alt} loading="lazy" style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain", display:"block" }}/>
+    </div>
+  );
+}
+
 // ─── RichTextEditor ───────────────────────────────────────────────────────────
 // Safe contentEditable: sets initial HTML once via ref, never re-injects on render
 // (which would crash React), and sanitises pasted content to plain text + line breaks.
@@ -719,7 +733,7 @@ function Carousel({ photos, video, height=null }) {
 
   const containerStyle = height
     ? { position:"relative", width:"100%", height, overflow:"hidden" }
-    : { position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden" };
+    : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
 
   return (
     <div ref={containerRef} style={containerStyle}
@@ -751,7 +765,10 @@ function Carousel({ photos, video, height=null }) {
                 </div>
               </div>
             ) : slide.src && isData(slide.src) ? (
-              <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+              <div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}>
+                <img src={slide.src} alt="" aria-hidden="true" style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/>
+                <img src={slide.src} alt="" style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain", display:"block" }}/>
+              </div>
             ) : (
               <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
                 <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
@@ -2241,13 +2258,13 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
               onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
               onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
               {/* Image */}
-              <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                  :hm?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/>
+              <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
+                {hm&&isVid(first)?<div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}><video src={first} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/><video src={first} muted playsInline style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain" }}/></div>
+                  :hm?<BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                   :<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
-                {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
-                {j.video && <div style={{ position:"absolute", top:8, right:8 }}><Icon name="video" size={13} color="#fff"/></div>}
-                {bk && <div style={{ position:"absolute", top:j.video?28:8, right:8 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
+                {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                {j.video && <div style={{ position:"absolute", top:8, right:8, zIndex:2 }}><Icon name="video" size={13} color="#fff"/></div>}
+                {bk && <div style={{ position:"absolute", top:j.video?28:8, right:8, zIndex:2 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
               </div>
               {/* Text */}
               <div style={{ padding:"12px 14px 14px" }}>
@@ -2644,10 +2661,10 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                   onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                   {/* Image */}
-                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/>
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
+                    {hm ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                       : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
-                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                   </div>
                   {/* Text */}
                   <div style={{ padding:"12px 14px 14px" }}>
@@ -3599,9 +3616,9 @@ function EmployerBrowse({ jobs, user, onExpand }) {
                   style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
                   onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
-                  <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
-                    {hm ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/> : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
-                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                  <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
+                    {hm ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/> : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
+                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                   </div>
                   <div style={{ padding:"12px 14px 14px" }}>
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
@@ -4647,14 +4664,14 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                     style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
                     onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
                     onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
-                    <div style={{ position:"relative", width:"100%", aspectRatio:"3/2", overflow:"hidden", background:pbg }}>
+                    <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
                       {hm&&isVid(first)
-                        ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        ? <div style={{ position:"relative", width:"100%", height:"100%", background:"#1a1a1a" }}><video src={first} muted playsInline style={{ position:"absolute", inset:0, width:"100%", height:"100%", objectFit:"cover", filter:"blur(18px) brightness(0.85)", transform:"scale(1.15)" }}/><video src={first} muted playsInline style={{ position:"relative", width:"100%", height:"100%", objectFit:"contain" }}/></div>
                         : hm
-                          ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center 20%" }}/>
+                          ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                           : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
                       }
-                      {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                      {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                     </div>
                     <div style={{ padding:"12px 14px 14px" }}>
                       <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>

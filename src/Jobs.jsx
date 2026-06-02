@@ -90,8 +90,9 @@ const styles = `
   .jb-grid{max-width:1120px;margin:0 auto;padding:28px 24px 60px;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;}
   .jb-card{background:#fff;border:1px solid ${C.border};border-radius:16px;overflow:hidden;text-decoration:none;color:inherit;box-shadow:0 2px 8px rgba(0,0,0,0.05);transition:transform 0.2s,box-shadow 0.2s;display:flex;flex-direction:column;}
   .jb-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,0.12);}
-  .jb-card-img{position:relative;width:100%;aspect-ratio:3/2;overflow:hidden;}
-  .jb-card-img img{width:100%;height:100%;object-fit:cover;object-position:center 20%;}
+  .jb-card-img{position:relative;width:100%;aspect-ratio:4/5;overflow:hidden;background:#1a1a1a;}
+  .jb-card-img .jb-blur{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(18px) brightness(0.85);transform:scale(1.15);}
+  .jb-card-img .jb-main{position:relative;width:100%;height:100%;object-fit:contain;display:block;}
   .jb-badge{position:absolute;top:10px;left:10px;background:${C.featuredL};border:1px solid ${C.featured}55;color:${C.featured};font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;display:flex;align-items:center;gap:4px;}
   .jb-card-body{padding:14px 16px 16px;flex:1;display:flex;flex-direction:column;}
   .jb-venue{color:${C.textSoft};font-size:12px;font-weight:600;margin-bottom:4px;}
@@ -129,7 +130,7 @@ function JobCard({ job }) {
     <Link to={`/jobs/${job.id}`} className="jb-card">
       <div className="jb-card-img" style={{ background:pbg }}>
         {hasImg
-          ? <img src={first} alt={`${job.title} at ${job.venue}`} loading="lazy"/>
+          ? <><img src={first} alt="" aria-hidden="true" className="jb-blur"/><img src={first} alt={`${job.title} at ${job.venue}`} loading="lazy" className="jb-main"/></>
           : <div style={{ width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,opacity:0.25 }}>🍽️</div>}
         {job.featured && <div className="jb-badge">★ Featured</div>}
       </div>
