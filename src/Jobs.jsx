@@ -13,6 +13,27 @@ const C = {
 
 const PBG = ["#E8CFBF","#EBF2EC","#FDF6E8","#F5EDE7","#EAE4DA"]
 const isData = (v) => typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))
+
+// Strips scripts/event handlers/unsafe tags from user rich text before rendering
+function sanitizeHtml(html) {
+  if (!html || typeof html !== "string") return ""
+  try {
+    const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","BR","P","DIV","SPAN"]
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html")
+    const walk = (node) => {
+      for (const child of Array.from(node.childNodes)) {
+        if (child.nodeType === 1) {
+          if (!allowed.includes(child.tagName)) { child.replaceWith(document.createTextNode(child.textContent || "")); continue }
+          for (const attr of Array.from(child.attributes)) child.removeAttribute(attr.name)
+          walk(child)
+        } else if (child.nodeType === 8) { child.remove() }
+      }
+    }
+    const container = doc.body.firstChild
+    walk(container)
+    return container.innerHTML
+  } catch (e) { return html.replace(/<[^>]*>/g, "") }
+}
 const ago = (ts) => {
   const d = Math.floor((Date.now()-ts)/86400000)
   if (d<1) return "today"; if (d===1) return "1d"; if (d<7) return d+"d"
@@ -243,7 +264,7 @@ function JobDetail({ jobs, loading }) {
           <span key={i} className="jb-tag">{t}</span>
         ))}
       </div>
-      <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: job.full || job.short }} />
+      <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
       <Link to="/app" className="jb-apply">Apply on HospoSearch →</Link>
     </div>
   )

@@ -464,6 +464,40 @@ function smartSearch(jobs, query) {
 const isVid   = s => typeof s==="string" && s.startsWith("data:video");
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
+// ─── HTML sanitizer ───────────────────────────────────────────────────────────
+// Strips scripts, event handlers, and unsafe tags from user-submitted rich text
+// before rendering via dangerouslySetInnerHTML. Allows only safe formatting tags.
+function sanitizeHtml(html) {
+  if (!html || typeof html !== "string") return "";
+  try {
+    const allowed = ["B","STRONG","I","EM","U","UL","OL","LI","BR","P","DIV","SPAN"];
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+    const walk = (node) => {
+      const kids = Array.from(node.childNodes);
+      for (const child of kids) {
+        if (child.nodeType === 1) { // element
+          if (!allowed.includes(child.tagName)) {
+            // Replace disallowed element with its text content
+            child.replaceWith(document.createTextNode(child.textContent || ""));
+            continue;
+          }
+          // Strip ALL attributes (removes onerror, onclick, style hacks, href javascript:, etc.)
+          for (const attr of Array.from(child.attributes)) child.removeAttribute(attr.name);
+          walk(child);
+        } else if (child.nodeType === 8) { // comment
+          child.remove();
+        }
+      }
+    };
+    const container = doc.body.firstChild;
+    walk(container);
+    return container.innerHTML;
+  } catch (e) {
+    // On any failure, fall back to plain text (strip all tags)
+    return html.replace(/<[^>]*>/g, "");
+  }
+}
+
 const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
   const p = {
     home:     <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H14v-5h-4v5H4a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
@@ -2624,11 +2658,11 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                   <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
                 ))}
               </div>
-              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: expandedJob.short }}/>
+              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.short) }}/>
 
               {/* Blurred full description teaser */}
               <div style={{ position:"relative", marginBottom:20 }}>
-                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }} dangerouslySetInnerHTML={{ __html: expandedJob.full||expandedJob.short }}/>
+                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.full||expandedJob.short) }}/>
                 <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent, #fff 60%)" }}/>
               </div>
 
