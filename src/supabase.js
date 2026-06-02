@@ -56,7 +56,7 @@ export async function fetchJobs() {
   const { data, error } = await supabase
     .from('jobs')
     .select('*')
-    .neq('active', false)
+    .or('active.is.null,active.eq.true')
     .order('featured', { ascending: false })
     .order('created_at', { ascending: false })
   if (error) {
@@ -142,11 +142,20 @@ export async function createJob(empId, jobData) {
 
   console.log('Inserting job:', insertData)
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('jobs')
     .insert(insertData)
     .select()
     .single()
+
+  // If insert failed due to an unknown column (e.g. apply_email not migrated yet),
+  // strip optional columns and retry so the listing still saves.
+  if (error && /column .* does not exist|Could not find/i.test(error.message || '')) {
+    console.warn('Insert failed on optional column, retrying without it:', error.message)
+    const { apply_email, ...safeData } = insertData
+    const retry = await supabase.from('jobs').insert(safeData).select().single()
+    data = retry.data; error = retry.error
+  }
 
   if (error) {
     console.error('createJob error:', error)

@@ -4361,7 +4361,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     setRefreshing(true);
     try {
       const dbJobs = await fetchJobs();
-      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+      if (Array.isArray(dbJobs)) setJobs(dbJobs);
     } catch(e) { console.warn('Refresh failed:', e); }
     setTimeout(() => setRefreshing(false), 600);
   };
@@ -4519,11 +4519,15 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       <div style={{ flex:1, overflow:"hidden" }}>
         {tab==="home" && (
           <div style={{ height:"100%", overflowY:"auto" }}
-            onTouchStart={e=>{pullStartY.current=e.touches[0]?.clientY||0;}}
-            onTouchEnd={e=>{
-              const delta=(e.changedTouches[0]?.clientY||0)-pullStartY.current;
-              if(tab==="home"&&delta>55) doRefresh();
-              pullStartY.current=0;
+            onTouchStart={e=>{ const sc=e.currentTarget.scrollTop; pullStartY.current = sc<=0 ? (e.touches[0]?.clientY||0) : null; pullDelta.current=0; }}
+            onTouchMove={e=>{
+              if(pullStartY.current===null) return;
+              const delta=(e.touches[0]?.clientY||0)-pullStartY.current;
+              if(delta>0 && e.currentTarget.scrollTop<=0) pullDelta.current=Math.min(delta,90);
+            }}
+            onTouchEnd={()=>{
+              if(pullDelta.current>55 && !refreshing) doRefresh();
+              pullStartY.current=null; pullDelta.current=0;
             }}>
             {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             {/* Hero + Search */}
@@ -5542,7 +5546,7 @@ export default function App() {
       // Load jobs from Supabase
       try {
         const dbJobs = await fetchJobs();
-        if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+        if (Array.isArray(dbJobs)) setJobs(dbJobs);
       } catch(e) { /* use seed data if DB empty */ }
 
       // Load discount codes from Supabase
@@ -5580,7 +5584,7 @@ export default function App() {
     }
     try {
       const dbJobs = await fetchJobs();
-      if (dbJobs && dbJobs.length > 0) setJobs(dbJobs);
+      if (Array.isArray(dbJobs)) setJobs(dbJobs);
     } catch(e) {}
   };
 
