@@ -520,14 +520,13 @@ export default function Landing() {
   const statsRef = useRef()
   const countersAnimated = useRef(false)
 
-  const [followers, setFollowers] = useState(null)
+  const [followers, setFollowers] = useState('2,177')
 
   useEffect(() => {
     // Fetch real Instagram follower count from Behold
     fetch('https://feeds.behold.so/SVyieFYXHAirbiQqA0Ws')
       .then(r => r.json())
       .then(data => {
-        // Behold returns followersCount on the feed object
         const count = data?.followersCount || data?.userInfo?.followersCount || null
         if (count) setFollowers(count.toLocaleString())
       })
@@ -617,8 +616,12 @@ export default function Landing() {
         <Link to="/" className="hs-nav-logo"><span>Hospo</span>Search</Link>
         <ul className="hs-nav-links">
           <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="#pricing">Pricing</a></li>
-          <li><a href="#locations">Locations</a></li>
+          <li><a href="#pricing" onClick={e=>{e.preventDefault();setModalDefaultTab('listing');setShowPricingModal(true);}}>Pricing</a></li>
+          <li><a href="#for-employers">For employers</a></li>
+          <li><Link to="/app">Browse jobs</Link></li>
+          <li><a href="https://instagram.com/hosposearch" target="_blank" rel="noreferrer" aria-label="Follow HospoSearch on Instagram" style={{display:'flex',alignItems:'center'}}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
+          </a></li>
           <li style={{position:'relative'}} className="hs-login-dd"
             onMouseEnter={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='block'}
             onMouseLeave={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='none'}>
@@ -678,7 +681,7 @@ export default function Landing() {
                 <span>👨‍🍳</span><span>👩‍🍳</span><span>🍽️</span><span>🌸</span>
               </div>
               <div className="hs-trust-text">
-                <strong>Join {followers ? `${followers}+` : 'thousands of'} hospitality professionals</strong><br/>already using HospoSearch
+                <strong>Join {followers ? `${followers}+` : 'thousands of'} hospitality professionals</strong><br/>in the HospoSearch community
               </div>
             </div>
           </div>
@@ -721,6 +724,25 @@ export default function Landing() {
       </div>
 
 
+
+      {/* Pricing teaser — high on page, uses price advantage as hook */}
+      <section style={{background:'var(--ink)',padding:'64px 24px',position:'relative',overflow:'hidden'}}>
+        <div style={{maxWidth:680,margin:'0 auto',textAlign:'center',position:'relative',zIndex:1}}>
+          <div style={{display:'inline-block',background:'rgba(196,98,58,0.18)',color:'#E8A07E',fontSize:12,fontWeight:600,padding:'6px 16px',borderRadius:100,marginBottom:18,letterSpacing:0.3}}>Pricing that undercuts everyone</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(26px,4vw,38px)',fontWeight:800,color:'#fff',marginBottom:12,letterSpacing:-0.5}}>List a role from just {cur.symbol}{tidyPrice(50,cur.rate)}</div>
+          <p style={{fontSize:15,color:'rgba(255,255,255,0.55)',lineHeight:1.6,margin:'0 0 28px',maxWidth:460,marginLeft:'auto',marginRight:'auto'}}>Compare that to {cur.symbol}{tidyPrice(275,cur.rate)}–{cur.symbol}{tidyPrice(695,cur.rate)} on the big job boards. Job seekers are always free.</p>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,maxWidth:440,margin:'0 auto 28px'}}>
+            {[['Bronze',50,'#C49A6E',false],['Silver',70,'#C0D0E0',true],['Gold',100,'#FFD700',false]].map(([name,price,col,feat])=>(
+              <div key={name} style={{background:'rgba(255,255,255,0.06)',borderRadius:14,padding:'18px 10px',border:feat?'1px solid rgba(196,98,58,0.45)':'1px solid transparent'}}>
+                <div style={{color:col,fontSize:11,fontWeight:600,marginBottom:5,letterSpacing:0.5}}>{name}</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:'#fff'}}>{cur.symbol}{tidyPrice(price,cur.rate)}</div>
+              </div>
+            ))}
+          </div>
+          <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} style={{background:'var(--terra)',color:'#fff',border:'none',padding:'14px 32px',borderRadius:100,fontSize:15,fontWeight:700,cursor:'pointer',boxShadow:'0 4px 16px rgba(196,98,58,0.35)'}}>See full pricing →</button>
+          {!cur.isAU && <p style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginTop:14}}>Billed in AUD · local prices are an estimate</p>}
+        </div>
+      </section>
 
       {/* App showcase + Instagram feed placeholder */}
       <section className='hs-showcase-section' style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
@@ -837,7 +859,7 @@ export default function Landing() {
               </ul>
               <Link to="/app" className="btn-cand">Browse Jobs — Free →</Link>
             </div>
-            <div className="hs-split-panel emp">
+            <div className="hs-split-panel emp" id="for-employers">
               <div className="hs-split-icon emp">🍽️</div>
               <div className="hs-split-eyebrow emp">For Employers</div>
               <h3 className="hs-split-title">Hire exceptional hospitality talent</h3>
@@ -1183,7 +1205,7 @@ export default function Landing() {
               <div className="hs-section-tag">Follow along</div>
               <h2 className="hs-section-title" style={{marginBottom:8}}>Behind the pass</h2>
               <p style={{color:'var(--ink-soft)',fontSize:15,lineHeight:1.6,maxWidth:480}}>
-                Stories from the hospitality industry — venue spotlights, chef profiles, career tips and the jobs everyone's talking about.
+                Join <strong style={{color:'var(--ink)'}}>{followers}+</strong> in the HospoSearch community — venue spotlights, chef profiles, career tips and the jobs everyone's talking about.
               </p>
             </div>
             <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
