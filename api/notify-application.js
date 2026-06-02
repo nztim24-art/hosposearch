@@ -11,6 +11,8 @@ export default async function handler(req, res) {
     employerEmail,
     employerName,
     applicantName,
+    applicantEmail,
+    applicantPhone,
     applicantMessage,
     jobTitle,
     jobId,
@@ -44,13 +46,25 @@ export default async function handler(req, res) {
         <div style="background:#F5EDE7;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
           <div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#0F0E0C;">${jobTitle}</div>
         </div>
+
+        <div style="border:1px solid #E8E2D8;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+          <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7A7570;font-weight:600;margin-bottom:8px;">Applicant contact</div>
+          <div style="font-size:14px;color:#0F0E0C;font-weight:600;margin-bottom:4px;">${applicantName}</div>
+          ${applicantEmail ? `<div style="font-size:14px;margin-bottom:3px;">✉️ <a href="mailto:${applicantEmail}" style="color:#C4623A;text-decoration:none;">${applicantEmail}</a></div>` : ''}
+          ${applicantPhone ? `<div style="font-size:14px;">📞 <a href="tel:${applicantPhone}" style="color:#C4623A;text-decoration:none;">${applicantPhone}</a></div>` : ''}
+        </div>
+
         ${applicantMessage ? `
         <div style="margin-bottom:18px;">
           <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7A7570;font-weight:600;margin-bottom:6px;">Their message</div>
           <div style="font-size:14px;color:#3A3733;line-height:1.6;font-style:italic;">"${applicantMessage.replace(/</g,'&lt;')}"</div>
         </div>` : ''}
-        <a href="${viewUrl}" style="display:inline-block;background:#C4623A;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:100px;">
-          View all applicants &rarr;
+        ${applicantEmail ? `
+        <a href="mailto:${applicantEmail}?subject=${encodeURIComponent('Re: Your application for '+jobTitle)}" style="display:inline-block;background:#C4623A;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:100px;margin-right:10px;margin-bottom:10px;">
+          Reply to ${(applicantName||'').split(' ')[0]} &rarr;
+        </a>` : ''}
+        <a href="${viewUrl}" style="display:inline-block;background:#F5EDE7;color:#C4623A;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:100px;">
+          View all applicants
         </a>
       </div>
 
@@ -69,10 +83,10 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'HospoSearch <applications@hosposearch.com.au>',
+        from: 'HospoSearch <hello@hosposearch.com>',
         to: [employerEmail],
-        reply_to: 'hello@hosposearch.com.au',
-        subject: `New application for ${jobTitle} — ${applicantName}`,
+        reply_to: applicantEmail || 'hello@hosposearch.com',
+        subject: `Application received via HospoSearch — ${jobTitle}`,
         html,
       }),
     });

@@ -222,6 +222,8 @@ export async function applyForJob(jobId, applicantId, formData) {
       job_id:       jobId,
       applicant_id: applicantId,
       name:         formData.name || '',
+      email:        formData.email || '',
+      phone:        formData.phone || '',
       message:      formData.msg || '',
       visa:         formData.visa || '',
       availability: formData.availability || [],

@@ -2349,7 +2349,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks?.includes(job.id);
   const [showForm, setShowForm] = useState(false);
-  const [fd, setFd] = useState({ name:currentUser?.name||"", msg:"" });
+  const [fd, setFd] = useState({ name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
   const [resume, setResume] = useState(profile?.resume||null);
   const [cover, setCover] = useState(profile?.coverLetter||null);
   const [done, setDone] = useState(false);
@@ -2357,7 +2357,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
   const submit = () => {
-    if (!fd.name.trim()) return;
+    if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
     onApply(job, {...fd, resume, cover}); setDone(true);
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
@@ -2426,6 +2426,18 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 <div>
                   <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Name *</div>
                   <input value={fd.name} onChange={e=>setFd(f=>({...f,name:e.target.value}))} placeholder="Your full name" style={IS}/>
+                </div>
+
+                {/* Contact email */}
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Email *</div>
+                  <input value={fd.email} onChange={e=>setFd(f=>({...f,email:e.target.value}))} placeholder="you@email.com" type="email" style={IS}/>
+                </div>
+
+                {/* Contact phone */}
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Phone <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
+                  <input value={fd.phone} onChange={e=>setFd(f=>({...f,phone:e.target.value}))} placeholder="04xx xxx xxx" type="tel" style={IS}/>
                 </div>
 
                 {/* Cover note */}
@@ -4402,18 +4414,29 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     } catch(e) {
       console.warn('Application save failed:', e);
     }
-    // Send email notification to employer (job's applyEmail, fallback to profile email)
+    // Send email notification to employer (job's applyEmail takes priority, then profile email)
     try {
-      const empProfile = await supabase.from('profiles').select('email,name,email_notifications').eq('id', job.empId).single();
-      const targetEmail = job.applyEmail || empProfile.data?.email;
-      if (targetEmail && empProfile.data?.email_notifications !== false) {
+      let profileEmail = null, profileName = null, notifsOff = false;
+      try {
+        const empProfile = await supabase.from('profiles').select('email,name,email_notifications').eq('id', job.empId).single();
+        if (empProfile.data) {
+          profileEmail = empProfile.data.email;
+          profileName = empProfile.data.name;
+          notifsOff = empProfile.data.email_notifications === false;
+        }
+      } catch(_) { /* admin or no profile row — fall back to job.applyEmail */ }
+
+      const targetEmail = job.applyEmail || profileEmail;
+      if (targetEmail && !notifsOff) {
         await fetch('/api/notify-application', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             employerEmail: targetEmail,
-            employerName: empProfile.data?.name || job.venue,
+            employerName: profileName || job.venue,
             applicantName: fd.name,
+            applicantEmail: fd.email || '',
+            applicantPhone: fd.phone || '',
             applicantMessage: fd.msg || '',
             jobTitle: job.title,
             jobId: job.id,
@@ -4763,6 +4786,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       short: nj.short,
       full: nj.full || nj.short,
       link: nj.link || "#",
+      applyEmail: nj.applyEmail?.trim() || "",
       photos: fp.length > 0 ? fp : [0, 1, 2],
       video: null,
       verified: true,
@@ -4781,7 +4805,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     }
     setNjPosting(false);
     setNjPosted(true);
-    setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"standard" });
+    setNj({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", applyEmail:"", tags:[], featured:false, tier:"standard" });
     setNjPhotos([]);
     setTimeout(() => { setNjPosted(false); setTab('listings'); }, 2500);
   };
@@ -5013,7 +5037,14 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <input value={nj.link} onChange={e=>setNj(j=>({...j,link:e.target.value}))} placeholder="https://venue.com/apply or leave blank" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
               </div>
 
-              {/* Screening Questions */}
+              {/* Application email */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Application Email <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(where applications are emailed)</span></div>
+                <input value={nj.applyEmail||""} onChange={e=>setNj(j=>({...j,applyEmail:e.target.value}))} placeholder="hiring@venue.com" type="email" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+                <div style={{ color:C.textFaint, fontSize:11, marginTop:5, lineHeight:1.4 }}>📥 Each applicant emails this address, and applications are also saved to the dashboard.</div>
+              </div>
+
+
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(candidates must answer when applying)</span></div>
                 <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
