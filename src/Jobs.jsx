@@ -265,7 +265,9 @@ function JobDetail({ jobs, loading }) {
         ))}
       </div>
       <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
-      <Link to="/app" className="jb-apply">Apply on HospoSearch →</Link>
+      {job.link && job.link.trim() && job.link.trim()!=="#"
+        ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
+        : <Link to="/app" className="jb-apply">Apply via HospoSearch →</Link>}
     </div>
   )
 }

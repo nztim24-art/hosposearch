@@ -2406,16 +2406,29 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
           </div>
           <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, whiteSpace:"pre-line", borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }}>{job.full}</div>
-          {!showForm && !done && (
+          {!showForm && !done && (() => {
+            const hasLink = job.link && job.link.trim() && job.link.trim() !== "#";
+            return (
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {(profile?.resume||profile?.coverLetter)&&!applied && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}><span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach</div></div>}
-              <button className="btn-cta tap" onClick={openForm} disabled={applied}
-                style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:13, padding:"15px 0", color:applied?C.sage:"#fff", fontWeight:700, fontSize:15, boxShadow:applied?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
-                {applied ? "✓ Already Applied" : "Apply via HospoSearch"}
-              </button>
-              <a href={job.link} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", padding:"13px 0", borderRadius:13, border:`1px solid ${C.border}`, color:C.textMid, textDecoration:"none", fontSize:15, fontWeight:500, background:"#fff" }}>Apply on venue website ↗</a>
+              {hasLink ? (
+                /* Employer/admin provided an external apply link — apply there only */
+                <a href={job.link} target="_blank" rel="noreferrer" className="btn-cta tap"
+                  style={{ display:"block", textAlign:"center", padding:"15px 0", borderRadius:13, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", textDecoration:"none", fontSize:15, fontWeight:700, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
+                  Apply on venue website ↗
+                </a>
+              ) : (
+                /* No external link — apply through HospoSearch */
+                <>
+                  {(profile?.resume||profile?.coverLetter)&&!applied && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}><span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach</div></div>}
+                  <button className="btn-cta tap" onClick={openForm} disabled={applied}
+                    style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:13, padding:"15px 0", color:applied?C.sage:"#fff", fontWeight:700, fontSize:15, boxShadow:applied?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
+                    {applied ? "✓ Already Applied" : "Apply via HospoSearch"}
+                  </button>
+                </>
+              )}
             </div>
-          )}
+            );
+          })()}
           {showForm && !done && (
             <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Your Application</div>
@@ -4768,6 +4781,7 @@ function AdminUploads({ supabase }) {
 function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [tab, setTab] = useState("listings");
   const [editJob, setEditJob] = useState(null);
+  const [viewJob, setViewJob] = useState(null);
   const [editUser, setEditUser] = useState(null);
   const [editSaving, setEditSaving] = useState(false);
   const [editSaved, setEditSaved] = useState(false);
@@ -4877,9 +4891,10 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.35 }}>{emp?.avatar||"📷"}</span></div>}
                   </div>
                   <div style={{ flex:1, padding:"10px 12px" }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{j.title}</div>
+                    <div className="tap" onClick={()=>setViewJob(j)} style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", cursor:"pointer" }}>{j.title}</div>
                     <div style={{ color:C.textSoft, fontSize:11, marginBottom:5 }}>{j.venue} · {j.type} · {ago(j.ts)} ago</div>
-                    <div style={{ display:"flex", gap:6 }}>
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+                      <button className="tap" onClick={()=>setViewJob(j)} style={{ background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:7, padding:"4px 10px", color:C.sage, fontSize:11, fontWeight:600 }}>View</button>
                       <button className="tap" onClick={()=>setEditJob({...j})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:7, padding:"4px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Edit</button>
                       <button className="tap" onClick={async ()=>{ if(window.confirm("Delete this listing?")) {
   setJobs(p=>p.filter(x=>x.id!==j.id));
@@ -5225,6 +5240,20 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
           </div>
         )}
       </div>
+      {viewJob && (
+        <JobDetail
+          job={viewJob}
+          currentUser={{ id:"admin-preview" }}
+          profile={null}
+          following={[]}
+          bookmarks={[]}
+          onClose={()=>setViewJob(null)}
+          onApply={()=>{}}
+          onToggleFollow={()=>{}}
+          onToggleBookmark={()=>{}}
+          onVenueClick={()=>{}}
+        />
+      )}
       {editJob && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(3px)" }}>
           <div style={{ width:"100%", maxWidth:540, margin:"0 auto", background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 20px 40px", maxHeight:"92vh", overflowY:"auto" }}>
@@ -5248,6 +5277,18 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   <input value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} style={IS}/>
                 </div>
               ))}
+
+              {/* Application email */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Application Email <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(applications emailed here)</span></div>
+                <input value={editJob.applyEmail||""} onChange={e=>setEditJob(j=>({...j,applyEmail:e.target.value}))} placeholder="hiring@venue.com" type="email" style={IS}/>
+              </div>
+
+              {/* Apply link */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Application Link <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(leave blank to apply via HospoSearch)</span></div>
+                <input value={editJob.link==="#"?"":(editJob.link||"")} onChange={e=>setEditJob(j=>({...j,link:e.target.value}))} placeholder="https://venue.com/apply" style={IS}/>
+              </div>
 
               {/* Location */}
               <div>
@@ -5446,7 +5487,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     } else { updatedPhotos.push(p); }
                   }
                   const locStr = [editJob.city,editJob.state,editJob.country].filter(Boolean).join(", ")||editJob.loc||"Australia";
-                  const updated = {...editJob, loc:locStr, photos:updatedPhotos};
+                  const updated = {...editJob, loc:locStr, photos:updatedPhotos, link:(editJob.link||"").trim()||"#"};
                   // Save to Supabase
                   try {
                     await supabase.from('jobs').update({
@@ -5456,7 +5497,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       salary: updated.salary, salary_band: updated.salaryBand,
                       type: updated.type, tags: updated.tags,
                       short: updated.short, full_desc: updated.full,
-                      link: updated.link, photos: updatedPhotos,
+                      link: updated.link, apply_email: updated.applyEmail||"", photos: updatedPhotos,
                       featured: updated.featured, verified: updated.verified,
                     }).eq('id', updated.id);
                   } catch(e) { console.warn('Update job error:', e); }
