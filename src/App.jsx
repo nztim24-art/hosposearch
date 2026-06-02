@@ -534,6 +534,137 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+// ─── ImageCropper ─────────────────────────────────────────────────────────────
+// Instagram-style crop modal: drag to reposition, wheel/pinch to zoom,
+// toggle 4:5 / 1:1. Outputs a cropped JPEG data URL via canvas.
+function ImageCropper({ src, onConfirm, onCancel }) {
+  const [ratio, setRatio] = useState("4/5"); // "4/5" or "1/1"
+  const [zoom, setZoom] = useState(1);
+  const [pos, setPos] = useState({ x:0, y:0 });
+  const [imgDim, setImgDim] = useState({ w:0, h:0 });
+  const frameRef = useRef(null);
+  const dragRef = useRef(null);
+  const pinchRef = useRef(null);
+
+  const ratioVal = ratio === "1/1" ? 1 : 4/5; // width/height
+
+  useEffect(() => {
+    const im = new Image();
+    im.onload = () => setImgDim({ w:im.naturalWidth, h:im.naturalHeight });
+    im.src = src;
+  }, [src]);
+
+  // Frame dimensions (fit within modal)
+  const frameW = 300;
+  const frameH = frameW / ratioVal;
+
+  // Base scale so image covers the frame at zoom=1
+  const baseScale = imgDim.w && imgDim.h
+    ? Math.max(frameW / imgDim.w, frameH / imgDim.h)
+    : 1;
+  const dispW = imgDim.w * baseScale * zoom;
+  const dispH = imgDim.h * baseScale * zoom;
+
+  // Clamp position so image always covers the frame
+  const clamp = (p) => {
+    const maxX = Math.max(0, (dispW - frameW) / 2);
+    const maxY = Math.max(0, (dispH - frameH) / 2);
+    return { x: Math.max(-maxX, Math.min(maxX, p.x)), y: Math.max(-maxY, Math.min(maxY, p.y)) };
+  };
+
+  useEffect(() => { setPos(p => clamp(p)); /* re-clamp on zoom/ratio change */ // eslint-disable-next-line
+  }, [zoom, ratio, imgDim.w, imgDim.h]);
+
+  const onPointerDown = (e) => {
+    const pt = e.touches ? e.touches[0] : e;
+    if (e.touches && e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchRef.current = { dist: Math.hypot(dx,dy), zoom };
+    } else {
+      dragRef.current = { x: pt.clientX - pos.x, y: pt.clientY - pos.y };
+    }
+  };
+  const onPointerMove = (e) => {
+    if (e.touches && e.touches.length === 2 && pinchRef.current) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx,dy);
+      const next = Math.max(1, Math.min(4, pinchRef.current.zoom * (dist / pinchRef.current.dist)));
+      setZoom(next);
+      return;
+    }
+    if (!dragRef.current) return;
+    const pt = e.touches ? e.touches[0] : e;
+    setPos(clamp({ x: pt.clientX - dragRef.current.x, y: pt.clientY - dragRef.current.y }));
+  };
+  const onPointerUp = () => { dragRef.current = null; pinchRef.current = null; };
+  const onWheel = (e) => { e.preventDefault(); setZoom(z => Math.max(1, Math.min(4, z - e.deltaY*0.0015))); };
+
+  const confirm = () => {
+    // Render the visible frame to a canvas at good resolution
+    const out = ratio === "1/1" ? 1080 : 0.8; // square 1080, portrait scale
+    const canvasW = 1080;
+    const canvasH = ratio === "1/1" ? 1080 : Math.round(1080 / ratioVal);
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW; canvas.height = canvasH;
+    const ctx = canvas.getContext("2d");
+    const im = new Image();
+    im.onload = () => {
+      // Map frame-space to canvas-space
+      const scaleToCanvas = canvasW / frameW;
+      const drawW = dispW * scaleToCanvas;
+      const drawH = dispH * scaleToCanvas;
+      const cx = (canvasW - drawW)/2 + pos.x * scaleToCanvas;
+      const cy = (canvasH - drawH)/2 + pos.y * scaleToCanvas;
+      ctx.fillStyle = "#fff"; ctx.fillRect(0,0,canvasW,canvasH);
+      ctx.drawImage(im, cx, cy, drawW, drawH);
+      onConfirm(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    im.src = src;
+  };
+
+  return (
+    <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:10000, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:20 }}>
+      {/* Ratio toggle */}
+      <div style={{ display:"flex", gap:8, marginBottom:16 }}>
+        {[["4/5","Portrait 4:5"],["1/1","Square 1:1"]].map(([r,l])=>(
+          <button key={r} className="tap" onClick={()=>setRatio(r)}
+            style={{ background:ratio===r?C.terracotta:"rgba(255,255,255,0.12)", border:"none", borderRadius:20, padding:"7px 16px", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>{l}</button>
+        ))}
+      </div>
+
+      {/* Crop frame */}
+      <div ref={frameRef}
+        onMouseDown={onPointerDown} onMouseMove={e=>dragRef.current&&onPointerMove(e)} onMouseUp={onPointerUp} onMouseLeave={onPointerUp}
+        onTouchStart={onPointerDown} onTouchMove={onPointerMove} onTouchEnd={onPointerUp}
+        onWheel={onWheel}
+        style={{ position:"relative", width:frameW, height:frameH, overflow:"hidden", borderRadius:6, background:"#000", cursor:"grab", touchAction:"none", boxShadow:"0 0 0 1px rgba(255,255,255,0.2)" }}>
+        {imgDim.w>0 && (
+          <img src={src} alt="" draggable={false}
+            style={{ position:"absolute", left:"50%", top:"50%", width:dispW, height:dispH, transform:`translate(calc(-50% + ${pos.x}px), calc(-50% + ${pos.y}px))`, maxWidth:"none", userSelect:"none", pointerEvents:"none" }}/>
+        )}
+        {/* Grid overlay */}
+        <div style={{ position:"absolute", inset:0, pointerEvents:"none", backgroundImage:"linear-gradient(rgba(255,255,255,0.25) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.25) 1px, transparent 1px)", backgroundSize:`${frameW/3}px ${frameH/3}px` }}/>
+      </div>
+
+      {/* Zoom slider */}
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginTop:16, width:frameW }}>
+        <Icon name="search" size={14} color="rgba(255,255,255,0.6)"/>
+        <input type="range" min="1" max="4" step="0.01" value={zoom} onChange={e=>setZoom(parseFloat(e.target.value))} style={{ flex:1, accentColor:C.terracotta }}/>
+      </div>
+      <div style={{ color:"rgba(255,255,255,0.5)", fontSize:11, marginTop:8 }}>Drag to reposition · scroll or pinch to zoom</div>
+
+      {/* Actions */}
+      <div style={{ display:"flex", gap:10, marginTop:20, width:frameW }}>
+        <button className="tap" onClick={onCancel} style={{ flex:1, background:"rgba(255,255,255,0.12)", border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontSize:14, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+        <button className="tap" onClick={confirm} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>Use photo</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── BlurFillImage ────────────────────────────────────────────────────────────
 // Shows the WHOLE image (object-fit:contain) inside a fixed box, with a blurred
 // copy of the same image filling the empty space behind it — like Instagram.
@@ -3706,6 +3837,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
+  // Image cropper: stash raw src + a callback that receives the cropped result
+  const [cropState, setCropState] = useState(null); // { src, onDone }
+  const pickAndCrop = (onDone) => {
+    const r=document.createElement("input"); r.type="file"; r.accept="image/*";
+    r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=ev=>setCropState({ src:ev.target.result, onDone }); rd.readAsDataURL(f); };
+    r.click();
+  };
   const [posted, setPosted] = useState(false);
   const [posting, setPosting] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
@@ -3912,7 +4050,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                         <button className="tap" onClick={()=>{ const a=[...photos]; a[i]=null; setPhotos(a); }} style={{ position:"absolute", top:2, right:2, width:18, height:18, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
                       </div>
                     ) : (
-                      <div className="file-zone tap" onClick={()=>{ const r=document.createElement("input"); r.type="file"; r.accept="image/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=ev=>{ const a=[...photos]; a[i]=ev.target.result; setPhotos(a); }; rd.readAsDataURL(f); }; r.click(); }}
+                      <div className="file-zone tap" onClick={()=>pickAndCrop(cropped=>{ const a=[...photos]; a[i]=cropped; setPhotos(a); })}
                         style={{ aspectRatio:"1", borderRadius:9, border:`1.5px dashed ${C.borderMid}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
                         <Icon name="camera" size={16} color={C.textFaint}/><span style={{ color:C.textFaint, fontSize:8, textTransform:"uppercase", letterSpacing:1 }}>{i+1}</span>
                       </div>
@@ -4285,6 +4423,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TYxkgGgUkBXedj25MHNk2OX"} user={user}/>}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
+      {cropState && <ImageCropper src={cropState.src} onConfirm={(cropped)=>{ cropState.onDone(cropped); setCropState(null); }} onCancel={()=>setCropState(null)}/>}
     </div>
   );
 }
@@ -4809,6 +4948,12 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TYxkgGgUkBXedj25MHNk2OX" });
   const [njPhotos, setNjPhotos] = useState([]);
+  const [cropState, setCropState] = useState(null);
+  const pickAndCropAdmin = () => {
+    const r=document.createElement("input"); r.type="file"; r.accept="image/*";
+    r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; const rd=new FileReader(); rd.onload=ev=>setCropState({ src:ev.target.result }); rd.readAsDataURL(f); };
+    r.click();
+  };
   const [njPosted, setNjPosted] = useState(false);
   const [njPosting, setNjPosting] = useState(false);
   const [njTagInput, setNjTagInput] = useState("");
@@ -5066,10 +5211,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Photos */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5)</span></div>
-                <input type="file" accept="image/*" multiple onChange={e=>{ const files=Array.from(e.target.files).slice(0,5); files.forEach(file=>{ const r=new FileReader(); r.onload=ev=>setNjPhotos(p=>[...p.slice(0,4),ev.target.result]); r.readAsDataURL(file); }); }} style={{ display:"none" }} id="admin-photos"/>
-                <label htmlFor="admin-photos" style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:C.bgSoft, border:`1.5px dashed ${C.border}`, borderRadius:10, cursor:"pointer", color:C.textMid, fontSize:13 }}>
-                  📷 Tap to upload photos ({njPhotos.length}/5)
-                </label>
+                <button type="button" onClick={pickAndCropAdmin} disabled={njPhotos.length>=5} style={{ width:"100%", display:"flex", alignItems:"center", gap:8, padding:"10px 14px", background:C.bgSoft, border:`1.5px dashed ${C.border}`, borderRadius:10, cursor:njPhotos.length>=5?"default":"pointer", color:C.textMid, fontSize:13, opacity:njPhotos.length>=5?0.5:1 }}>
+                  📷 Tap to upload &amp; crop photos ({njPhotos.length}/5)
+                </button>
                 {njPhotos.length > 0 && (
                   <div style={{ display:"flex", gap:7, marginTop:8, flexWrap:"wrap" }}>
                     {njPhotos.map((p,i)=>(
@@ -5555,6 +5699,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
           </div>
         </div>
       )}
+      {cropState && <ImageCropper src={cropState.src} onConfirm={(cropped)=>{ setNjPhotos(p=>[...p.slice(0,4),cropped]); setCropState(null); }} onCancel={()=>setCropState(null)}/>}
     </div>
   );
 }
