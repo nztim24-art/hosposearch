@@ -500,6 +500,66 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+// ─── RichTextEditor ───────────────────────────────────────────────────────────
+// Safe contentEditable: sets initial HTML once via ref, never re-injects on render
+// (which would crash React), and sanitises pasted content to plain text + line breaks.
+function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=14 }) {
+  const ref = useRef(null);
+
+  // Set initial content ONCE on mount — never on subsequent renders
+  useEffect(() => {
+    if (ref.current && value && ref.current.innerHTML !== value) {
+      ref.current.innerHTML = value;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exec = (cmd) => { document.execCommand(cmd, false, null); ref.current?.focus(); pushChange(); };
+  const pushChange = () => { if (ref.current) onChange(ref.current.innerHTML); };
+
+  // Strip formatting/styles from pasted content — insert as plain text with line breaks
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    // Insert plain text, preserving line breaks
+    const safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+    document.execCommand('insertHTML', false, safe);
+    pushChange();
+  };
+
+  const btns = [
+    { label:"B", cmd:"bold", style:{ fontWeight:700 }, title:"Bold" },
+    { label:"I", cmd:"italic", style:{ fontStyle:"italic" }, title:"Italic" },
+    { label:"U", cmd:"underline", style:{ textDecoration:"underline" }, title:"Underline" },
+    { label:"• List", cmd:"insertUnorderedList", style:{}, title:"Bullet list" },
+    { label:"1. List", cmd:"insertOrderedList", style:{}, title:"Numbered list" },
+  ];
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"10px 10px 0 0", flexWrap:"wrap" }}>
+        {btns.map(b=>(
+          <button key={b.cmd} type="button" title={b.title} onMouseDown={e=>{ e.preventDefault(); exec(b.cmd); }}
+            style={{ ...b.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
+            {b.label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={ref}
+        contentEditable
+        suppressContentEditableWarning
+        onInput={pushChange}
+        onBlur={pushChange}
+        onPaste={handlePaste}
+        data-placeholder={placeholder}
+        style={{ width:"100%", minHeight, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"12px 13px", color:C.textDark, fontSize, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
+      />
+      <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
+    </div>
+  );
+}
+
 function Avatar({ emp, size=36, fontSize=18 }) {
   return <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0 }}>{emp?.avatar||"👤"}</div>;
 }
@@ -3914,29 +3974,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
-              <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"10px 10px 0 0" }}>
-                {[
-                  { label:"B", cmd:"bold", style:{ fontWeight:700 }, title:"Bold" },
-                  { label:"I", cmd:"italic", style:{ fontStyle:"italic" }, title:"Italic" },
-                  { label:"U", cmd:"underline", style:{ textDecoration:"underline" }, title:"Underline" },
-                  { label:"• List", cmd:"insertUnorderedList", style:{}, title:"Bullet list" },
-                  { label:"1. List", cmd:"insertOrderedList", style:{}, title:"Numbered list" },
-                ].map(btn=>(
-                  <button key={btn.cmd} type="button" title={btn.title} onMouseDown={e=>{ e.preventDefault(); document.execCommand(btn.cmd,false,null); }}
-                    style={{ ...btn.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                onInput={e=>setNj(j=>({...j,full:e.currentTarget.innerHTML}))}
-                data-placeholder="Full details, requirements, benefits…"
-                style={{ width:"100%", minHeight:120, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"12px 13px", color:C.textDark, fontSize:14, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
-                dangerouslySetInnerHTML={{ __html: nj.full || "" }}
-              />
-              <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
+              <RichTextEditor value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full details, requirements, benefits…" />
             </div>
 
             {/* Key selling points */}
@@ -4896,31 +4934,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Full description — rich text */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on detail page)</span></div>
-                {/* Toolbar */}
-                <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"9px 9px 0 0" }}>
-                  {[
-                    { label:"B", cmd:"bold", style:{ fontWeight:700 }, title:"Bold" },
-                    { label:"I", cmd:"italic", style:{ fontStyle:"italic" }, title:"Italic" },
-                    { label:"U", cmd:"underline", style:{ textDecoration:"underline" }, title:"Underline" },
-                    { label:"• List", cmd:"insertUnorderedList", style:{}, title:"Bullet list" },
-                    { label:"1. List", cmd:"insertOrderedList", style:{}, title:"Numbered list" },
-                  ].map(btn=>(
-                    <button key={btn.cmd} title={btn.title} onMouseDown={e=>{ e.preventDefault(); document.execCommand(btn.cmd,false,null); }}
-                      style={{ ...btn.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
-                      {btn.label}
-                    </button>
-                  ))}
-                </div>
-                {/* Editable area */}
-                <div
-                  contentEditable
-                  suppressContentEditableWarning
-                  onInput={e=>setNj(j=>({...j,full:e.currentTarget.innerHTML}))}
-                  data-placeholder="Full job description, responsibilities, requirements…"
-                  style={{ width:"100%", minHeight:120, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 9px 9px", padding:"10px 12px", color:C.textDark, fontSize:13, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
-                  dangerouslySetInnerHTML={{ __html: nj.full || "" }}
-                />
-                <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
+                <RichTextEditor value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full job description, responsibilities, requirements…" fontSize={13} />
               </div>
 
               {/* Tags */}
