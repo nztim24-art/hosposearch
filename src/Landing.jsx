@@ -776,23 +776,21 @@ export default function Landing() {
             return (
               <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left',alignItems:'stretch'}}>
                 {tiers.map(t=>(
-                  <div key={t.name} style={{background:'#fff',border:t.featured?'2px solid #C4623A':'1px solid #E8E2D8',borderRadius:18,padding:'30px 26px',position:'relative',display:'flex',flexDirection:'column',boxShadow:t.featured?'0 12px 32px rgba(196,98,58,0.14)':'0 2px 10px rgba(0,0,0,0.04)',transition:'all 0.22s'}}
+                  <div key={t.name} style={{background:'#fff',border:t.featured?'2px solid #C4623A':'1px solid #E8E2D8',borderRadius:18,padding:'30px 26px',position:'relative',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:t.featured?'0 12px 32px rgba(196,98,58,0.14)':'0 2px 10px rgba(0,0,0,0.04)',transition:'all 0.22s'}}
                     onMouseEnter={e=>{ if(!t.featured) e.currentTarget.style.borderColor='#C4623A'; e.currentTarget.style.transform='translateY(-3px)'; }}
                     onMouseLeave={e=>{ if(!t.featured) e.currentTarget.style.borderColor='#E8E2D8'; e.currentTarget.style.transform='none'; }}>
                     {t.featured && <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:'#C4623A',color:'#fff',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 16px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>}
-                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:16}}>
+                    <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,marginBottom:14}}>
                       <span style={{width:9,height:9,borderRadius:'50%',background:DOT,flexShrink:0}}/>
-                      <div>
-                        <div style={{color:t.featured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{t.name}</div>
-                        <div style={{color:'#A8A29A',fontSize:11,marginTop:1}}>{t.sub}</div>
-                      </div>
+                      <div style={{color:t.featured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{t.name}</div>
                     </div>
-                    <div style={{display:'flex',alignItems:'baseline',gap:6}}>
+                    <div style={{color:'#A8A29A',fontSize:11,marginBottom:14}}>{t.sub}</div>
+                    <div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:6}}>
                       <div style={{fontFamily:"'Playfair Display',serif",fontSize:46,fontWeight:800,color:'#0F0E0C',lineHeight:1,letterSpacing:-1.5}}>{px(t.price)}</div>
                       {isSub && <div style={{color:'#A8A29A',fontSize:13}}>/mo</div>}
                     </div>
                     <div style={{fontSize:12,color:'#A8A29A',margin:'5px 0 20px'}}>{isSub?subLabel(t.price):taxLabel('one-time',t.price)}</div>
-                    <ul style={{listStyle:'none',padding:0,display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:'1 1 auto'}}>
+                    <ul style={{listStyle:'none',padding:0,display:'flex',flexDirection:'column',gap:8,marginBottom:24,flex:'1 1 auto',textAlign:'left'}}>
                       {t.feats.map(f=>(
                         <li key={f} style={{fontSize:13,color:'#3A3733',display:'flex',alignItems:'flex-start',gap:8,lineHeight:1.45}}>
                           <span style={{color:'#C4623A',fontWeight:700,flexShrink:0}}>✓</span>{f}
@@ -803,13 +801,13 @@ export default function Landing() {
                       <button onClick={onCta} style={{marginTop:'auto',width:'100%',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,cursor:'pointer',transition:'all 0.2s'}}
                         onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
                         onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
-                        {t.cta}
+                        Get Started
                       </button>
                     ) : (
-                      <Link to="/app" style={{marginTop:'auto',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                      <Link to="/app" style={{marginTop:'auto',width:'100%',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
                         onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
                         onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
-                        {t.cta}
+                        Get Started
                       </Link>
                     )}
                   </div>
