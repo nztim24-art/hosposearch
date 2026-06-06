@@ -904,6 +904,24 @@ function Carousel({ photos, video, height=null }) {
         );
       })}
 
+      {/* Prev / Next arrow buttons — visible on desktop, complement swipe on mobile */}
+      {slides.length > 1 && cur > 0 && (
+        <button onClick={e=>{e.stopPropagation();goTo(cur-1);}} className="tap"
+          style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
+          onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.5)"}
+          onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.28)"}>
+          <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginRight:1 }}>‹</span>
+        </button>
+      )}
+      {slides.length > 1 && cur < slides.length - 1 && (
+        <button onClick={e=>{e.stopPropagation();goTo(cur+1);}} className="tap"
+          style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
+          onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.5)"}
+          onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.28)"}>
+          <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginLeft:1 }}>›</span>
+        </button>
+      )}
+
       {/* Dot indicators */}
       {slides.length > 1 && (
         <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5, zIndex:2 }}>
@@ -1035,20 +1053,22 @@ function StoryViewer({ stories, startIndex=0, currentUser, onClose, onApply }) {
         }
         <div style={{ position:"absolute", bottom:0, left:0, right:0, height:"60%", background:"linear-gradient(to top, rgba(0,0,0,0.85),transparent)" }}/>
 
-        {/* Invisible tap zones — visual hint arrows */}
+        {/* Desktop-visible clickable arrows */}
         {idx > 0 && (
-          <div style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", opacity:0.55 }}>
-            <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>‹</span>
-            </div>
-          </div>
+          <button onClick={e=>{e.stopPropagation();prev();}} className="tap"
+            style={{ position:"absolute", left:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.25)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.45)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"}>
+            <span style={{ color:"#fff", fontSize:20, lineHeight:1, marginRight:2 }}>‹</span>
+          </button>
         )}
         {idx < total-1 && (
-          <div style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", opacity:0.55 }}>
-            <div style={{ width:28, height:28, borderRadius:"50%", background:"rgba(255,255,255,0.2)", display:"flex", alignItems:"center", justifyContent:"center" }}>
-              <span style={{ color:"#fff", fontSize:16, lineHeight:1 }}>›</span>
-            </div>
-          </div>
+          <button onClick={e=>{e.stopPropagation();next();}} className="tap"
+            style={{ position:"absolute", right:12, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.25)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:40, height:40, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
+            onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.45)"}
+            onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.25)"}>
+            <span style={{ color:"#fff", fontSize:20, lineHeight:1, marginLeft:2 }}>›</span>
+          </button>
         )}
       </div>
 
@@ -2503,9 +2523,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
     onApply(job, {...fd, resume, cover}); setDone(true);
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
+  const isDesktopDetail = typeof window !== 'undefined' && window.innerWidth >= 768;
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(2px)" }}>
-      <div onClick={e=>e.stopPropagation()} style={{ maxWidth:560, margin:"0 auto", background:C.bg, minHeight:"100vh" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(3px)", display:"flex", justifyContent:"center" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth: isDesktopDetail ? 720 : 560, background:C.bg, minHeight:"100vh", margin: isDesktopDetail ? "20px auto" : 0, borderRadius: isDesktopDetail ? 20 : 0, overflow:"hidden" }}>
         <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
           <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
           <div style={{ flex:1 }}>
@@ -2518,7 +2539,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           </button>
           {onToggleBookmark && <button className="tap" onClick={()=>onToggleBookmark(job.id)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/></button>}
         </div>
-        <Carousel photos={job.photos} video={job.video} height={255}/>
+        <Carousel photos={job.photos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={44} fontSize={20}/></div>

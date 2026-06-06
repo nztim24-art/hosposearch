@@ -510,6 +510,7 @@ export default function Landing() {
   const [showPricingModal, setShowPricingModal] = useState(false)
   const [modalDefaultTab, setModalDefaultTab] = useState('listing')
   const [pricingTab, setPricingTab] = useState('listing');
+  const [footerModal, setFooterModal] = useState(null); // 'about' | 'privacy' | 'terms'
   const cur = useCurrency()
   // Formats an AUD base price into the visitor's local currency for inline display
   const px = (aud) => `${cur.symbol}${tidyPrice(aud, cur.rate)}`
@@ -1111,16 +1112,18 @@ export default function Landing() {
             />
             <button
               onClick={async()=>{
-                const email = document.getElementById('employer-capture-email').value;
+                const el = document.getElementById('employer-capture-email');
+                const email = el?.value;
                 if (!email || !email.includes('@')) return;
                 try {
-                  await fetch('https://formspree.io/f/hello@hosposearch.com.au', {
+                  await fetch('/api/notify-abandoned', {
                     method:'POST',
                     headers:{'Content-Type':'application/json'},
-                    body:JSON.stringify({email, source:'landing_employer_capture', _subject:`New employer interest: ${email}`})
+                    body:JSON.stringify({ email, jobTitle:'Candidate interest from landing page', tier:'landing', source:'employer_capture' })
                   });
-                  document.getElementById('employer-capture-email').value='';
-                  document.getElementById('employer-capture-thanks').style.display='block';
+                  if(el) el.value='';
+                  const thanks = document.getElementById('employer-capture-thanks');
+                  if(thanks) thanks.style.display='block';
                 } catch(e) {}
               }}
               style={{background:'white',color:'var(--terra)',padding:'11px 20px',borderRadius:10,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',whiteSpace:'nowrap'}}>
@@ -1164,19 +1167,70 @@ export default function Landing() {
             <div>
               <div className="hs-footer-col-title">Company</div>
               <ul className="hs-footer-links">
-                <li><a href="#">About</a></li>
-                <li><a href="#">Contact</a></li>
-                <li><a href="#">Privacy Policy</a></li>
-                <li><a href="#">Terms of Service</a></li>
+                <li><button onClick={()=>setFooterModal('about')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>About</button></li>
+                <li><a href="mailto:hello@hosposearch.com.au">Contact</a></li>
+                <li><button onClick={()=>setFooterModal('privacy')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>Privacy Policy</button></li>
+                <li><button onClick={()=>setFooterModal('terms')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>Terms of Service</button></li>
               </ul>
             </div>
           </div>
           <div className="hs-footer-bottom">
-            <span>© 2025 HospoSearch. All rights reserved.</span>
+            <span>© {new Date().getFullYear()} HospoSearch. All rights reserved.</span>
             <span>Made with ❤️ for the hospitality industry</span>
           </div>
         </div>
       </footer>
+
+      {/* Footer modals — About, Privacy, Terms */}
+      {footerModal && (
+        <div onClick={()=>setFooterModal(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20,backdropFilter:'blur(4px)'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:20,padding:'36px 40px',maxWidth:580,width:'100%',maxHeight:'80vh',overflowY:'auto',position:'relative'}}>
+            <button onClick={()=>setFooterModal(null)} style={{position:'absolute',top:16,right:16,background:'#F4F0EB',border:'none',borderRadius:'50%',width:32,height:32,fontSize:16,cursor:'pointer',color:'#3A3733'}}>×</button>
+            {footerModal==='about' && <>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:'#0F0E0C',marginBottom:16}}>About HospoSearch</div>
+              <p style={{fontSize:14,lineHeight:1.8,color:'#3A3733',marginBottom:14}}>HospoSearch is a hospitality-first job platform built for the people who make the industry exceptional — the chefs, sommeliers, venue managers, front-of-house legends, and everyone behind the scenes.</p>
+              <p style={{fontSize:14,lineHeight:1.8,color:'#3A3733',marginBottom:14}}>We were built by people who've worked in hospitality and understand the industry's unique culture, pace, and talent. We believe the best venues deserve to find the best people — and the best people deserve to find roles that match their ambition.</p>
+              <p style={{fontSize:14,lineHeight:1.8,color:'#3A3733',marginBottom:14}}>Based in Australia and New Zealand, we're growing across the UK and internationally, with a focus on the high-end hospitality scene where presentation, technique, and passion matter most.</p>
+              <p style={{fontSize:14,lineHeight:1.8,color:'#3A3733'}}><strong>Contact us:</strong> <a href="mailto:hello@hosposearch.com.au" style={{color:'#C4623A'}}>hello@hosposearch.com.au</a></p>
+            </>}
+            {footerModal==='privacy' && <>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:'#0F0E0C',marginBottom:16}}>Privacy Policy</div>
+              <p style={{fontSize:12,color:'#A8A29A',marginBottom:20}}>Last updated: June 2026</p>
+              {[
+                ['Information We Collect','We collect information you provide when creating an account (name, email, employment history), information about how you use our platform, and technical information such as your IP address and device type.'],
+                ['How We Use Your Information','We use your information to match job seekers with relevant roles, enable employers to find candidates, send notifications about applications and jobs, and improve our platform. We do not sell your personal data to third parties.'],
+                ['Data Storage','Your data is stored securely on servers provided by Supabase. We use industry-standard encryption for data in transit and at rest.'],
+                ['Cookies','We use essential cookies to keep you logged in and remember your preferences. We do not use advertising or tracking cookies.'],
+                ['Your Rights','You may request access to, correction of, or deletion of your personal data at any time by emailing hello@hosposearch.com.au.'],
+                ['Contact','For privacy-related enquiries: hello@hosposearch.com.au'],
+              ].map(([h,b])=>(
+                <div key={h} style={{marginBottom:20}}>
+                  <div style={{fontWeight:700,fontSize:14,color:'#0F0E0C',marginBottom:6}}>{h}</div>
+                  <p style={{fontSize:13,lineHeight:1.7,color:'#3A3733',margin:0}}>{b}</p>
+                </div>
+              ))}
+            </>}
+            {footerModal==='terms' && <>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:'#0F0E0C',marginBottom:16}}>Terms of Service</div>
+              <p style={{fontSize:12,color:'#A8A29A',marginBottom:20}}>Last updated: June 2026</p>
+              {[
+                ['Acceptance','By using HospoSearch you agree to these terms. If you do not agree, please do not use the platform.'],
+                ['Job Listings','Employers are responsible for the accuracy of their job listings. HospoSearch reserves the right to remove listings that are misleading, offensive, or violate our community guidelines.'],
+                ['Payments','Listing fees are charged per posting. Subscriptions are billed monthly and may be cancelled at any time. All prices are in AUD unless otherwise stated. Refunds are issued at our discretion.'],
+                ['Candidate Data','Job seekers grant employers permission to view their profile and application information for the purpose of recruitment only. This data may not be used for any other purpose.'],
+                ['Prohibited Use','You may not use HospoSearch to post fraudulent listings, scrape data, spam users, or engage in any activity that harms the platform or its users.'],
+                ['Liability','HospoSearch is a platform connecting employers and job seekers. We are not responsible for the outcomes of hiring decisions or the conduct of users.'],
+                ['Contact','For terms-related enquiries: hello@hosposearch.com.au'],
+              ].map(([h,b])=>(
+                <div key={h} style={{marginBottom:20}}>
+                  <div style={{fontWeight:700,fontSize:14,color:'#0F0E0C',marginBottom:6}}>{h}</div>
+                  <p style={{fontSize:13,lineHeight:1.7,color:'#3A3733',margin:0}}>{b}</p>
+                </div>
+              ))}
+            </>}
+          </div>
+        </div>
+      )}
     <>
       {showPricingModal && <PricingModal onClose={()=>setShowPricingModal(false)} defaultTab={modalDefaultTab}/>}
     </>
