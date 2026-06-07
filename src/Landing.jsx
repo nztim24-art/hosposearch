@@ -829,11 +829,11 @@ export default function Landing() {
                         Get Started
                       </button>
                     ) : (
-                      <Link to="/app" style={{marginTop:'auto',width:'100%',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                      <a href={`/app?tier=${t.name.toLowerCase()}&mode=listing`} style={{marginTop:'auto',width:'100%',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
                         onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
                         onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
                         Get Started
-                      </Link>
+                      </a>
                     )}
                   </div>
                 ))}

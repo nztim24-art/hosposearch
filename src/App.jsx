@@ -3794,9 +3794,23 @@ function EmployerBrowse({ jobs, user, onExpand }) {
 }
 
 function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
-  const [tab, setTab] = useState("feed");
+  // Read tier/mode from URL on mount (passed from landing page Get Started buttons)
+  const _urlParams = new URLSearchParams(window.location.search);
+  const _urlTier = _urlParams.get('tier') || 'bronze';
+  const _urlMode = _urlParams.get('mode') || 'listing';
+  const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TYxkgGgUkBXedj25MHNk2OX', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TYxkbGgUkBXedj236i5jbeg', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TYxkdGgUkBXedj2pS9j0zcZ', featured:true } };
+  const _initTier = _tierMap[_urlTier] || _tierMap.bronze;
+
+  const [tab, setTab] = useState(_urlParams.get('tier') ? "post" : "feed");
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
+
+  // Clean URL after reading tier param so back-nav isn't affected
+  useEffect(()=>{
+    if (window.location.search.includes('tier=') || window.location.search.includes('mode=')) {
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const toggleEmailNotifs = async (val) => {
     setEmailNotifs(val);
@@ -3849,7 +3863,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     };
     loadApps();
   }, [tab]);
-  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false });
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
   // Image cropper: stash raw src + a callback that receives the cropped result
@@ -4189,6 +4203,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                     </div>
                   ))}
                 </div>
+                {/* Upsell / downsell nudge — changes based on selected tier */}
+                {nj.tier==="bronze" && (
+                  <div style={{ marginTop:8, padding:"10px 13px", background:"#FFF8EE", borderRadius:10, border:"1px solid #F5A62333", display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                    <div style={{ fontSize:12, color:C.textMid }}>⭐ <strong>Silver</strong> gets you pinned to the top of the feed for 30 days — 3× more applications on average.</div>
+                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"silver",featured:true,tierPrice:70,tierPriceId:"price_1TYxkbGgUkBXedj236i5jbeg"}))} style={{ flexShrink:0, background:"#F5A623", border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $70 →</button>
+                  </div>
+                )}
+                {nj.tier==="silver" && (
+                  <div style={{ marginTop:8, padding:"10px 13px", background:C.terracottaL, borderRadius:10, border:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
+                    <div style={{ fontSize:12, color:C.textMid }}>🥇 <strong>Gold</strong> gets you shared on our Instagram & Facebook + applicant auto-ranking.</div>
+                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"gold",featured:true,tierPrice:100,tierPriceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ"}))} style={{ flexShrink:0, background:C.terracotta, border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $100 →</button>
+                  </div>
+                )}
                 {/* Subscription option */}
                 <div style={{ marginTop:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
                   <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:2 }}>💡 Hiring regularly? Save with a subscription</div>
