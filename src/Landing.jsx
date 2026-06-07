@@ -409,25 +409,25 @@ function PricingModal({ onClose, defaultTab='listing' }) {
   const selected = tiers.find(t=>t.key===selectedTier)
 
   return (
-    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px',backdropFilter:'blur(6px)'}}>
-      <div onClick={e=>e.stopPropagation()} style={{background:'#0F0E0C',borderRadius:28,padding:'36px 32px',maxWidth:960,width:'100%',maxHeight:'92vh',overflowY:'auto',position:'relative',boxShadow:'0 60px 120px rgba(0,0,0,0.7)',border:'1px solid rgba(255,255,255,0.08)'}}>
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'16px',backdropFilter:'blur(6px)'}}>
+      <div onClick={e=>e.stopPropagation()} style={{background:'#FAF8F4',borderRadius:24,padding:'36px 32px',maxWidth:960,width:'100%',maxHeight:'92vh',overflowY:'auto',position:'relative',boxShadow:'0 40px 80px rgba(0,0,0,0.25)'}}>
 
         {/* Close */}
-        <button onClick={onClose} style={{position:'absolute',top:20,right:20,background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',color:'white',width:36,height:36,borderRadius:'50%',fontSize:20,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>×</button>
+        <button onClick={onClose} style={{position:'absolute',top:16,right:16,background:'#F0EBE3',border:'none',color:'#3A3733',width:34,height:34,borderRadius:'50%',fontSize:18,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>×</button>
 
         {/* Header */}
-        <div style={{textAlign:'center',marginBottom:32}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,color:'white',marginBottom:10,letterSpacing:-1}}>
+        <div style={{textAlign:'center',marginBottom:28}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:800,color:'#0F0E0C',marginBottom:8,letterSpacing:-0.5}}>
             Post a Job on HospoSearch
           </div>
-          <p style={{color:'rgba(255,255,255,0.5)',fontSize:15,marginBottom:24,maxWidth:500,margin:'0 auto 24px'}}>
-            Reach thousands of hospitality professionals across Australia & New Zealand. Job seekers always browse free.
+          <p style={{color:'#7A7570',fontSize:14,marginBottom:20,maxWidth:480,margin:'0 auto 20px'}}>
+            Reach hospitality professionals across Australia, New Zealand & beyond. Job seekers always browse free.
           </p>
           {/* Tab toggle */}
-          <div style={{display:'inline-flex',background:'rgba(255,255,255,0.07)',borderRadius:100,padding:4,gap:4,border:'1px solid rgba(255,255,255,0.1)'}}>
-            {[['listing','💳 Pay Per Listing'],['subscription','📅 Monthly Plans']].map(([v,l])=>(
+          <div style={{display:'inline-flex',background:'#fff',borderRadius:100,padding:4,gap:4,border:'1px solid #E8E2D8'}}>
+            {[['listing','Pay Per Listing'],['subscription','Monthly Plans']].map(([v,l])=>(
               <button key={v} onClick={()=>{setTab(v);setSelectedTier(null)}}
-                style={{padding:'10px 24px',borderRadius:100,border:'none',background:tab===v?'white':'transparent',color:tab===v?'#0F0E0C':'rgba(255,255,255,0.55)',fontWeight:tab===v?700:400,fontSize:14,cursor:'pointer',transition:'all 0.2s',whiteSpace:'nowrap'}}>
+                style={{padding:'9px 22px',borderRadius:100,border:'none',background:tab===v?'#C4623A':'transparent',color:tab===v?'#fff':'#7A7570',fontWeight:tab===v?700:500,fontSize:14,cursor:'pointer',transition:'all 0.2s',whiteSpace:'nowrap'}}>
                 {l}
               </button>
             ))}
@@ -435,39 +435,38 @@ function PricingModal({ onClose, defaultTab='listing' }) {
         </div>
 
         {/* Tier cards */}
-        <div className="hs-modal-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,marginBottom:28}}>
+        <div className="hs-modal-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:24}}>
           {tiers.map(tier=>{
             const isSel = selectedTier===tier.key
+            const isFeatured = !!tier.popular
             return (
               <div key={tier.key} onClick={()=>setSelectedTier(tier.key)}
-                style={{background:isSel?`rgba(${tier.key==='bronze'?'201,169,110':tier.key==='silver'?'192,208,224':'255,215,0'},0.12)`:'rgba(255,255,255,0.04)',border:`2px solid ${isSel?tier.color:'rgba(255,255,255,0.1)'}`,borderRadius:20,padding:'24px 20px',cursor:'pointer',transition:'all 0.2s',position:'relative',boxShadow:isSel?`0 8px 32px rgba(0,0,0,0.3)`:'none'}}>
-                {tier.popular && !isSel && (
-                  <div style={{position:'absolute',top:-12,left:'50%',transform:'translateX(-50%)',background:tier.color,color:'#1A1A2E',fontSize:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase',padding:'4px 14px',borderRadius:100,whiteSpace:'nowrap'}}>⭐ Most Popular</div>
+                style={{background:'#fff',border:`${isSel||isFeatured?'2':'1'}px solid ${isSel?'#C4623A':isFeatured?'#C4623A':'#E8E2D8'}`,borderRadius:18,padding:'22px 18px',cursor:'pointer',transition:'all 0.2s',position:'relative',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:isSel?'0 8px 24px rgba(196,98,58,0.18)':isFeatured?'0 8px 24px rgba(196,98,58,0.10)':'0 2px 8px rgba(0,0,0,0.04)'}}>
+                {isFeatured && (
+                  <div style={{position:'absolute',top:-11,left:'50%',transform:'translateX(-50%)',background:'#C4623A',color:'#fff',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 14px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>
                 )}
                 {isSel && (
-                  <div style={{position:'absolute',top:14,right:14,background:tier.color,color:'#1A1A1A',width:24,height:24,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:900}}>✓</div>
+                  <div style={{position:'absolute',top:12,right:12,background:'#C4623A',color:'#fff',width:22,height:22,borderRadius:'50%',display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:900}}>✓</div>
                 )}
 
-                {/* Icon + name */}
-                <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:16}}>
-                  <span style={{fontSize:32}}>{tier.icon}</span>
-                  <div>
-                    <div style={{color:tier.color,fontSize:12,fontWeight:700,letterSpacing:1.5,textTransform:'uppercase'}}>{tier.name}</div>
-                    {tier.limit && <div style={{color:'rgba(255,255,255,0.4)',fontSize:12,marginTop:2}}>{tier.limit}</div>}
-                  </div>
+                {/* Dot + name */}
+                <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:7,marginBottom:6}}>
+                  <span style={{width:8,height:8,borderRadius:'50%',background:'#C4623A',flexShrink:0}}/>
+                  <div style={{color:isFeatured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{tier.name}</div>
                 </div>
+                {tier.limit && <div style={{color:'#A8A29A',fontSize:11,marginBottom:10}}>{tier.limit}</div>}
 
-                {/* Price — no GST until registered; AUD billing note for overseas */}
-                <div style={{marginBottom:16}}>
+                {/* Price */}
+                <div style={{marginBottom:14}}>
                   {(() => {
                     const localPrice = tidyPrice(tier.price, cur.rate)
                     return (
                       <>
-                        <div style={{display:'flex',alignItems:'baseline',gap:4}}>
-                          <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:tier.color,lineHeight:1,letterSpacing:-2}}>{cur.symbol}{localPrice}</div>
-                          {tier.period==='mo' && <div style={{color:'rgba(255,255,255,0.4)',fontSize:14,fontWeight:500}}>/mo</div>}
+                        <div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:4}}>
+                          <div style={{fontFamily:"'Playfair Display',serif",fontSize:40,fontWeight:800,color:'#0F0E0C',lineHeight:1,letterSpacing:-1.5}}>{cur.symbol}{localPrice}</div>
+                          {tier.period==='mo' && <div style={{color:'#A8A29A',fontSize:13}}>/mo</div>}
                         </div>
-                        <div style={{color:'rgba(255,255,255,0.35)',fontSize:11,marginTop:4,lineHeight:1.4}}>
+                        <div style={{color:'#A8A29A',fontSize:11,marginTop:3}}>
                           {cur.isAU
                             ? <>${tier.price} AUD{tier.period==='mo'?' · per month':' · one-time'}</>
                             : <>{cur.symbol}{localPrice} {cur.code} · billed at ${tier.price} AUD{tier.period==='mo'?'/mo':''}</>}
@@ -478,10 +477,10 @@ function PricingModal({ onClose, defaultTab='listing' }) {
                 </div>
 
                 {/* Features */}
-                <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:7}}>
+                <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:6,textAlign:'left',width:'100%',flex:'1 1 auto'}}>
                   {tier.features.map(f=>(
-                    <li key={f} style={{fontSize:13,color:'rgba(255,255,255,0.65)',display:'flex',alignItems:'flex-start',gap:8,lineHeight:1.4}}>
-                      <span style={{color:tier.color,fontWeight:700,flexShrink:0,fontSize:11,marginTop:2}}>✓</span>{f}
+                    <li key={f} style={{fontSize:12,color:'#3A3733',display:'flex',alignItems:'flex-start',gap:7,lineHeight:1.45}}>
+                      <span style={{color:'#C4623A',fontWeight:700,flexShrink:0}}>✓</span>{f}
                     </li>
                   ))}
                 </ul>
@@ -493,12 +492,12 @@ function PricingModal({ onClose, defaultTab='listing' }) {
         {/* CTA */}
         <div style={{textAlign:'center'}}>
           <a href={`/app?tier=${selectedTier||tiers[0].key}&mode=${tab}`}
-            style={{display:'inline-flex',alignItems:'center',gap:10,background:selectedTier?'var(--terra)':'rgba(255,255,255,0.15)',color:'white',padding:'16px 44px',borderRadius:100,fontSize:16,fontWeight:700,textDecoration:'none',boxShadow:selectedTier?'0 6px 24px rgba(196,98,58,0.4)':'none',transition:'all 0.2s',marginBottom:14,border:selectedTier?'none':'1px solid rgba(255,255,255,0.2)'}}>
-            {selected ? `Get started with ${selected.name} — $${selected.price} ${tab==='subscription'?'/mo':''} →` : '← Select a plan above to continue'}
+            style={{display:'inline-flex',alignItems:'center',gap:10,background:'#C4623A',color:'white',padding:'14px 40px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:'0 6px 20px rgba(196,98,58,0.3)',transition:'all 0.2s',marginBottom:12}}>
+            {selected ? `Get started with ${selected.name} →` : 'Get Started →'}
           </a>
-          <div style={{color:'rgba(255,255,255,0.3)',fontSize:13}}>
+          <div style={{color:'#A8A29A',fontSize:13}}>
             Already have an account?{' '}
-            <a href="/app" style={{color:'var(--terra)',textDecoration:'none',fontWeight:600}}>Log in here →</a>
+            <a href="/app" style={{color:'#C4623A',textDecoration:'none',fontWeight:600}}>Log in here →</a>
           </div>
         </div>
       </div>
@@ -827,14 +826,14 @@ export default function Landing() {
               <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                 <thead>
                   <tr style={{borderBottom:'1px solid var(--border)'}}>
-                    {['Feature','Seek','HospoSearch Bronze','HospoSearch Silver','HospoSearch Gold'].map((h,i)=>(
+                    {['Feature','Competitors','HospoSearch Bronze','HospoSearch Silver','HospoSearch Gold'].map((h,i)=>(
                       <th key={h} style={{padding:'12px 20px',textAlign:i===0?'left':'center',color:i<=1?'var(--ink-soft)':'var(--terra)',fontWeight:700,fontSize:11,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {[
-                    ['Price per listing', cur.symbol+tidyPrice(275,cur.rate)+'–'+cur.symbol+tidyPrice(695,cur.rate), px(50), px(70), px(100)],
+                    ['Price per listing', '$275–$695+', px(50), px(70), px(100)],
                     ['Hospitality-specific','✗','✓','✓','✓'],
                     ['Instagram-style feed','✗','✓','✓','✓'],
                     ['Story-style profiles','✗','✓','✓','✓'],
@@ -863,15 +862,15 @@ export default function Landing() {
       </section>
 
       {/* App showcase + Instagram feed placeholder */}
-      <section className='hs-showcase-section' style={{background:'var(--ink)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
+      <section className='hs-showcase-section' style={{background:'var(--cream)',padding:'80px 40px',overflow:'hidden',position:'relative'}}>
         <div style={{position:'absolute',top:-200,right:-200,width:600,height:600,borderRadius:'50%',background:'radial-gradient(circle,rgba(196,98,58,0.15),transparent 65%)',pointerEvents:'none'}}/>
         <div style={{maxWidth:1160,margin:'0 auto',position:'relative',zIndex:1}}>
           <div style={{textAlign:'center',marginBottom:52}}>
             <div style={{fontSize:11,fontWeight:700,letterSpacing:2,textTransform:'uppercase',color:'var(--terra)',marginBottom:12}}>The app</div>
-            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(30px,4vw,48px)',fontWeight:900,color:'white',letterSpacing:-1,lineHeight:1.1,marginBottom:14}}>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:'clamp(30px,4vw,48px)',fontWeight:900,color:'var(--ink)',letterSpacing:-1,lineHeight:1.1,marginBottom:14}}>
               Job discovery, reimagined
             </h2>
-            <p style={{color:'rgba(255,255,255,0.55)',fontSize:15,maxWidth:480,margin:'0 auto'}}>
+            <p style={{color:'var(--ink-soft)',fontSize:15,maxWidth:480,margin:'0 auto'}}>
               Browse roles like an Instagram feed. Apply in seconds. Follow your favourite venues. Built entirely for hospitality.
             </p>
           </div>
@@ -886,10 +885,10 @@ export default function Landing() {
                 {icon:'📎',title:'One-tap apply',desc:'Save your résumé once. Apply to any role in seconds with it auto-attached.'},
               ].map(f=>(
                 <div key={f.title} style={{display:'flex',gap:14,alignItems:'flex-start'}}>
-                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
+                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(196,98,58,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
                   <div>
-                    <div style={{color:'white',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
-                    <div style={{color:'rgba(255,255,255,0.5)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
+                    <div style={{color:'var(--ink)',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
+                    <div style={{color:'var(--ink-soft)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
                   </div>
                 </div>
               ))}
@@ -938,10 +937,10 @@ export default function Landing() {
                 {icon:'📊',title:'Application tracking',desc:'See exactly where every application stands — Sent, Viewed, Shortlisted.'},
               ].map(f=>(
                 <div key={f.title} style={{display:'flex',gap:14,alignItems:'flex-start',flexDirection:'row-reverse',textAlign:'right'}}>
-                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(255,255,255,0.07)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
+                  <div style={{width:40,height:40,borderRadius:12,background:'rgba(196,98,58,0.08)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:18,flexShrink:0}}>{f.icon}</div>
                   <div>
-                    <div style={{color:'white',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
-                    <div style={{color:'rgba(255,255,255,0.5)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
+                    <div style={{color:'var(--ink)',fontWeight:600,fontSize:14,marginBottom:3}}>{f.title}</div>
+                    <div style={{color:'var(--ink-soft)',fontSize:13,lineHeight:1.55}}>{f.desc}</div>
                   </div>
                 </div>
               ))}
@@ -1043,12 +1042,12 @@ export default function Landing() {
         <div className="hs-section-inner">
           <div className="reveal">
             <div className="hs-section-tag">Where we operate</div>
-            <h2 className="hs-section-title">From Sydney to Singapore</h2>
+            <h2 className="hs-section-title">Hospitality knows no borders</h2>
             <p className="hs-section-sub" style={{marginBottom:'40px'}}>Find roles and candidates across Australia, New Zealand and major hospitality destinations worldwide.</p>
           </div>
           <div className="hs-locs-grid reveal">
-            {[['🇦🇺','Sydney'],['🇦🇺','Melbourne'],['🇦🇺','Brisbane'],['🇦🇺','Perth'],['🇦🇺','Adelaide'],['🇦🇺','Gold Coast'],['🇳🇿','Auckland'],['🇳🇿','Wellington'],['🇳🇿','Queenstown'],['🇬🇧','London'],['🇦🇪','Dubai'],['🇸🇬','Singapore'],['🇯🇵','Tokyo'],['🇫🇷','Paris'],['🇮🇹','Rome'],['🇬🇷','Santorini'],['🇹🇭','Bangkok'],['🌏','+ 200 more']].map(([flag,city])=>(
-              <Link to="/app" className="hs-loc" key={city}><span>{flag}</span>{city}</Link>
+            {[['🇦🇺','Australia'],['🇳🇿','New Zealand'],['🇬🇧','United Kingdom'],['🇺🇸','United States'],['🇦🇪','UAE'],['🇸🇬','Singapore'],['🇯🇵','Japan'],['🇫🇷','France'],['🇮🇹','Italy'],['🇹🇭','Thailand'],['🇭🇰','Hong Kong'],['🇨🇳','China'],['🇩🇪','Germany'],['🇪🇸','Spain'],['🇨🇦','Canada'],['🌏','+ more']].map(([flag,country])=>(
+              <Link to="/app" className="hs-loc" key={country}><span>{flag}</span>{country}</Link>
             ))}
           </div>
         </div>
@@ -1094,7 +1093,7 @@ export default function Landing() {
       {/* Final CTA */}
       <section className="hs-final">
         <h2 className="hs-final-title">Your next role is<br/>waiting for you</h2>
-        <p className="hs-final-sub">Join 18,000+ hospitality professionals who have already found their next opportunity on HospoSearch.</p>
+        <p className="hs-final-sub">The hospitality industry's home for talent. Browse roles, discover venues, and take your career further.</p>
         <div className="hs-final-actions">
           <Link to="/app" className="btn-white">🔍 Find Jobs — Free</Link>
           <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-ghost" style={{background:'rgba(255,255,255,0.15)',color:'white',padding:'14px 28px',borderRadius:100,fontSize:15,fontWeight:600,textDecoration:'none',border:'1.5px solid rgba(255,255,255,0.3)',transition:'all 0.2s',cursor:'pointer'}}>Hiring? Post a job →</button>
