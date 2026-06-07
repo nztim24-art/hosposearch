@@ -1040,11 +1040,11 @@ export default function Landing() {
           <div className="reveal">
             <div className="hs-section-tag">What people are saying</div>
             <h2 className="hs-section-title">Trusted by the industry</h2>
-            <p className="hs-section-sub">From 3-hat restaurants to boutique cafés, hospitality professionals across ANZ are using HospoSearch.</p>
+            <p className="hs-section-sub">From head chefs to floor managers, hospitality professionals across Australia, New Zealand and beyond are finding their next great role on HospoSearch.</p>
           </div>
           <div className="hs-testi-grid reveal">
             {[
-              {emoji:'🍽️',quote:'"We filled our Head Chef position within 4 days. The quality of applicants was outstanding — every single one had fine dining experience. Worth every cent."',name:'Sarah Mitchell',role:'Owner, Attica · Melbourne'},
+              {emoji:'👨‍🍳',quote:'"I landed my Head Chef role within a week of signing up. The quality of venues on here is outstanding — these are exactly the kind of places I wanted to work. Best career move I\'ve made."',name:'Sarah Mitchell',role:'Head Chef · Melbourne'},
               {emoji:'👨‍🍳',quote:'"Finally a jobs platform that actually understands hospitality. The Instagram-style feed makes it so easy to browse — I got three interviews in my first week."',name:'Jordan Lim',role:'Chef de Partie · Melbourne'},
               {emoji:'👩‍🍳',quote:'"The verified references feature is game-changing. Employers can see my track record before we even have a conversation. Landed my dream role at a hatted restaurant."',name:'Mia Santos',role:'Floor Manager · Sydney'},
             ].map(t=>(
@@ -1068,7 +1068,7 @@ export default function Landing() {
           <div className="reveal">
             <div className="hs-section-tag">Where we operate</div>
             <h2 className="hs-section-title">Hospitality knows no borders</h2>
-            <p className="hs-section-sub" style={{marginBottom:'40px'}}>Find roles and candidates across Australia, New Zealand and major hospitality destinations worldwide.</p>
+            <p className="hs-section-sub" style={{marginBottom:'40px'}}>Take your career anywhere in the world with HospoSearch — from Australia and New Zealand to the UK, Asia, the Middle East and beyond.</p>
           </div>
           <div className="hs-locs-grid reveal">
             {[['🇦🇺','Australia'],['🇳🇿','New Zealand'],['🇬🇧','United Kingdom'],['🇺🇸','United States'],['🇦🇪','UAE'],['🇸🇬','Singapore'],['🇯🇵','Japan'],['🇫🇷','France'],['🇮🇹','Italy'],['🇹🇭','Thailand'],['🇭🇰','Hong Kong'],['🇨🇳','China'],['🇩🇪','Germany'],['🇪🇸','Spain'],['🇨🇦','Canada'],['🌏','+ more']].map(([flag,country])=>(
