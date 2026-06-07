@@ -510,6 +510,31 @@ export default function Landing() {
   const [modalDefaultTab, setModalDefaultTab] = useState('listing')
   const [pricingTab, setPricingTab] = useState('listing');
   const [footerModal, setFooterModal] = useState(null); // 'about' | 'privacy' | 'terms'
+  const [contactModal, setContactModal] = useState(false);
+  const [contactForm, setContactForm] = useState({ name:'', email:'', phone:'', query:'' });
+  const [contactSent, setContactSent] = useState(false);
+  const [contactSending, setContactSending] = useState(false);
+
+  const sendContact = async () => {
+    if (!contactForm.name.trim() || !contactForm.email.includes('@') || !contactForm.query.trim()) return;
+    setContactSending(true);
+    try {
+      await fetch('/api/notify-abandoned', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          email: contactForm.email,
+          jobTitle: `Contact form: ${contactForm.query.slice(0,60)}`,
+          tier: 'contact',
+          name: contactForm.name,
+          phone: contactForm.phone,
+          message: contactForm.query,
+        })
+      });
+      setContactSent(true);
+    } catch(e) {}
+    setContactSending(false);
+  };
   const cur = useCurrency()
   // Formats an AUD base price into the visitor's local currency for inline display
   const px = (aud) => `${cur.symbol}${tidyPrice(aud, cur.rate)}`
@@ -1138,7 +1163,7 @@ export default function Landing() {
         <div className="hs-footer-inner">
           <div className="hs-footer-top">
             <div>
-              <div className="hs-footer-logo"><span>Hospo</span>Search</div>
+              <div className="hs-footer-logo" onClick={()=>window.scrollTo({top:0,behavior:'smooth'})} style={{cursor:'pointer'}}><span>Hospo</span>Search</div>
               <p className="hs-footer-desc">The premier hospitality jobs platform for Australia, New Zealand, and the world. Built by people who love good food, great service, and the teams behind them.</p>
               <div className="hs-footer-domains">
                 {['hosposearch.com','hosposearch.com.au','hosposearch.co.nz','hosposearch.co.uk'].map(d=><span className="hs-footer-domain" key={d}>{d}</span>)}
@@ -1156,18 +1181,18 @@ export default function Landing() {
             <div>
               <div className="hs-footer-col-title">Locations</div>
               <ul className="hs-footer-links">
-                <li><Link to="/app">Australia</Link></li>
-                <li><Link to="/app">New Zealand</Link></li>
-                <li><Link to="/app">United Kingdom</Link></li>
-                <li><Link to="/app">Asia Pacific</Link></li>
-                <li><Link to="/app">Middle East</Link></li>
+                <li><a href="https://www.hosposearch.com.au" target="_blank" rel="noreferrer">Australia</a></li>
+                <li><a href="https://www.hosposearch.co.nz" target="_blank" rel="noreferrer">New Zealand</a></li>
+                <li><a href="https://www.hosposearch.co.uk" target="_blank" rel="noreferrer">United Kingdom</a></li>
+                <li><a href="https://www.hosposearch.com" target="_blank" rel="noreferrer">Asia Pacific</a></li>
+                <li><a href="https://www.hosposearch.com" target="_blank" rel="noreferrer">Middle East</a></li>
               </ul>
             </div>
             <div>
               <div className="hs-footer-col-title">Company</div>
               <ul className="hs-footer-links">
                 <li><button onClick={()=>setFooterModal('about')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>About</button></li>
-                <li><a href="mailto:hello@hosposearch.com.au">Contact</a></li>
+                <li><button onClick={()=>{setContactModal(true);setContactSent(false);setContactForm({name:'',email:'',phone:'',query:''}); }} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>Contact</button></li>
                 <li><button onClick={()=>setFooterModal('privacy')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>Privacy Policy</button></li>
                 <li><button onClick={()=>setFooterModal('terms')} style={{background:'none',border:'none',color:'rgba(255,255,255,0.55)',fontSize:13,cursor:'pointer',padding:0,textAlign:'left'}}>Terms of Service</button></li>
               </ul>
@@ -1179,6 +1204,45 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Contact modal */}
+      {contactModal && (
+        <div onClick={()=>setContactModal(false)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20,backdropFilter:'blur(4px)'}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:'#fff',borderRadius:20,padding:'36px 40px',maxWidth:480,width:'100%',position:'relative'}}>
+            <button onClick={()=>setContactModal(false)} style={{position:'absolute',top:16,right:16,background:'#F4F0EB',border:'none',borderRadius:'50%',width:32,height:32,fontSize:16,cursor:'pointer',color:'#3A3733'}}>×</button>
+            {contactSent ? (
+              <div style={{textAlign:'center',padding:'20px 0'}}>
+                <div style={{fontSize:48,marginBottom:14}}>✉️</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:'#0F0E0C',marginBottom:8}}>Message sent!</div>
+                <p style={{color:'#7A7570',fontSize:14,lineHeight:1.6}}>Thanks for reaching out. We'll get back to you at {contactForm.email} shortly.</p>
+              </div>
+            ) : (
+              <>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:'#0F0E0C',marginBottom:4}}>Get in touch</div>
+                <p style={{color:'#7A7570',fontSize:13,marginBottom:24}}>Send us a message and we'll get back to you within 24 hours.</p>
+                <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                  {[['Name *','name','text','Your name'],['Email *','email','email','you@email.com'],['Phone','phone','tel','04xx xxx xxx']].map(([label,key,type,ph])=>(
+                    <div key={key}>
+                      <div style={{fontSize:11,fontWeight:600,color:'#7A7570',textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>{label}</div>
+                      <input type={type} value={contactForm[key]} onChange={e=>setContactForm(f=>({...f,[key]:e.target.value}))} placeholder={ph}
+                        style={{width:'100%',background:'#F4F0EB',border:'1px solid #E8E2D8',borderRadius:10,padding:'11px 13px',fontSize:14,color:'#0F0E0C',outline:'none',boxSizing:'border-box'}}/>
+                    </div>
+                  ))}
+                  <div>
+                    <div style={{fontSize:11,fontWeight:600,color:'#7A7570',textTransform:'uppercase',letterSpacing:1,marginBottom:5}}>Message *</div>
+                    <textarea value={contactForm.query} onChange={e=>setContactForm(f=>({...f,query:e.target.value}))} placeholder="How can we help you?" rows={4}
+                      style={{width:'100%',background:'#F4F0EB',border:'1px solid #E8E2D8',borderRadius:10,padding:'11px 13px',fontSize:14,color:'#0F0E0C',outline:'none',resize:'none',boxSizing:'border-box'}}/>
+                  </div>
+                  <button onClick={sendContact} disabled={contactSending||!contactForm.name.trim()||!contactForm.email.includes('@')||!contactForm.query.trim()}
+                    style={{background:'#C4623A',color:'#fff',border:'none',borderRadius:100,padding:'13px 0',fontSize:15,fontWeight:700,cursor:'pointer',opacity:contactSending?0.7:1,transition:'opacity 0.2s'}}>
+                    {contactSending ? 'Sending…' : 'Send message →'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Footer modals — About, Privacy, Terms */}
       {footerModal && (
