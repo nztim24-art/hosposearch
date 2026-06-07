@@ -2874,17 +2874,17 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
   );
 }
 
-function Login({ onLogin, onClose, defaultScreen="login" }) {
+function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee" }) {
   useEffect(()=>{
     const handler = () => {};
     document.addEventListener('hs-show-login', handler);
     return () => document.removeEventListener('hs-show-login', handler);
   }, []);
   const [screen, setScreen] = useState(defaultScreen); // login | signup
-  const [mode, setMode] = useState("employee");
+  const [mode, setMode] = useState(defaultMode);
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
   // Sign up fields
-  const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:"employee" });
+  const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:defaultMode });
   const [suErr, setSuErr] = useState("");
   const [suDone, setSuDone] = useState(false);
 
@@ -5867,7 +5867,10 @@ export default function App() {
 
   // Show login/signup modal if triggered from PublicBrowse
   if ((showLogin||showSignup) && !user) return <Login defaultScreen={showSignup?"signup":"login"} onLogin={(u,t)=>{ setShowLogin(false); setShowSignup(false); handleLogin(u,t); }} onClose={()=>{ setShowLogin(false); setShowSignup(false); }}/>;
-  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>; 
+  // Arriving from landing "Get Started" — show employer signup with Employer tab pre-selected
+  const _tierParam = new URLSearchParams(window.location.search).get('tier');
+  if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
+  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
