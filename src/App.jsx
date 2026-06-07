@@ -3818,6 +3818,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     try { await supabase.from('profiles').update({ email_notifications: val }).eq('id', user.id); } catch(e) {}
   };
   const [venueProfile, setVenueProfile] = useState(null);
+  const [showSubModal, setShowSubModal] = useState(false);
   const [sel, setSel] = useState(null);
   const [appStatusFilter, setAppStatusFilter] = useState("All");
   const [supabaseApps, setSupabaseApps] = useState([]);
@@ -4220,7 +4221,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 <div style={{ marginTop:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
                   <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:2 }}>💡 Hiring regularly? Save with a subscription</div>
                   <div style={{ color:C.textSoft, fontSize:11 }}>Starter $99/mo · Growth $199/mo · Pro $399/mo — unlimited listings, priority support</div>
-                  <button className="tap" onClick={()=>setTab("plans")} style={{ marginTop:6, background:"none", border:`1px solid ${C.sage}`, borderRadius:20, padding:"4px 12px", color:C.sage, fontSize:11, fontWeight:600, cursor:"pointer" }}>View Plans →</button>
+                  <button className="tap" onClick={()=>setShowSubModal(true)} style={{ marginTop:6, background:"none", border:`1px solid ${C.sage}`, borderRadius:20, padding:"4px 12px", color:C.sage, fontSize:11, fontWeight:600, cursor:"pointer" }}>View Plans →</button>
                 </div>
               </div>
             )}
@@ -4301,7 +4302,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                       style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>
                       Manage Listings
                     </button>
-                    <button className="tap" onClick={()=>setTab("plans")}
+                    <button className="tap" onClick={()=>setShowSubModal(true)}
                       style={{ flex:1, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
                       Upgrade Plan
                     </button>
@@ -4466,6 +4467,57 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
       {cropState && <ImageCropper src={cropState.src} onConfirm={(cropped)=>{ cropState.onDone(cropped); setCropState(null); }} onCancel={()=>setCropState(null)}/>}
+
+      {/* Subscription plans modal */}
+      {showSubModal && (
+        <div onClick={()=>setShowSubModal(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.6)", zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(4px)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#FAF8F4", borderRadius:20, padding:"28px 24px", maxWidth:620, width:"100%", maxHeight:"90vh", overflowY:"auto", position:"relative" }}>
+            <button onClick={()=>setShowSubModal(false)} style={{ position:"absolute", top:14, right:14, background:"#F0EBE3", border:"none", borderRadius:"50%", width:30, height:30, fontSize:16, cursor:"pointer", color:"#3A3733" }}>×</button>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:700, color:C.textDark, marginBottom:4 }}>Subscription Plans</div>
+            <p style={{ color:C.textSoft, fontSize:13, marginBottom:20 }}>Post more, pay less. Cancel anytime.</p>
+            <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              {[
+                { name:"Starter", price:99, priceId:"price_1TYyDFGgUkBXedj2J0cf9bjG", sub:"3 active listings", featured:false, feats:["3 active listings at any time","All Bronze features on every listing","Application dashboard","Cancel anytime"] },
+                { name:"Growth",  price:199, priceId:"price_1TYyHMGgUkBXedj2SFs5zNUI", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","All Silver features on every listing","Candidate search & messaging","Cancel anytime"] },
+                { name:"Pro",     price:399, priceId:"price_1TYyLJGgUkBXedj2Jvagygug", sub:"10 active listings", featured:false, feats:["10 active listings at any time","All Gold features on every listing","Instagram & Facebook promotion","Analytics dashboard","Cancel anytime"] },
+              ].map(plan=>(
+                <div key={plan.name} style={{ background:"#fff", border:`${plan.featured?"2px":"1px"} solid ${plan.featured?C.terracotta:C.border}`, borderRadius:14, padding:"18px 20px", position:"relative" }}>
+                  {plan.featured && <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)", background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"3px 14px", borderRadius:100, whiteSpace:"nowrap" }}>Most Popular</div>}
+                  <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+                    <div>
+                      <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:2 }}>
+                        <span style={{ width:8, height:8, borderRadius:"50%", background:C.terracotta }}/>
+                        <span style={{ color:plan.featured?C.terracotta:C.textSoft, fontSize:11, fontWeight:700, letterSpacing:1, textTransform:"uppercase" }}>{plan.name}</span>
+                      </div>
+                      <div style={{ color:C.textSoft, fontSize:12 }}>{plan.sub}</div>
+                    </div>
+                    <div style={{ textAlign:"right" }}>
+                      <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:800, color:C.textDark, lineHeight:1 }}>${plan.price}</div>
+                      <div style={{ color:C.textFaint, fontSize:11 }}>AUD / month</div>
+                    </div>
+                  </div>
+                  <ul style={{ listStyle:"none", padding:0, display:"flex", flexDirection:"column", gap:5, marginBottom:14 }}>
+                    {plan.feats.map(f=>(
+                      <li key={f} style={{ fontSize:12, color:C.textMid, display:"flex", alignItems:"flex-start", gap:7 }}>
+                        <span style={{ color:C.terracotta, fontWeight:700, flexShrink:0 }}>✓</span>{f}
+                      </li>
+                    ))}
+                  </ul>
+                  <button className="tap" onClick={async ()=>{
+                    try {
+                      const res = await fetch('/api/create-subscription', { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ plan:plan.name.toLowerCase(), userEmail:user.email, userId:user.id, priceId:plan.priceId }) });
+                      const { url } = await res.json();
+                      if (url) window.location.href = url;
+                    } catch(e) { alert("Couldn't connect to checkout — please try again."); }
+                  }} style={{ width:"100%", background:plan.featured?C.terracotta:"#fff", border:`1px solid ${C.terracotta}`, borderRadius:100, padding:"11px 0", color:plan.featured?"#fff":C.terracotta, fontSize:14, fontWeight:700, cursor:"pointer" }}>
+                    Get Started — ${plan.price}/mo
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
