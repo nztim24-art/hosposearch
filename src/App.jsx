@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -529,6 +529,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     link:     <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
     thumbsup: <><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" stroke={color} strokeWidth="1.6" fill={fill}/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke={color} strokeWidth="1.6"/></>,
     sliders:  <><line x1="4" y1="21" x2="4" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="4" y1="10" x2="4" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="21" x2="12" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="21" x2="20" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="12" x2="20" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="1" y1="14" x2="7" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="17" y1="16" x2="23" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
+    edit:     <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none">{p[name]||null}</svg>;
 };
@@ -3877,9 +3878,32 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [posted, setPosted] = useState(false);
   const [posting, setPosting] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
+  const [editId, setEditId] = useState(null); // when set, the Post form is editing this job id
   const mine = jobs.filter(j=>j.empId===user.id);
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
+
+  // Load an existing job into the Post form for editing
+  const startEdit = (j) => {
+    // Split a combined location string back into country/state/city where possible
+    setNj({
+      title: j.title||"", short: j.short||"", full: j.full||j.short||"",
+      salary: j.salary||"", salaryBand: j.salaryBand||"$70–90k", type: j.type||"Full-time",
+      country: j.country||"Australia", state: j.state||"", city: j.city||"",
+      sector: j.sector||"", roleType: j.roleType||"", link: (j.link&&j.link!=="#")?j.link:"",
+      applyEmail: j.applyEmail||"", venueName: j.venue||"", tags: j.tags||[],
+      featured: j.featured||false, tier: j.tier||"bronze",
+      sellingPoints: j.sellingPoints||["","",""], screeningQ: j.screeningQ||{},
+    });
+    // Photos: keep existing (https URLs / placeholders) in the 5 slots
+    const ph = [null,null,null,null,null];
+    (j.photos||[]).slice(0,5).forEach((p,i)=>{ ph[i] = p; });
+    setPhotos(ph);
+    setVideoFile(j.video||null);
+    setEditId(j.id);
+    setTab("post");
+    setPosted(false);
+  };
 
   const buildJobData = () => {
     const fp = photos.filter(Boolean);
@@ -3894,6 +3918,25 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false});
     setPhotos([null,null,null,null,null]);
     setVideoFile(null);
+    setEditId(null);
+  };
+
+  // Save edits to an existing listing (no payment — already paid)
+  const saveEdit = async () => {
+    if(!nj.title.trim()) return;
+    setPosting(true);
+    const jobData = buildJobData();
+    try {
+      const updated = await sbUpdateJobFull(editId, jobData);
+      setJobs(p=>p.map(j=>j.id===editId ? { ...j, ...updated } : j));
+    } catch(e) {
+      console.warn('Edit save failed:', e);
+      // optimistic local update as fallback
+      setJobs(p=>p.map(j=>j.id===editId ? { ...j, ...jobData, id:editId } : j));
+    }
+    setPosting(false);
+    setPosted(true);
+    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 1800);
   };
 
   const post = async () => {
@@ -3967,7 +4010,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     const iconColor = isPostedTab ? C.sage : isActive ? C.terracotta : C.textSoft;
     const labelColor = isPostedTab ? C.sage : isActive ? C.terracotta : C.textSoft;
     return (
-      <button className="tap" onClick={()=>setTab(t)}
+      <button className="tap" onClick={()=>{ if(t==="post" && editId){ resetForm(); } setTab(t); }}
         style={{ flex:1, padding:"10px 0 8px", border:"none", background:isPostedTab?"#ECFDF5":"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3, position:"relative", transition:"background 0.3s", borderTop:isPostedTab?`2px solid ${C.sage}`:"2px solid transparent" }}>
         {isPostedTab
           ? <span style={{ fontSize:22 }}>✅</span>
@@ -4046,29 +4089,40 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               ))}
             </div>
             <div style={{ padding:"12px" }}>
-              {mine.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:40, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:5 }}>No listings yet</div></div>}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                {mine.map(j=>{ const first=j.photos[0]; const isd=isData(first); return (
-                  <div key={j.id} style={{ borderRadius:14, overflow:"hidden", border:`1px solid ${C.border}`, background:"#fff", boxShadow:"0 1px 6px rgba(0,0,0,0.05)" }}>
-                    {j.featured && <div style={{ background:C.featuredL, padding:"3px 10px", display:"flex", alignItems:"center", gap:4 }}><Icon name="star" size={10} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
-                    <div style={{ height:90, overflow:"hidden", position:"relative", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
-                      {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.35 }}>{user.avatar}</span></div>}
-                      {j.video && <div style={{ position:"absolute", top:5, right:5 }}><Icon name="video" size={13} color="#fff" fill="#fff"/></div>}
-                    </div>
-                    <div style={{ padding:"10px 11px" }}>
-                      <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:2 }}>{j.title}</div>
-                      <div style={{ color:C.textSoft, fontSize:11, marginBottom:8 }}>{j.type} · {j.salary}</div>
-                      <div style={{ display:"flex", gap:5, marginBottom:7 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:3, color:C.textFaint, fontSize:10 }}><Icon name="eye" size={11} color={C.textFaint}/>{j.views||0}</div>
-                        <div style={{ display:"flex", alignItems:"center", gap:3, color:C.textFaint, fontSize:10 }}><Icon name="briefcase" size={11} color={C.textFaint}/>{j.apps?.length||0}</div>
-                      </div>
-                      <button className="tap" onClick={()=>{ setSel(j); setTab("apps"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:7, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600, width:"100%" }}>
-                        {j.apps?.length||0} application{j.apps?.length!==1?"s":""}
-                      </button>
-                    </div>
+              {mine.length===0 && (
+                <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}>
+                  <div style={{ fontSize:40, marginBottom:10 }}>📋</div>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:5 }}>No listings yet</div>
+                  <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }} style={{ marginTop:10, background:C.terracotta, border:"none", borderRadius:100, padding:"10px 22px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>Post your first job →</button>
+                </div>
+              )}
+              {mine.map(j=>(
+                <div key={j.id} style={{ marginBottom:16 }}>
+                  {/* Full job card — same as candidates see */}
+                  <JobCard
+                    job={j}
+                    currentUser={user}
+                    following={[]}
+                    bookmarks={[]}
+                    onApply={()=>setExpandedJob(j)}
+                    onExpand={()=>setExpandedJob(j)}
+                    onToggleFollow={()=>{}}
+                    onToggleBookmark={()=>{}}
+                    onVenueClick={()=>{}}
+                  />
+                  {/* Employer management bar */}
+                  <div style={{ display:"flex", gap:8, marginTop:-4 }}>
+                    <button className="tap" onClick={()=>startEdit(j)}
+                      style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textDark, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      <Icon name="edit" size={14} color={C.textMid}/> Edit listing
+                    </button>
+                    <button className="tap" onClick={()=>{ setSel(j); setTab("apps"); }}
+                      style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:10, padding:"10px 0", color:C.terracotta, fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                      <Icon name="briefcase" size={14} color={C.terracotta}/> {j.apps?.length||0} application{j.apps?.length!==1?"s":""}
+                    </button>
                   </div>
-                ); })}
-              </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -4076,7 +4130,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {/* Post */}
         {tab==="post" && !posted && (
           <div style={{ height:"100%", overflowY:"auto", padding:"16px" }}>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700, marginBottom:16 }}>New Job Listing</div>
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700 }}>{editId ? "Edit Listing" : "New Job Listing"}</div>
+              {editId && <button className="tap" onClick={()=>{ resetForm(); setTab("feed"); }} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", color:C.textMid, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>}
+            </div>
             <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:9 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Photos</div>
@@ -4185,7 +4242,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 {ROLE_TAGS.map(t=><button key={t} className="tap" onClick={()=>setNj(j=>({ ...j, tags:j.tags.includes(t)?j.tags.filter(x=>x!==t):[...j.tags,t] }))} style={{ background:nj.tags.includes(t)?C.terracottaL:C.bgSoft, border:`1px solid ${nj.tags.includes(t)?C.terracottaM:C.border}`, borderRadius:20, padding:"5px 12px", color:nj.tags.includes(t)?C.terracotta:C.textSoft, fontSize:12, fontWeight:nj.tags.includes(t)?600:400, transition:"all 0.15s" }}>{t}</button>)}
               </div>
             </div>
-            {!user.isTrial && (
+            {!user.isTrial && !editId && (
               <div style={{ marginBottom:16 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Choose Your Listing Type</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
@@ -4280,7 +4337,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </div>
             </div>
 
-            {!user.isTrial && (
+            {!user.isTrial && !editId && (
               <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sandL, borderRadius:12, border:`1px solid ${C.sand}40`, marginBottom:12 }}>
                 <span style={{ fontSize:20 }}>💳</span>
                 <div style={{ flex:1 }}>
@@ -4293,8 +4350,15 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </div>
             )}
             {user.isTrial && <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>🎁</span><div style={{ flex:1 }}><div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>HospoSearch Trial — Free Post</div><div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>Posting on behalf of a new venue</div></div><span style={{ color:C.sage, fontWeight:700 }}>FREE</span></div>}
+            {/* Edit mode: simple Save button, no payment */}
+            {editId && (
+              <button className="btn-cta tap" onClick={saveEdit} disabled={posting}
+                style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
+                {posting ? "⏳ Saving…" : posted ? "✓ Changes Saved!" : "Save Changes"}
+              </button>
+            )}
             {/* Listing limit check */}
-            {(() => {
+            {!editId && (() => {
               const activeListings = mine.filter(j=>j.active!==false).length;
               const subLimit = user.subscription_limit || 0;
               const hasActiveSub = user.subscription_active && subLimit > 0;
@@ -4344,8 +4408,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {posted && (
           <div style={{ height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"40px 20px", background:"#ECFDF5" }}>
             <div style={{ width:88, height:88, borderRadius:"50%", background:"white", display:"flex", alignItems:"center", justifyContent:"center", fontSize:46, marginBottom:20, border:`3px solid ${C.sage}`, boxShadow:`0 8px 24px ${C.sage}40` }}>✅</div>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, color:"#166534", fontWeight:800, marginBottom:8, textAlign:"center" }}>Job Posted!</div>
-            <div style={{ color:"#166534", fontSize:15, marginBottom:6, opacity:0.8, textAlign:"center" }}>Your listing is now live on HospoSearch</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, color:"#166534", fontWeight:800, marginBottom:8, textAlign:"center" }}>{editId ? "Changes Saved!" : "Job Posted!"}</div>
+            <div style={{ color:"#166534", fontSize:15, marginBottom:6, opacity:0.8, textAlign:"center" }}>{editId ? "Your listing has been updated" : "Your listing is now live on HospoSearch"}</div>
             <div style={{ color:"#166534", fontSize:13, opacity:0.6 }}>Redirecting to your listings…</div>
           </div>
         )}

@@ -177,6 +177,65 @@ export async function updateJobStatus(jobId, updates) {
   if (error) throw error
 }
 
+// Full edit of a job listing — handles photo re-upload and field mapping.
+// Used by employers editing their own existing listings.
+export async function updateJobFull(jobId, jobData) {
+  // Upload any new base64 photos; keep existing https URLs and numeric placeholders as-is
+  const photoUrls = []
+  const photos = jobData.photos || []
+  for (let i = 0; i < photos.length; i++) {
+    const p = photos[i]
+    if (typeof p === 'string' && p.startsWith('data:')) {
+      const url = await uploadPhoto(p, jobId, i)
+      if (url) photoUrls.push(url)
+    } else if (typeof p === 'string' && p.startsWith('http')) {
+      photoUrls.push(p) // keep already-uploaded photo
+    } else if (typeof p === 'number') {
+      photoUrls.push(p) // keep placeholder
+    }
+  }
+  const safePhotos = photoUrls.length > 0 ? photoUrls : [0, 1, 2]
+
+  const updateData = {
+    title:       jobData.title || '',
+    venue:       jobData.venue || 'HospoSearch',
+    loc:         jobData.loc || 'Australia',
+    country:     jobData.country || 'Australia',
+    state:       jobData.state || '',
+    city:        jobData.city || '',
+    sector:      jobData.sector || '',
+    role_type:   jobData.roleType || '',
+    salary:      jobData.salary || 'Competitive',
+    salary_band: jobData.salaryBand || '',
+    type:        jobData.type || 'Full-time',
+    tags:        jobData.tags || [],
+    short:       jobData.short || '',
+    full_desc:   jobData.full || jobData.short || '',
+    link:        jobData.link || '#',
+    apply_email: jobData.applyEmail || '',
+    photos:      safePhotos,
+    featured:    jobData.featured || false,
+    tier:        jobData.tier || 'bronze',
+  }
+
+  let { data, error } = await supabase
+    .from('jobs')
+    .update(updateData)
+    .eq('id', jobId)
+    .select()
+    .single()
+
+  // Retry without optional columns if any are missing
+  if (error && /column .* does not exist|Could not find/i.test(error.message || '')) {
+    const { apply_email, tier, ...safeData } = updateData
+    const retry = await supabase.from('jobs').update(safeData).eq('id', jobId).select().single()
+    data = retry.data; error = retry.error
+  }
+
+  if (error) { console.error('updateJobFull error:', error); throw error }
+  return normaliseJob(data)
+}
+
 export async function deleteJob(jobId) {
   const { error } = await supabase.from('jobs').update({ active: false }).eq('id', jobId)
   if (error) throw error
