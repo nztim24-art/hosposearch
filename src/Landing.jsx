@@ -985,10 +985,10 @@ export default function Landing() {
       {/* How it works */}
       <section className="hs-section" id="how-it-works">
         <div className="hs-section-inner">
-          <div className="reveal">
+          <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag">How it works</div>
             <h2 className="hs-section-title">Built for both sides<br/>of the pass</h2>
-            <p className="hs-section-sub">Whether you're a venue looking for your next great hire, or a hospitality professional ready for your next move.</p>
+            <p className="hs-section-sub" style={{marginLeft:'auto',marginRight:'auto'}}>Whether you run a restaurant, hotel, bar, café or any hospitality venue looking for your next great hire — or you're a hospitality professional ready for your next move.</p>
           </div>
           <div className="hs-split reveal">
             <div className="hs-split-panel cand">
@@ -1018,9 +1018,10 @@ export default function Landing() {
       {/* Categories */}
       <section className="hs-section" style={{background:'white',paddingTop:'72px',paddingBottom:'72px'}}>
         <div className="hs-section-inner">
-          <div className="reveal">
+          <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag">Browse by sector</div>
-            <h2 className="hs-section-title">Every corner of hospitality</h2>
+            <h2 className="hs-section-title">Every venue, every role</h2>
+            <p className="hs-section-sub" style={{marginLeft:'auto',marginRight:'auto'}}>From fine dining and luxury hotels to bars, cafés, resorts and everything in between — opportunities across the whole industry.</p>
           </div>
           <div className="hs-cats reveal">
             {[['🍽️','Restaurants','Fine dining to casual'],['🏨','Hotels','Luxury to boutique'],['🍸','Bars','Cocktail bars & pubs'],['☕','Cafés','Specialty & espresso'],['🏝️','Resorts','ANZ & international'],['🎉','Events','Functions & catering'],['🍷','Wineries','Cellar door & estates'],['🍰','Bakeries','Pastry & artisan']].map(([icon,name,sub])=>(
@@ -1037,10 +1038,10 @@ export default function Landing() {
       {/* Testimonials */}
       <section className="hs-section">
         <div className="hs-section-inner">
-          <div className="reveal">
+          <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag">What people are saying</div>
             <h2 className="hs-section-title">Trusted by the industry</h2>
-            <p className="hs-section-sub">From head chefs to floor managers, hospitality professionals across Australia, New Zealand and beyond are finding their next great role on HospoSearch.</p>
+            <p className="hs-section-sub" style={{marginLeft:'auto',marginRight:'auto'}}>From head chefs to floor managers, hospitality professionals across Australia, New Zealand and beyond are finding their next great role on HospoSearch.</p>
           </div>
           <div className="hs-testi-grid reveal">
             {[
@@ -1065,10 +1066,10 @@ export default function Landing() {
       {/* Locations */}
       <section className="hs-section" style={{background:'white'}} id="locations">
         <div className="hs-section-inner">
-          <div className="reveal">
+          <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag">Where we operate</div>
             <h2 className="hs-section-title">Hospitality knows no borders</h2>
-            <p className="hs-section-sub" style={{marginBottom:'40px'}}>Take your career anywhere in the world with HospoSearch — from Australia and New Zealand to the UK, Asia, the Middle East and beyond.</p>
+            <p className="hs-section-sub" style={{marginBottom:'40px',marginLeft:'auto',marginRight:'auto'}}>Take your career anywhere in the world with HospoSearch — from Australia and New Zealand to the UK, Asia, the Middle East and beyond.</p>
           </div>
           <div className="hs-locs-grid reveal">
             {[['🇦🇺','Australia'],['🇳🇿','New Zealand'],['🇬🇧','United Kingdom'],['🇺🇸','United States'],['🇦🇪','UAE'],['🇸🇬','Singapore'],['🇯🇵','Japan'],['🇫🇷','France'],['🇮🇹','Italy'],['🇹🇭','Thailand'],['🇭🇰','Hong Kong'],['🇨🇳','China'],['🇩🇪','Germany'],['🇪🇸','Spain'],['🇨🇦','Canada'],['🌏','+ more']].map(([flag,country])=>(
@@ -1081,16 +1082,14 @@ export default function Landing() {
       {/* Instagram Feed Section */}
       <section className="hs-section" style={{background:'white',paddingTop:'80px',paddingBottom:'80px'}}>
         <div className="hs-section-inner">
-          <div className="reveal" style={{display:'flex',alignItems:'flex-end',justifyContent:'space-between',marginBottom:36,flexWrap:'wrap',gap:16}}>
-            <div>
-              <div className="hs-section-tag">Follow along</div>
-              <h2 className="hs-section-title" style={{marginBottom:8}}>Behind the pass</h2>
-              <p style={{color:'var(--ink-soft)',fontSize:15,lineHeight:1.6,maxWidth:480}}>
-                Join <strong style={{color:'var(--ink)'}}>{followers}+</strong> in the HospoSearch community — venue spotlights, chef profiles, career tips and the jobs everyone's talking about.
-              </p>
-            </div>
+          <div className="reveal" style={{textAlign:'center',marginBottom:36}}>
+            <div className="hs-section-tag">Follow along</div>
+            <h2 className="hs-section-title" style={{marginBottom:8}}>Follow our feed</h2>
+            <p style={{color:'var(--ink-soft)',fontSize:15,lineHeight:1.6,maxWidth:520,marginLeft:'auto',marginRight:'auto',marginBottom:22}}>
+              Join <strong style={{color:'var(--ink)'}}>{followers}+</strong> in the HospoSearch community — venue spotlights, chef profiles, career tips and the jobs everyone's talking about.
+            </p>
             <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
-              style={{display:'inline-flex',alignItems:'center',gap:9,background:'var(--cream)',border:'1px solid var(--border)',borderRadius:100,padding:'10px 20px',textDecoration:'none',color:'var(--ink)',fontSize:13,fontWeight:600,flexShrink:0,transition:'all 0.2s'}}
+              style={{display:'inline-flex',alignItems:'center',gap:9,background:'var(--cream)',border:'1px solid var(--border)',borderRadius:100,padding:'10px 20px',textDecoration:'none',color:'var(--ink)',fontSize:13,fontWeight:600,transition:'all 0.2s'}}
               onMouseEnter={e=>{e.currentTarget.style.background='var(--terra-l)';e.currentTarget.style.borderColor='#E8CFBF';}}
               onMouseLeave={e=>{e.currentTarget.style.background='var(--cream)';e.currentTarget.style.borderColor='var(--border)';}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
