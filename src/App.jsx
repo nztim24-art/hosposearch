@@ -2459,6 +2459,53 @@ function CountdownBadge({ expiresAt, style }) {
   );
 }
 
+// ─── Mine Job Card (employer view — compact card with thumbnail + management actions) ──
+function MineJobCard({ job, onEdit, onApps, onExpand }) {
+  const first = job.photos?.[0];
+  const isd = isData(first);
+  const appsCount = job.apps?.length || 0;
+  return (
+    <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", marginBottom:12 }}>
+      <div className="tap" onClick={()=>onExpand(job)} style={{ display:"flex", gap:12, padding:12, cursor:"pointer", alignItems:"center" }}>
+        {/* Thumbnail */}
+        <div style={{ width:72, height:72, borderRadius:10, overflow:"hidden", flexShrink:0, background:isd?"transparent":C.bgSoft, position:"relative" }}>
+          {isd
+            ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+            : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, opacity:0.35 }}>🍽️</div>
+          }
+          {job.featured && (
+            <div style={{ position:"absolute", top:4, left:4, background:C.featuredL, border:`1px solid ${C.featured}50`, borderRadius:20, padding:"1px 6px", display:"flex", alignItems:"center", gap:3 }}>
+              <Icon name="star" size={9} color={C.featured} fill={C.featured}/>
+            </div>
+          )}
+        </div>
+        {/* Info */}
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:16, color:C.textDark, marginBottom:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{job.title}</div>
+          <div style={{ color:C.textSoft, fontSize:12, marginBottom:4 }}>{job.type} · {job.loc}</div>
+          <div style={{ color:C.sand, fontWeight:600, fontSize:12, marginBottom:4 }}>{job.salary}</div>
+          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+            <CountdownBadge expiresAt={job.expiresAt}/>
+            <span style={{ color:C.textFaint, fontSize:11 }}>{ago(job.ts)} ago</span>
+          </div>
+        </div>
+        <Icon name="more" size={18} color={C.textFaint}/>
+      </div>
+      {/* Action bar */}
+      <div style={{ display:"flex", gap:0, borderTop:`1px solid ${C.border}` }}>
+        <button className="tap" onClick={onEdit}
+          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:"none", borderRight:`1px solid ${C.border}`, padding:"10px 0", color:C.textDark, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+          <Icon name="edit" size={13} color={C.textMid}/> Edit
+        </button>
+        <button className="tap" onClick={onApps}
+          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:appsCount>0?C.terracottaL:"#fff", border:"none", padding:"10px 0", color:appsCount>0?C.terracotta:C.textSoft, fontSize:13, fontWeight:appsCount>0?700:500, cursor:"pointer" }}>
+          <Icon name="briefcase" size={13} color={appsCount>0?C.terracotta:C.textSoft}/> {appsCount} application{appsCount!==1?"s":""}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
   const emp = getEmp(job);
@@ -4122,7 +4169,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {tab==="feed" && (
           <div style={{ height:"100%", overflowY:"auto" }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, background:C.border, flexShrink:0 }}>
-              {[["Listings",mine.length],["Applications",apps],["Followers","—"]].map(([l,v])=>(
+              {[["My Listings",mine.length],["Applications",apps],["Followers","—"]].map(([l,v])=>(
                 <div key={l} style={{ background:"#fff", padding:"14px 10px", textAlign:"center" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>{v}</div>
                   <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>{l}</div>
@@ -4136,40 +4183,25 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               </button>
             </div>
             <div style={{ padding:"0 12px 12px" }}>
-              {mine.length===0 && (
-                <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}>
-                  <div style={{ fontSize:40, marginBottom:10 }}>📋</div>
-                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, color:C.textMid, marginBottom:5 }}>No listings yet</div>
-                  <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }} style={{ marginTop:10, background:C.terracotta, border:"none", borderRadius:100, padding:"10px 22px", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>Post your first job →</button>
-                </div>
-              )}
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark, marginBottom:12 }}>My Listings</div>
               {mine.map(j=>(
-                <div key={j.id} style={{ marginBottom:16 }}>
-                  {/* Full job card — same as candidates see */}
-                  <JobCard
-                    job={j}
-                    currentUser={user}
-                    following={[]}
-                    bookmarks={[]}
-                    onApply={()=>setExpandedJob(j)}
-                    onExpand={()=>setExpandedJob(j)}
-                    onToggleFollow={()=>{}}
-                    onToggleBookmark={()=>{}}
-                    onVenueClick={()=>{}}
-                  />
-                  {/* Employer management bar */}
-                  <div style={{ display:"flex", gap:8, marginTop:-4 }}>
-                    <button className="tap" onClick={()=>startEdit(j)}
-                      style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textDark, fontSize:13, fontWeight:600, cursor:"pointer" }}>
-                      <Icon name="edit" size={14} color={C.textMid}/> Edit listing
-                    </button>
-                    <button className="tap" onClick={()=>{ setSel(j); setTab("apps"); }}
-                      style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:10, padding:"10px 0", color:C.terracotta, fontSize:13, fontWeight:700, cursor:"pointer" }}>
-                      <Icon name="briefcase" size={14} color={C.terracotta}/> {j.apps?.length||0} application{j.apps?.length!==1?"s":""}
-                    </button>
-                  </div>
-                </div>
+                <MineJobCard
+                  key={j.id}
+                  job={j}
+                  onEdit={()=>startEdit(j)}
+                  onApps={()=>{ setSel(j); setTab("apps"); }}
+                  onExpand={()=>setExpandedJob(j)}
+                />
               ))}
+              {/* Add new listing card */}
+              <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }}
+                style={{ width:"100%", background:"#fff", border:`2px dashed ${C.borderMid}`, borderRadius:14, padding:"24px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, cursor:"pointer", marginBottom:16 }}>
+                <div style={{ width:44, height:44, borderRadius:"50%", background:C.terracottaL, border:`2px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                  <Icon name="plus" size={22} color={C.terracotta}/>
+                </div>
+                <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Add new listing</div>
+                <div style={{ fontSize:12, color:C.textSoft }}>Bronze $50 · Silver $70 · Gold $100</div>
+              </button>
 
               {/* Completed / expired listings */}
               {expiredMine.length>0 && (
@@ -4614,7 +4646,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
           <span style={{ fontSize:10, color:C.textSoft, fontWeight:400 }}>Home</span>
         </button>
         <NavBtn t="browse" ic="search" l="Browse"/>
-        <NavBtn t="feed" ic="grid" l="Mine"/>
+        <NavBtn t="feed" ic="grid" l="My Listings"/>
         <NavBtn t="post" ic="plus" l="Post"/>
         <NavBtn t="talent" ic="users" l="Talent"/>
         <NavBtn t="apps" ic="briefcase" l="Applications" badge={newAppsCount||apps}/>
