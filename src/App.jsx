@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -530,6 +530,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     thumbsup: <><path d="M14 9V5a3 3 0 00-3-3l-4 9v11h11.28a2 2 0 002-1.7l1.38-9a2 2 0 00-2-2.3H14z" stroke={color} strokeWidth="1.6" fill={fill}/><path d="M7 22H4a2 2 0 01-2-2v-7a2 2 0 012-2h3" stroke={color} strokeWidth="1.6"/></>,
     sliders:  <><line x1="4" y1="21" x2="4" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="4" y1="10" x2="4" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="21" x2="12" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="21" x2="20" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="12" x2="20" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="1" y1="14" x2="7" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="17" y1="16" x2="23" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
     edit:     <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
+    clock:    <><circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6"/><path d="M12 7v5l3 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none">{p[name]||null}</svg>;
 };
@@ -2432,6 +2433,32 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
   );
 }
 
+// ─── Listing countdown ──────────────────────────────────────────────────────
+// Days remaining until a listing's expires_at. Returns null if no expiry set.
+function daysLeft(expiresAt) {
+  if (!expiresAt) return null;
+  const ms = expiresAt - Date.now();
+  if (ms <= 0) return 0;
+  return Math.ceil(ms / (24*60*60*1000));
+}
+function CountdownBadge({ expiresAt, style }) {
+  const d = daysLeft(expiresAt);
+  if (d === null) return null;
+  const urgent = d <= 3;
+  const expired = d === 0;
+  return (
+    <span style={{
+      display:"inline-flex", alignItems:"center", gap:4,
+      background: expired ? "#FEE2E2" : urgent ? "#FEF3C7" : C.sandL,
+      border:`1px solid ${expired ? "#FCA5A5" : urgent ? "#FDE68A" : C.sand+"60"}`,
+      color: expired ? "#B91C1C" : urgent ? "#92400E" : C.clay,
+      fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, ...style }}>
+      <Icon name="clock" size={11} color={expired ? "#B91C1C" : urgent ? "#92400E" : C.clay}/>
+      {expired ? "Expired" : d === 1 ? "1 day left" : `${d} days left`}
+    </span>
+  );
+}
+
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
   const emp = getEmp(job);
@@ -2499,7 +2526,10 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         {/* Description */}
         <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6 }}>{job.short}</div>
         <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.terracotta, fontSize:13, marginTop:7, cursor:"pointer", fontWeight:600 }}>View full role →</div>
-        <div style={{ color:C.textFaint, fontSize:11, marginTop:5, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:5 }}>
+          <div style={{ color:C.textFaint, fontSize:11, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
+          <CountdownBadge expiresAt={job.expiresAt}/>
+        </div>
       </div>
     </div>
   );
@@ -2558,6 +2588,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <span style={{ width:3, height:3, borderRadius:"50%", background:C.textFaint, display:"inline-block" }}/>
             <TypeChip type={job.type}/>
             <span style={{ color:C.textFaint, fontSize:12 }}>· {job.loc}</span>
+            <CountdownBadge expiresAt={job.expiresAt} style={{ marginLeft:"auto" }}/>
           </div>
           {(job.tags||[]).length>0 && (
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>
@@ -3879,7 +3910,17 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [posting, setPosting] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
   const [editId, setEditId] = useState(null); // when set, the Post form is editing this job id
-  const mine = jobs.filter(j=>j.empId===user.id);
+  const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
+  const [myJobs, setMyJobs] = useState(null); // all of employer's jobs incl. expired; null until loaded
+  // Load full list (including expired/inactive) for the Mine tab
+  useEffect(()=>{
+    let alive = true;
+    fetchMyJobs(user.id).then(list=>{ if(alive && Array.isArray(list)) setMyJobs(list); }).catch(()=>{});
+    return ()=>{ alive = false; };
+  }, [user.id, jobs]);
+  // Active listings: prefer the live `jobs` list (has fresh apps/views), fall back to myJobs
+  const mine = (myJobs || jobs.filter(j=>j.empId===user.id)).filter(j=>j.empId===user.id && (j.active!==false));
+  const expiredMine = (myJobs || []).filter(j=>j.empId===user.id && j.active===false);
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
 
@@ -4123,6 +4164,37 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                   </div>
                 </div>
               ))}
+
+              {/* Completed / expired listings */}
+              {expiredMine.length>0 && (
+                <div style={{ marginTop:24 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 14px", color:C.textFaint, fontSize:12 }}>
+                    <div style={{ flex:1, height:1, background:C.border }}/>
+                    <span style={{ fontWeight:600, letterSpacing:0.5 }}>COMPLETED LISTINGS</span>
+                    <div style={{ flex:1, height:1, background:C.border }}/>
+                  </div>
+                  {expiredMine.map(j=>{ const first=j.photos?.[0]; const isd=isData(first); return (
+                    <div key={j.id} style={{ marginBottom:12, background:"#fff", border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", opacity:0.92 }}>
+                      <div style={{ display:"flex", gap:12, padding:12 }}>
+                        <div style={{ width:64, height:64, borderRadius:10, overflow:"hidden", flexShrink:0, background:PBG[(typeof first==="number"?first:0)%PBG.length], position:"relative" }}>
+                          {isd ? <img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", filter:"grayscale(0.4)" }}/> : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, opacity:0.4 }}>🍽️</div>}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:2 }}>{j.title}</div>
+                          <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {j.salary}</div>
+                          <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#FEE2E2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
+                            <Icon name="clock" size={10} color="#B91C1C"/> Expired
+                          </span>
+                        </div>
+                      </div>
+                      <button className="tap" onClick={()=>setReactivateJob(j)}
+                        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                        ↻ Re-activate listing
+                      </button>
+                    </div>
+                  ); })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -4539,6 +4611,36 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       </div>
 
       {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
+
+      {/* Re-activate expired listing — choose any tier, repay, fresh 30-day clock */}
+      {reactivateJob && (
+        <div onClick={()=>setReactivateJob(null)} style={{ position:"fixed", inset:0, background:"rgba(20,14,10,0.55)", zIndex:200, display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", width:"100%", maxWidth:480, borderRadius:"20px 20px 0 0", padding:"22px 18px 28px", maxHeight:"85vh", overflowY:"auto" }}>
+            <div style={{ width:38, height:4, background:C.border, borderRadius:10, margin:"0 auto 16px" }}/>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700, color:C.textDark, marginBottom:4 }}>Re-activate listing</div>
+            <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>“{reactivateJob.title}” will go live again for a fresh 30 days. Choose a tier:</div>
+            {[
+              { key:"bronze", name:"Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", feats:"Listed in the feed · 30-day listing" },
+              { key:"silver", name:"Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", feats:"Pinned to top · Featured badge · 30-day listing" },
+              { key:"gold",   name:"Gold — Premium",   price:100, priceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu", feats:"Max visibility · Highlighted · 30-day listing" },
+            ].map(t=>(
+              <button key={t.key} className="tap" onClick={()=>{
+                  setNj(p=>({ ...p, tier:t.key, tierPrice:t.price, tierPriceId:t.priceId, featured:(t.key!=="bronze") }));
+                  setCheckoutJob(reactivateJob); // existing job id → webhook flips active + fresh expires_at
+                  setReactivateJob(null);
+                }}
+                style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:13, padding:"14px 15px", marginBottom:10, cursor:"pointer" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:15, color:C.textDark, marginBottom:3 }}>{t.name}</div>
+                  <div style={{ color:C.textSoft, fontSize:11 }}>{t.feats}</div>
+                </div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.terracotta, whiteSpace:"nowrap" }}>${t.price}<span style={{ fontSize:10, color:C.textFaint, fontWeight:400 }}> +GST</span></div>
+              </button>
+            ))}
+            <button className="tap" onClick={()=>setReactivateJob(null)} style={{ width:"100%", background:"none", border:"none", color:C.textSoft, fontSize:13, padding:"10px 0", marginTop:4, cursor:"pointer" }}>Cancel</button>
+          </div>
+        </div>
+      )}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
       {cropState && <ImageCropper src={cropState.src} onConfirm={(cropped)=>{ cropState.onDone(cropped); setCropState(null); }} onCancel={()=>setCropState(null)}/>}

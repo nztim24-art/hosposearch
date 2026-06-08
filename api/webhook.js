@@ -103,11 +103,14 @@ export default async function handler(req, res) {
         const jobId = refId || metadata?.jobId;
 
         if (jobId) {
+          // 30-day listing window — fresh clock on every payment (incl. re-activation)
+          const expiresAt = new Date(Date.now() + 30*24*60*60*1000).toISOString();
           await supabaseUpdate('jobs', {
             paid: true,
             active: true,
             tier,
             featured: ['silver','gold'].includes(tier),
+            expires_at: expiresAt,
           }, { id: jobId });
         }
 

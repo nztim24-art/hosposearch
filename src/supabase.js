@@ -43,14 +43,14 @@ export async function getSession() {
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 export async function fetchJobs() {
-  // Auto-expire listings older than 30 days (60 for Gold/Pro)
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  // Auto-expire: any active listing whose expires_at has passed becomes inactive.
+  const now = new Date().toISOString();
   try {
     await supabase.from('jobs')
       .update({ active: false })
       .eq('active', true)
-      .neq('tier', 'gold')
-      .lt('created_at', thirtyDaysAgo);
+      .not('expires_at', 'is', null)
+      .lt('expires_at', now);
   } catch(e) { /* non-critical */ }
 
   const { data, error } = await supabase
@@ -63,6 +63,27 @@ export async function fetchJobs() {
     console.error('fetchJobs error:', error)
     throw error
   }
+  return data.map(normaliseJob)
+}
+
+// Fetch ALL of an employer's jobs including expired/inactive ones (for the Mine tab)
+export async function fetchMyJobs(empId) {
+  // Run the same expiry sweep so statuses are current
+  const now = new Date().toISOString();
+  try {
+    await supabase.from('jobs')
+      .update({ active: false })
+      .eq('active', true)
+      .not('expires_at', 'is', null)
+      .lt('expires_at', now);
+  } catch(e) { /* non-critical */ }
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('emp_id', empId)
+    .order('created_at', { ascending: false })
+  if (error) { console.error('fetchMyJobs error:', error); throw error }
   return data.map(normaliseJob)
 }
 
@@ -453,5 +474,9 @@ function normaliseJob(row) {
     views:      row.views || 0,
     apps:       [],
     ts:         row.created_at ? new Date(row.created_at).getTime() : Date.now(),
+    tier:       row.tier || 'bronze',
+    paid:       row.paid || false,
+    active:     row.active !== undefined ? row.active : true,
+    expiresAt:  row.expires_at ? new Date(row.expires_at).getTime() : null,
   }
 }
