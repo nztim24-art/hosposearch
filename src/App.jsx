@@ -4129,7 +4129,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 </div>
               ))}
             </div>
-            <div style={{ padding:"12px" }}>
+            <div style={{ padding:"12px 12px 4px" }}>
+              <button className="tap" onClick={()=>setTab("browse")}
+                style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:12, padding:"11px 0", color:C.textDark, fontSize:14, fontWeight:600, cursor:"pointer", marginBottom:12 }}>
+                <Icon name="home" size={16} color={C.textMid}/> Browse all listings
+              </button>
+            </div>
+            <div style={{ padding:"0 12px 12px" }}>
               {mine.length===0 && (
                 <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}>
                   <div style={{ fontSize:40, marginBottom:10 }}>📋</div>
@@ -4602,7 +4608,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
       {/* Bottom nav */}
       <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
-        <NavBtn t="browse" ic="home" l="Browse"/>
+        <button className="tap" onClick={()=>window.location.href='/'}
+          style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
+          <Icon name="home" size={24} color={C.textSoft}/>
+          <span style={{ fontSize:10, color:C.textSoft, fontWeight:400 }}>Home</span>
+        </button>
+        <NavBtn t="browse" ic="search" l="Browse"/>
         <NavBtn t="feed" ic="grid" l="Mine"/>
         <NavBtn t="post" ic="plus" l="Post"/>
         <NavBtn t="talent" ic="users" l="Talent"/>

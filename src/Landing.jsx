@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { supabase } from './supabase.js'
 
 // ─── Multi-currency ───────────────────────────────────────────────────────────
 // Rates are AUD → target. Update periodically, or wire to a live FX feed later.
@@ -514,6 +515,17 @@ export default function Landing() {
   const [contactForm, setContactForm] = useState({ name:'', email:'', phone:'', query:'' });
   const [contactSent, setContactSent] = useState(false);
   const [contactSending, setContactSending] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setIsLoggedIn(!!data?.session);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
+      setIsLoggedIn(!!session);
+    });
+    return () => listener?.subscription?.unsubscribe();
+  }, []);
 
   const sendContact = async () => {
     if (!contactForm.name.trim() || !contactForm.email.includes('@') || !contactForm.query.trim()) return;
@@ -674,6 +686,9 @@ export default function Landing() {
             </div>
           </li>
           <li><button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="hs-nav-cta" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,border:'none',cursor:'pointer'}}>Post a Job →</button></li>
+          {isLoggedIn && (
+            <li><Link to="/app" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,textDecoration:'none',display:'inline-block'}}>My Dashboard →</Link></li>
+          )}
         </ul>
       </nav>
 
