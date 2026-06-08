@@ -1,58 +1,57 @@
 // /api/create-checkout.js
 // Creates a Stripe Checkout session for a one-time job listing payment.
+// Uses Stripe REST API directly — no stripe npm package needed.
 
 const PRICE_IDS = {
-  bronze: 'price_1TfwBfGkG9EGtGJgBv341e2n',  // $50
-  silver: 'price_1TfwBlGkG9EGtGJgGxDjQEhS',   // $70
-  gold:   'price_1TfwBrGkG9EGtGJg6O8z5oAu',   // $100
+  bronze: 'price_1TfwBfGkG9EGtGJgBv341e2n',  // $50 AUD
+  silver: 'price_1TfwBlGkG9EGtGJgGxDjQEhS',   // $70 AUD
+  gold:   'price_1TfwBrGkG9EGtGJg6O8z5oAu',   // $100 AUD
 };
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { tier, jobTitle, venueEmail, jobId, priceId } = req.body || {};
-
-  // Resolve price ID — accept either a tier name or a direct priceId
   const resolvedPriceId = priceId || PRICE_IDS[tier?.toLowerCase()];
-
-  if (!resolvedPriceId) {
-    return res.status(400).json({ error: `Unknown tier: ${tier}` });
-  }
+  if (!resolvedPriceId) return res.status(400).json({ error: `Unknown tier: ${tier}` });
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
-    console.error('STRIPE_SECRET_KEY not set');
-    return res.status(500).json({ error: 'Payment service not configured' });
-  }
+  if (!stripeKey) return res.status(500).json({ error: 'Payment service not configured' });
 
   const origin = req.headers.origin || 'https://www.hosposearch.com.au';
-  const successUrl = `${origin}/app?payment=success&tier=${tier || 'bronze'}&jobId=${jobId || ''}`;
-  const cancelUrl  = `${origin}/app?payment=cancelled`;
 
   try {
-    const stripe = await import('stripe').then(m => m.default(stripeKey));
+    const params = new URLSearchParams();
+    params.append('mode', 'payment');
+    params.append('line_items[0][price]', resolvedPriceId);
+    params.append('line_items[0][quantity]', '1');
+    params.append('success_url', `${origin}/app?payment=success&tier=${tier || 'bronze'}&jobId=${jobId || ''}`);
+    params.append('cancel_url', `${origin}/app?payment=cancelled`);
+    params.append('allow_promotion_codes', 'true');
+    if (venueEmail) params.append('customer_email', venueEmail);
+    if (jobId) params.append('client_reference_id', jobId);
+    if (jobId) params.append('metadata[jobId]', jobId);
+    if (tier) params.append('metadata[tier]', tier);
+    if (jobTitle) params.append('metadata[jobTitle]', jobTitle);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      line_items: [{ price: resolvedPriceId, quantity: 1 }],
-      customer_email: venueEmail || undefined,
-      client_reference_id: jobId || undefined,
-      metadata: {
-        tier: tier || 'bronze',
-        jobTitle: jobTitle || '',
-        jobId: jobId || '',
-        venueEmail: venueEmail || '',
+    const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
       },
-      success_url: successUrl,
-      cancel_url:  cancelUrl,
-      allow_promotion_codes: true,
+      body: params.toString(),
     });
+
+    const session = await response.json();
+    if (!response.ok) {
+      console.error('Stripe error:', session.error?.message);
+      return res.status(502).json({ error: 'Stripe error', detail: session.error?.message });
+    }
 
     return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Stripe create-checkout error:', err.message);
-    return res.status(502).json({ error: 'Stripe error', detail: err.message });
+    console.error('create-checkout error:', err.message);
+    return res.status(502).json({ error: 'Internal error', detail: err.message });
   }
 }
