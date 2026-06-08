@@ -3927,20 +3927,31 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       setPosted(true);
       setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
     } else {
-      setCheckoutJob(jobData);
+      // Paid listing: create the job as an unpaid draft FIRST so the Stripe
+      // webhook has a real jobId to flip to paid/active after payment.
+      setPosting(true);
+      try {
+        const draft = { ...jobData, paid:false, active:false };
+        const saved = await sbCreateJob(user.id, draft);
+        setCheckoutJob(saved); // saved.id is the real Supabase row id
+      } catch(e) {
+        console.warn('Draft job save failed, proceeding without persisted id:', e);
+        setCheckoutJob(jobData); // fallback — checkout still works, webhook just can't match
+      }
+      setPosting(false);
     }
   };
   const publishAfterPayment = async () => {
+    // Payment succeeded. The webhook marks the job paid:true/active:true server-side.
+    // Here we just refresh the local list from the DB so it shows immediately.
     setPosting(true);
-    let jobToAdd = checkoutJob;
     try {
-      const saved = await sbCreateJob(user.id, checkoutJob);
-      jobToAdd = saved;
+      const fresh = await fetchJobs();
+      if (Array.isArray(fresh)) setJobs(fresh);
     } catch(e) {
-      console.warn('Supabase save failed, using local:', e);
-      jobToAdd = { ...checkoutJob, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0 };
+      // Fallback: optimistically add the checkout job locally
+      if (checkoutJob) setJobs(p=>[{ ...checkoutJob, paid:true, active:true, ts:Date.now(), apps:[], views:0 },...p]);
     }
-    setJobs(p=>[jobToAdd,...p]);
     setCheckoutJob(null);
     setPosting(false);
     setPosted(true);
@@ -5860,6 +5871,14 @@ export default function App() {
         const dbJobs = await fetchJobs();
         if (Array.isArray(dbJobs)) setJobs(dbJobs);
       } catch(e) { /* use seed data if DB empty */ }
+
+      // If returning from a successful payment, the webhook may still be
+      // flipping the job to paid/active. Re-fetch a couple of times to catch it.
+      if (params.get('payment') === 'success') {
+        [1500, 4000].forEach(delay => setTimeout(async () => {
+          try { const j = await fetchJobs(); if (Array.isArray(j)) setJobs(j); } catch(e) {}
+        }, delay));
+      }
 
       // Load discount codes from Supabase
       try {
