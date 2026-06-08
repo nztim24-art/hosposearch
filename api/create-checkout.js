@@ -1,6 +1,6 @@
 // /api/create-checkout.js
 // Creates a Stripe Checkout session for a one-time job listing payment.
-// Uses Stripe REST API directly — no stripe npm package needed.
+// Always uses server-side price IDs regardless of what the frontend sends.
 
 const PRICE_IDS = {
   bronze: 'price_1TfwBfGkG9EGtGJgBv341e2n',  // $50 AUD
@@ -11,9 +11,10 @@ const PRICE_IDS = {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { tier, jobTitle, venueEmail, jobId, priceId } = req.body || {};
-  const resolvedPriceId = priceId || PRICE_IDS[tier?.toLowerCase()];
-  if (!resolvedPriceId) return res.status(400).json({ error: `Unknown tier: ${tier}` });
+  const { tier, jobTitle, venueEmail, jobId } = req.body || {};
+
+  // Always resolve from server-side map — never trust client-sent price IDs
+  const resolvedPriceId = PRICE_IDS[tier?.toLowerCase()] || PRICE_IDS.bronze;
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) return res.status(500).json({ error: 'Payment service not configured' });
@@ -32,7 +33,7 @@ export default async function handler(req, res) {
     if (jobId) params.append('client_reference_id', jobId);
     if (jobId) params.append('metadata[jobId]', jobId);
     if (tier) params.append('metadata[tier]', tier);
-    if (jobTitle) params.append('metadata[jobTitle]', jobTitle);
+    if (jobTitle) params.append('metadata[jobTitle]', jobTitle?.slice(0, 500));
 
     const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
