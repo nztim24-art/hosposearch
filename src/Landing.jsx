@@ -987,7 +987,7 @@ export default function Landing() {
         <div className="hs-section-inner">
           <div className="reveal" style={{textAlign:'center'}}>
             <div className="hs-section-tag">How it works</div>
-            <h2 className="hs-section-title">Built for both sides<br/>of the pass</h2>
+            <h2 className="hs-section-title">Built for Everyone<br/>in Hospitality</h2>
             <p className="hs-section-sub" style={{marginLeft:'auto',marginRight:'auto'}}>Whether you run a restaurant, hotel, bar, café or any hospitality venue looking for your next great hire — or you're a hospitality professional ready for your next move.</p>
           </div>
           <div className="hs-split reveal">
