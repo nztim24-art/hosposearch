@@ -2520,6 +2520,18 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const applied = job.apps?.some(a=>a.uid===currentUser?.id);
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
+  const [quickApplyVisible, setQuickApplyVisible] = useState(false);
+  const hoverTimer = useRef(null);
+
+  const onMouseEnter = () => {
+    if (applied) return;
+    hoverTimer.current = setTimeout(() => setQuickApplyVisible(true), 600);
+  };
+  const onMouseLeave = () => {
+    clearTimeout(hoverTimer.current);
+    setQuickApplyVisible(false);
+  };
+
   return (
     <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
       {job.featured && (
@@ -2544,8 +2556,24 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         </button>
         <button className="tap" onClick={e=>{e.stopPropagation(); onExpand(job);}} style={{ background:"none", border:"none", padding:"2px 0 2px 4px" }} title="View full listing"><Icon name="more" size={20} color={C.textSoft}/></button>
       </div>
-      <div onClick={()=>onExpand(job)} style={{ cursor:"pointer" }}>
+      <div onClick={()=>onExpand(job)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+        style={{ cursor:"pointer", position:"relative" }}>
         <Carousel photos={job.photos} video={job.video}/>
+        {/* Quick Apply overlay — desktop hover only */}
+        <div style={{
+          position:"absolute", inset:0,
+          background:"rgba(20,14,10,0.45)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          opacity: quickApplyVisible ? 1 : 0,
+          pointerEvents: quickApplyVisible ? "auto" : "none",
+          transition:"opacity 0.22s ease",
+          borderRadius:0,
+        }}>
+          <button className="tap" onClick={e=>{ e.stopPropagation(); onApply(job); }}
+            style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:100, padding:"13px 28px", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 20px rgba(0,0,0,0.35)", display:"flex", alignItems:"center", gap:8, cursor:"pointer", transform: quickApplyVisible ? "scale(1)" : "scale(0.9)", transition:"transform 0.22s ease" }}>
+            ⚡ Quick Apply
+          </button>
+        </div>
       </div>
       <div style={{ padding:"10px 14px 4px", display:"flex", alignItems:"center", gap:12 }}>
         <button className="btn-cta tap" onClick={e=>{e.stopPropagation();onApply(job);}}
@@ -5002,6 +5030,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             applicantPhone: fd.phone || '',
             applicantMessage: fd.msg || '',
             jobTitle: job.title,
+            venueName: job.venue || profileName || '',
             jobId: job.id,
             dashboardUrl: 'https://www.hosposearch.com.au/app',
           }),

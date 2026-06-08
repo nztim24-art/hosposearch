@@ -76,6 +76,7 @@ export default async function handler(req, res) {
   `;
 
   try {
+    // 1. Email employer
     const r = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -83,10 +84,10 @@ export default async function handler(req, res) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'HospoSearch <hello@hosposearch.com>',
+        from: 'HospoSearch Applications <applications@hosposearch.com.au>',
         to: [employerEmail],
-        reply_to: applicantEmail || 'hello@hosposearch.com',
-        subject: `Application received via HospoSearch — ${jobTitle}`,
+        reply_to: applicantEmail || 'applications@hosposearch.com.au',
+        subject: `New application via HospoSearch — ${jobTitle}`,
         html,
       }),
     });
@@ -95,6 +96,53 @@ export default async function handler(req, res) {
       const errText = await r.text();
       console.error('Resend error:', errText);
       return res.status(502).json({ error: 'Failed to send email', detail: errText });
+    }
+
+    // 2. Confirmation email to candidate
+    if (applicantEmail) {
+      const candidateHtml = `
+        <div style="font-family:'Helvetica Neue',Arial,sans-serif;max-width:520px;margin:0 auto;background:#FAF8F4;padding:32px 24px;border-radius:16px;">
+          <div style="font-family:Georgia,serif;font-size:24px;font-weight:700;color:#0F0E0C;margin-bottom:4px;">
+            <span style="color:#C4623A;">Hospo</span>Search
+          </div>
+          <div style="font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#7A7570;margin-bottom:24px;">Application Confirmation</div>
+          <div style="background:#fff;border:1px solid #E8E2D8;border-radius:14px;padding:24px;">
+            <p style="font-size:16px;color:#0F0E0C;margin:0 0 6px;">Hi ${(applicantName||'').split(' ')[0]},</p>
+            <p style="font-size:15px;color:#3A3733;line-height:1.6;margin:0 0 18px;">
+              Your application has been sent. Good luck! 🤞
+            </p>
+            <div style="background:#F5EDE7;border-radius:10px;padding:14px 16px;margin-bottom:18px;">
+              <div style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#7A7570;font-weight:600;margin-bottom:4px;">Role applied for</div>
+              <div style="font-family:Georgia,serif;font-size:18px;font-weight:700;color:#0F0E0C;">${jobTitle}</div>
+              ${req.body.venueName ? `<div style="font-size:13px;color:#7A7570;margin-top:3px;">${req.body.venueName}</div>` : ''}
+            </div>
+            <p style="font-size:13px;color:#7A7570;line-height:1.6;margin:0 0 18px;">
+              The venue will review your application and reach out directly if they'd like to move forward. You can track your applications in your HospoSearch dashboard.
+            </p>
+            <a href="${viewUrl}" style="display:inline-block;background:#C4623A;color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:14px 28px;border-radius:100px;">
+              View my applications &rarr;
+            </a>
+          </div>
+          <p style="font-size:12px;color:#C0BAB2;text-align:center;margin-top:24px;line-height:1.5;">
+            HospoSearch · The home of hospitality careers in ANZ
+          </p>
+        </div>
+      `;
+
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'HospoSearch <applications@hosposearch.com.au>',
+          to: [applicantEmail],
+          reply_to: 'hello@hosposearch.com.au',
+          subject: `Application sent — ${jobTitle}`,
+          html: candidateHtml,
+        }),
+      }).catch(e => console.warn('Candidate confirmation email failed:', e));
     }
 
     const data = await r.json();
