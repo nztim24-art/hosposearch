@@ -739,7 +739,15 @@ function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=
 }
 
 function Avatar({ emp, size=36, fontSize=18 }) {
-  return <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0 }}>{emp?.avatar||"👤"}</div>;
+  const imgUrl = emp?.logo_url || emp?.avatar_url;
+  return (
+    <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0, overflow:"hidden", border:`1px solid ${C.border}` }}>
+      {imgUrl
+        ? <img src={imgUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+        : (emp?.avatar||"👤")
+      }
+    </div>
+  );
 }
 
 function Chip({ label, color, bg, border }) {
@@ -3576,6 +3584,42 @@ function AccountSettings({ user, onLogout }) {
 function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout, altAccount, onSwitchAccount }) {
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
+  // Avatar / profile picture
+  const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const uploadAvatar = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    setAvatarSaving(true);
+    try {
+      const ext = f.name.split(".").pop();
+      const path = `avatars/${user.id}/avatar.${ext}`;
+      await supabase.storage.from("job-photos").upload(path, f, { upsert:true, contentType:f.type });
+      const { data: urlData } = supabase.storage.from("job-photos").getPublicUrl(path);
+      const url = urlData.publicUrl;
+      await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
+      setAvatarUrl(url);
+    } catch(e) { console.warn("Avatar upload error:", e); }
+    setAvatarSaving(false);
+  };
+
+  // Venue logo
+  const [logoUrl, setLogoUrl] = useState(user.logo_url || null);
+  const [logoSaving, setLogoSaving] = useState(false);
+  const uploadLogo = async (e) => {
+    const f = e.target.files[0]; if (!f) return;
+    setLogoSaving(true);
+    try {
+      const ext = f.name.split(".").pop();
+      const path = `logos/${user.id}/logo.${ext}`;
+      await supabase.storage.from("job-photos").upload(path, f, { upsert:true, contentType:f.type });
+      const { data: urlData } = supabase.storage.from("job-photos").getPublicUrl(path);
+      const url = urlData.publicUrl;
+      await supabase.from("profiles").update({ logo_url: url }).eq("id", user.id);
+      setLogoUrl(url);
+    } catch(e) { console.warn("Logo upload error:", e); }
+    setLogoSaving(false);
+  };
+
   // Bio section
   const [bio, setBio] = useState(user.bio||"");
   const [bioSaving, setBioSaving] = useState(false);
@@ -3667,14 +3711,38 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
   return (
     <div style={{ height:"100%", overflowY:"auto", padding:"20px 16px 40px" }}>
 
-      {/* Header */}
-      <div style={{ display:"flex", alignItems:"center", gap:14, marginBottom:16 }}>
-        <div style={{ width:72, height:72, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, border:`3px solid ${C.border}` }}>{user.avatar}</div>
-        <div>
+      {/* Header — avatar + logo */}
+      <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
+        {/* Profile picture */}
+        <label style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
+          <div style={{ width:72, height:72, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, border:`3px solid ${C.border}`, overflow:"hidden" }}>
+            {avatarUrl
+              ? <img src={avatarUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+              : <span>{user.avatar}</span>
+            }
+          </div>
+          <div style={{ position:"absolute", bottom:0, right:0, width:22, height:22, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            {avatarSaving ? <span style={{ fontSize:10 }}>⏳</span> : <Icon name="edit" size={11} color="#fff"/>}
+          </div>
+          <input type="file" accept="image/*" style={{ display:"none" }} onChange={uploadAvatar}/>
+        </label>
+        <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{user.name}</div>
-          <div style={{ color:C.textSoft, fontSize:13 }}>@{user.handle}</div>
-          {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginTop:2, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
+          <div style={{ color:C.textSoft, fontSize:13, marginBottom:6 }}>@{user.handle}</div>
+          {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
         </div>
+        {/* Venue logo */}
+        <label style={{ cursor:"pointer", flexShrink:0 }}>
+          <div style={{ width:64, height:64, borderRadius:12, background:logoUrl?"#fff":C.bgSoft, border:`2px dashed ${logoUrl?C.sage:C.borderMid}`, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", position:"relative" }}>
+            {logoUrl
+              ? <img src={logoUrl} alt="logo" style={{ width:"100%", height:"100%", objectFit:"contain", padding:4 }}/>
+              : <div style={{ textAlign:"center" }}><div style={{ fontSize:20, opacity:0.4 }}>🏷️</div><div style={{ fontSize:9, color:C.textFaint, marginTop:2 }}>LOGO</div></div>
+            }
+            {logoSaving && <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.7)", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:16 }}>⏳</span></div>}
+          </div>
+          <div style={{ fontSize:10, color:C.textFaint, textAlign:"center", marginTop:3 }}>Venue logo</div>
+          <input type="file" accept="image/*" style={{ display:"none" }} onChange={uploadLogo}/>
+        </label>
       </div>
 
       {/* Stats */}
@@ -3710,9 +3778,9 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
 
       {/* Documents */}
       <SectionCard title="📄 Documents" action={<SaveBtn saving={docSaving} saved={docSaved} onClick={saveDocs} label="Upload & Save"/>}>
-        <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>Upload your venue media kit, rate card, or any documents for candidates</div>
+        <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>Upload your venue media kit and a benefits sheet — candidates can download these from your listings</div>
         <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {[["Company Deck / Media Kit","resume","📋"],["Rate Card / Info Sheet","cover","✉️"]].map(([label, key, icon])=>{
+          {[["Company Deck / Media Kit","resume","📋"],["Benefits & Perks Sheet","cover","✉️"]].map(([label, key, icon])=>{
             const file = key==="resume" ? resume : cover;
             const setFile = key==="resume" ? setResume : setCover;
             return (
