@@ -3882,7 +3882,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TfwBfGkG9EGtGJgBv341e2n', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TfwBlGkG9EGtGJgGxDjQEhS', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TfwBrGkG9EGtGJg6O8z5oAu', featured:true } };
   const _initTier = _tierMap[_urlTier] || _tierMap.bronze;
 
-  const [tab, setTab] = useState(_urlParams.get('tier') ? "post" : "feed");
+  const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : "feed");
+  const [prevTab, setPrevTab] = useState("feed");
+  const setTab = (next) => { setPrevTab(t => t); setTabRaw(prev => { setPrevTab(prev); return next; }); };
+  const goBack = () => setTabRaw(prevTab);
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
 
@@ -4243,8 +4246,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {tab==="post" && !posted && (
           <div style={{ height:"100%", overflowY:"auto", padding:"16px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:16 }}>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700 }}>{editId ? "Edit Listing" : "New Job Listing"}</div>
-              {editId && <button className="tap" onClick={()=>{ resetForm(); setTab("feed"); }} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", color:C.textMid, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>}
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <button className="tap" onClick={()=>{ resetForm(); goBack(); }} style={{ background:"none", border:"none", padding:"4px 2px", display:"flex", alignItems:"center" }}><Icon name="back" size={22} color={C.textDark}/></button>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, color:C.textDark, fontWeight:700 }}>{editId ? "Edit Listing" : "New Job Listing"}</div>
+              </div>
+              {editId && <button className="tap" onClick={()=>{ resetForm(); goBack(); }} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:8, padding:"6px 14px", color:C.textMid, fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>}
             </div>
             <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
               <div style={{ display:"flex", justifyContent:"space-between", marginBottom:9 }}>
@@ -4597,7 +4603,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         {tab==="talent" && <CandidateDiscovery jobs={jobs} messages={messages} setMessages={setMessages} currentUser={user} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements}/>}
 
         {/* Messages */}
-        {tab==="messages" && <MessagesScreen currentUser={user} userType="employer" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("feed")}/>}
+        {tab==="messages" && <MessagesScreen currentUser={user} userType="employer" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
 
         {/* Analytics */}
         {tab==="subscribe" && (
@@ -4832,7 +4838,10 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
 
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
   const isDesktop = useIsDesktop();
-  const [tab, setTab] = useState("home");
+  const [tab, setTabRaw] = useState("home");
+  const [prevTab, setPrevTab] = useState("home");
+  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
+  const goBack = () => setTabRaw(prevTab);
   const [expandedJob, setExpandedJob] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
@@ -5065,8 +5074,8 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="following" && <FollowingScreen following={following} jobs={jobs} currentUser={user} onUnfollow={toggleFollow} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }}/>}
         {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
-        {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={()=>setTab("home")}/>}
-        {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={()=>setTab("home")}/>}
+        {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
+        {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={goBack}/>}
         {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
