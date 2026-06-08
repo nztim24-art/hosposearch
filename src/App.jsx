@@ -3042,7 +3042,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
 }
 
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
-function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TYxkgGgUkBXedj25MHNk2OX", user=null }) {
+function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TfwBfGkG9EGtGJgBv341e2n", user=null }) {
   const basePrice = tierPrice;
   const tierLabel = tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
 
@@ -3798,7 +3798,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const _urlParams = new URLSearchParams(window.location.search);
   const _urlTier = _urlParams.get('tier') || 'bronze';
   const _urlMode = _urlParams.get('mode') || 'listing';
-  const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TYxkgGgUkBXedj25MHNk2OX', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TYxkbGgUkBXedj236i5jbeg', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TYxkdGgUkBXedj2pS9j0zcZ', featured:true } };
+  const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TfwBfGkG9EGtGJgBv341e2n', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TfwBlGkG9EGtGJgGxDjQEhS', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TfwBrGkG9EGtGJg6O8z5oAu', featured:true } };
   const _initTier = _tierMap[_urlTier] || _tierMap.bronze;
 
   const [tab, setTab] = useState(_urlParams.get('tier') ? "post" : "feed");
@@ -4179,9 +4179,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Choose Your Listing Type</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {[
-                    { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TYxkgGgUkBXedj25MHNk2OX", perks:["Listed in the feed","Candidates can apply","7-day listing"], missing:["Not featured","No priority placement"] },
-                    { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TYxkbGgUkBXedj236i5jbeg", perks:["Everything in Bronze","⭐ Pinned to top of feed","Priority placement for 7 days","Featured badge on listing"], missing:[] },
-                    { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
+                    { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", perks:["Listed in the feed","Candidates can apply","7-day listing"], missing:["Not featured","No priority placement"] },
+                    { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", perks:["Everything in Bronze","⭐ Pinned to top of feed","Priority placement for 7 days","Featured badge on listing"], missing:[] },
+                    { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
                   ].map(tier=>(
                     <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
                       style={{ border:`2px solid ${nj.tier===tier.key?C.terracotta:C.border}`, borderRadius:13, padding:"14px 15px", background:nj.tier===tier.key?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
@@ -4208,13 +4208,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                 {nj.tier==="bronze" && (
                   <div style={{ marginTop:8, padding:"10px 13px", background:"#FFF8EE", borderRadius:10, border:"1px solid #F5A62333", display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
                     <div style={{ fontSize:12, color:C.textMid }}>⭐ <strong>Silver</strong> gets you pinned to the top of the feed for 30 days — 3× more applications on average.</div>
-                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"silver",featured:true,tierPrice:70,tierPriceId:"price_1TYxkbGgUkBXedj236i5jbeg"}))} style={{ flexShrink:0, background:"#F5A623", border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $70 →</button>
+                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"silver",featured:true,tierPrice:70,tierPriceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS"}))} style={{ flexShrink:0, background:"#F5A623", border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $70 →</button>
                   </div>
                 )}
                 {nj.tier==="silver" && (
                   <div style={{ marginTop:8, padding:"10px 13px", background:C.terracottaL, borderRadius:10, border:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
                     <div style={{ fontSize:12, color:C.textMid }}>🥇 <strong>Gold</strong> gets you shared on our Instagram & Facebook + applicant auto-ranking.</div>
-                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"gold",featured:true,tierPrice:100,tierPriceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ"}))} style={{ flexShrink:0, background:C.terracotta, border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $100 →</button>
+                    <button className="tap" onClick={()=>setNj(j=>({...j,tier:"gold",featured:true,tierPrice:100,tierPriceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu"}))} style={{ flexShrink:0, background:C.terracotta, border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $100 →</button>
                   </div>
                 )}
                 {/* Subscription option */}
@@ -4463,7 +4463,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         <NavBtn t="profile" ic="person" l="Profile"/>
       </div>
 
-      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TYxkgGgUkBXedj25MHNk2OX"} user={user}/>}
+      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
       {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={{}} following={[]} bookmarks={[]} onClose={()=>setExpandedJob(null)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={setVenueProfile}/>}
       {venueProfile && <VenueProfile emp={venueProfile} jobs={jobs} following={[]} currentUser={user} onToggleFollow={()=>{}} onApply={()=>{}} onBack={()=>setVenueProfile(null)}/>}
       {cropState && <ImageCropper src={cropState.src} onConfirm={(cropped)=>{ cropState.onDone(cropped); setCropState(null); }} onCancel={()=>setCropState(null)}/>}
@@ -4477,9 +4477,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
             <p style={{ color:C.textSoft, fontSize:13, marginBottom:20 }}>Post more, pay less. Cancel anytime.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {[
-                { name:"Starter", price:99, priceId:"price_1TYyDFGgUkBXedj2J0cf9bjG", sub:"3 active listings", featured:false, feats:["3 active listings at any time","All Bronze features on every listing","Application dashboard","Cancel anytime"] },
-                { name:"Growth",  price:199, priceId:"price_1TYyHMGgUkBXedj2SFs5zNUI", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","All Silver features on every listing","Candidate search & messaging","Cancel anytime"] },
-                { name:"Pro",     price:399, priceId:"price_1TYyLJGgUkBXedj2Jvagygug", sub:"10 active listings", featured:false, feats:["10 active listings at any time","All Gold features on every listing","Instagram & Facebook promotion","Analytics dashboard","Cancel anytime"] },
+                { name:"Starter", price:99, priceId:"price_1TfwByGkG9EGtGJg9FeaYFE2", sub:"3 active listings", featured:false, feats:["3 active listings at any time","All Bronze features on every listing","Application dashboard","Cancel anytime"] },
+                { name:"Growth",  price:199, priceId:"price_1TfwC5GkG9EGtGJglmXiYPOV", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","All Silver features on every listing","Candidate search & messaging","Cancel anytime"] },
+                { name:"Pro",     price:399, priceId:"price_1TfwCAGkG9EGtGJgDhgMbdHb", sub:"10 active listings", featured:false, feats:["10 active listings at any time","All Gold features on every listing","Instagram & Facebook promotion","Analytics dashboard","Cancel anytime"] },
               ].map(plan=>(
                 <div key={plan.name} style={{ background:"#fff", border:`${plan.featured?"2px":"1px"} solid ${plan.featured?C.terracotta:C.border}`, borderRadius:14, padding:"18px 20px", position:"relative" }}>
                   {plan.featured && <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)", background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"3px 14px", borderRadius:100, whiteSpace:"nowrap" }}>Most Popular</div>}
@@ -5040,7 +5040,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
   // Post job state
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
-  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TYxkgGgUkBXedj25MHNk2OX" });
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TfwBfGkG9EGtGJgBv341e2n" });
   const [njPhotos, setNjPhotos] = useState([]);
   const [cropState, setCropState] = useState(null);
   const pickAndCropAdmin = () => {

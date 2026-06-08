@@ -2,9 +2,9 @@
 // Creates a Stripe Checkout session for a one-time job listing payment.
 
 const PRICE_IDS = {
-  bronze: 'price_1TYxkgGgUkBXedj25MHNk2OX',  // $50
-  silver: 'price_1TYxkbGgUkBXedj236i5jbeg',   // $70
-  gold:   'price_1TYxkdGgUkBXedj2pS9j0zcZ',   // $100
+  bronze: 'price_1TfwBfGkG9EGtGJgBv341e2n',  // $50
+  silver: 'price_1TfwBlGkG9EGtGJgGxDjQEhS',   // $70
+  gold:   'price_1TfwBrGkG9EGtGJg6O8z5oAu',   // $100
 };
 
 export default async function handler(req, res) {

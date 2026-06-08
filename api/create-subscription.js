@@ -3,9 +3,9 @@
 // Redirects to Stripe hosted checkout, then back to the app on success/cancel.
 
 const PRICE_IDS = {
-  starter: 'price_1TYyDFGgUkBXedj2J0cf9bjG',  // $99/mo
-  growth:  'price_1TYyHMGgUkBXedj2SFs5zNUI',   // $199/mo
-  pro:     'price_1TYyLJGgUkBXedj2Jvagygug',   // $399/mo
+  starter: 'price_1TfwByGkG9EGtGJg9FeaYFE2',  // $99/mo
+  growth:  'price_1TfwC5GkG9EGtGJglmXiYPOV',   // $199/mo
+  pro:     'price_1TfwCAGkG9EGtGJgDhgMbdHb',   // $399/mo
 };
 
 export default async function handler(req, res) {
