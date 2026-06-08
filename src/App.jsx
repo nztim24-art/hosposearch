@@ -2603,9 +2603,9 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   };
   const isDesktopDetail = typeof window !== 'undefined' && window.innerWidth >= 768;
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3000, overflowY:"auto", backdropFilter:"blur(3px)", display:"flex", justifyContent:"center" }}>
-      <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth: isDesktopDetail ? 720 : 560, background:C.bg, minHeight:"100vh", margin: isDesktopDetail ? "20px auto" : 0, borderRadius: isDesktopDetail ? 20 : 0, overflow:"hidden" }}>
-        <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, position:"sticky", top:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3000, overflow:"hidden", backdropFilter:"blur(3px)", display:"flex", justifyContent:"center", alignItems: isDesktopDetail ? "center" : "flex-end" }}>
+      <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth: isDesktopDetail ? 720 : 560, background:C.bg, height: isDesktopDetail ? "90vh" : "100%", maxHeight: isDesktopDetail ? "90vh" : "100vh", margin: isDesktopDetail ? "0 auto" : 0, borderRadius: isDesktopDetail ? 20 : 0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
+        <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
           <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
           <div style={{ flex:1 }}>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600 }}>{job.venue||emp?.name}</div>
@@ -2617,6 +2617,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           </button>
           {onToggleBookmark && <button className="tap" onClick={()=>onToggleBookmark(job.id)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/></button>}
         </div>
+        <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
         <Carousel photos={job.photos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
@@ -2777,6 +2778,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               <div style={{ color:C.textSoft, fontSize:14 }}>{job.venue} will be in touch.</div>
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>
