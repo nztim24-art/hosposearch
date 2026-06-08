@@ -1,52 +1,58 @@
-import Stripe from 'stripe';
+// /api/create-subscription.js
+// Creates a Stripe Checkout session for a monthly subscription plan.
+// Redirects to Stripe hosted checkout, then back to the app on success/cancel.
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-const SUBSCRIPTION_PRICES = {
-  starter: 'price_1TYyDFGgUkBXedj2J0cf9bjG',
-  growth:  'price_1TYyHMGgUkBXedj2SFs5zNUI',
-  pro:     'price_1TYyLJGgUkBXedj2Jvagygug',
-};
-
-const TIER_LIMITS = {
-  starter: 3,
-  growth:  6,
-  pro:     10,
+const PRICE_IDS = {
+  starter: 'price_1TYyDFGgUkBXedj2J0cf9bjG',  // $99/mo
+  growth:  'price_1TYyHMGgUkBXedj2SFs5zNUI',   // $199/mo
+  pro:     'price_1TYyLJGgUkBXedj2Jvagygug',   // $399/mo
 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { plan, userEmail, userId, priceId } = req.body || {};
+
+  // Resolve price ID — accept either a plan name or a direct priceId
+  const resolvedPriceId = priceId || PRICE_IDS[plan?.toLowerCase()];
+
+  if (!resolvedPriceId) {
+    return res.status(400).json({ error: `Unknown plan: ${plan}` });
+  }
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    console.error('STRIPE_SECRET_KEY not set');
+    return res.status(500).json({ error: 'Payment service not configured' });
+  }
+
+  const origin = req.headers.origin || 'https://www.hosposearch.com.au';
+  const successUrl = `${origin}/app?subscription=success&plan=${plan || 'subscription'}`;
+  const cancelUrl  = `${origin}/app?subscription=cancelled`;
 
   try {
-    const { plan, userEmail, userId } = req.body;
-
-    if (!SUBSCRIPTION_PRICES[plan]) {
-      return res.status(400).json({ error: 'Invalid plan' });
-    }
-
-    const origin = req.headers.origin || 'https://hosposearch.com.au';
+    const stripe = await import('stripe').then(m => m.default(stripeKey));
 
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
-      line_items: [{ price: SUBSCRIPTION_PRICES[plan], quantity: 1 }],
-      automatic_tax: { enabled: true },
+      line_items: [{ price: resolvedPriceId, quantity: 1 }],
       customer_email: userEmail || undefined,
-      metadata: { plan, userId: userId || '', limit: TIER_LIMITS[plan] },
-      subscription_data: {
-        metadata: { plan, userId: userId || '', limit: TIER_LIMITS[plan] },
+      client_reference_id: userId || undefined,
+      metadata: {
+        plan: plan || 'subscription',
+        userId: userId || '',
+        userEmail: userEmail || '',
       },
-      success_url: `${origin}/app?subscription=success&plan=${plan}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/app?subscription=cancelled`,
-      billing_address_collection: 'auto',
+      success_url: successUrl,
+      cancel_url:  cancelUrl,
+      allow_promotion_codes: true,
     });
 
-    res.status(200).json({ url: session.url });
+    return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Stripe subscription error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Stripe create-subscription error:', err.message);
+    return res.status(502).json({ error: 'Stripe error', detail: err.message });
   }
 }

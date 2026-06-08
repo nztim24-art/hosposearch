@@ -1,49 +1,58 @@
-import Stripe from 'stripe';
+// /api/create-checkout.js
+// Creates a Stripe Checkout session for a one-time job listing payment.
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
-const PRICES = {
-  bronze: 'price_1TYxkgGgUkBXedj25MHNk2OX',
-  silver: 'price_1TYxkbGgUkBXedj236i5jbeg',
-  gold:   'price_1TYxkdGgUkBXedj2pS9j0zcZ',
+const PRICE_IDS = {
+  bronze: 'price_1TYxkgGgUkBXedj25MHNk2OX',  // $50
+  silver: 'price_1TYxkbGgUkBXedj236i5jbeg',   // $70
+  gold:   'price_1TYxkdGgUkBXedj2pS9j0zcZ',   // $100
 };
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  const { tier, jobTitle, venueEmail, jobId, priceId } = req.body || {};
+
+  // Resolve price ID — accept either a tier name or a direct priceId
+  const resolvedPriceId = priceId || PRICE_IDS[tier?.toLowerCase()];
+
+  if (!resolvedPriceId) {
+    return res.status(400).json({ error: `Unknown tier: ${tier}` });
+  }
+
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    console.error('STRIPE_SECRET_KEY not set');
+    return res.status(500).json({ error: 'Payment service not configured' });
+  }
+
+  const origin = req.headers.origin || 'https://www.hosposearch.com.au';
+  const successUrl = `${origin}/app?payment=success&tier=${tier || 'bronze'}&jobId=${jobId || ''}`;
+  const cancelUrl  = `${origin}/app?payment=cancelled`;
 
   try {
-    const { tier, jobTitle, venueEmail, jobId, discountCode, priceId } = req.body;
-
-    // Use explicitly passed priceId if provided, otherwise fall back to tier lookup
-    const resolvedPriceId = priceId || PRICES[tier];
-
-    if (!resolvedPriceId) {
-      return res.status(400).json({ error: 'Invalid listing tier' });
-    }
-
-    const origin = req.headers.origin || 'https://hosposearch.com.au';
+    const stripe = await import('stripe').then(m => m.default(stripeKey));
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       line_items: [{ price: resolvedPriceId, quantity: 1 }],
-      automatic_tax: { enabled: true },
       customer_email: venueEmail || undefined,
-      metadata: { tier: tier||'bronze', jobTitle: jobTitle || '', jobId: jobId || '' },
-      payment_intent_data: {
-        metadata: { tier: tier||'bronze', jobTitle: jobTitle || '', jobId: jobId || '' },
-        statement_descriptor: 'HOSPOSEARCH',
+      client_reference_id: jobId || undefined,
+      metadata: {
+        tier: tier || 'bronze',
+        jobTitle: jobTitle || '',
+        jobId: jobId || '',
+        venueEmail: venueEmail || '',
       },
-      success_url: `${origin}/app?payment=success&tier=${tier||'bronze'}&jobId=${jobId || ''}&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/app?payment=cancelled`,
+      success_url: successUrl,
+      cancel_url:  cancelUrl,
+      allow_promotion_codes: true,
     });
 
-    res.status(200).json({ url: session.url });
+    return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {
-    console.error('Stripe error:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Stripe create-checkout error:', err.message);
+    return res.status(502).json({ error: 'Stripe error', detail: err.message });
   }
 }
