@@ -4009,9 +4009,12 @@ const PIPELINE_STAGES = ["Sent","Viewed","Shortlisted","Interview","Offer","Not 
 const STAGE_BG = { Sent:C.bgSoft, Viewed:C.blueL, Shortlisted:C.sageL, Interview:"#FFF8EE", Offer:"#ECFDF5", "Not Suitable":"#FEF2F0" };
 const STAGE_FG = { Sent:C.textMid, Viewed:C.blue, Shortlisted:C.sage, Interview:C.featured, Offer:C.sage, "Not Suitable":C.error };
 
-function ApplicantDetailCard({ a, job, user, setJobs, setMessages, setTab }) {
+function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessages, setTab }) {
   const setStatus = async (newStatus) => {
-    setJobs(p=>p.map(jj=>jj.id===job.id?{...jj,apps:jj.apps.map(ap=>ap.id===a.id?{...ap,status:newStatus}:ap)}:jj));
+    // Update the displayed source (supabaseApps) immediately
+    if (setSupabaseApps) setSupabaseApps(prev => prev.map(ap => ap.id===a.id ? { ...ap, status:newStatus } : ap));
+    // Keep jobs array in sync too (used elsewhere)
+    setJobs(p=>p.map(jj=>jj.id===job.id?{...jj,apps:(jj.apps||[]).map(ap=>ap.id===a.id?{...ap,status:newStatus}:ap)}:jj));
     try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){}
   };
   const messageApplicant = () => {
@@ -4100,7 +4103,7 @@ function ScreenRow({ label, value }) {
   );
 }
 
-function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, setTab, isDesktop }) {
+function ApplicationsManager({ mine, sel, setSel, user, setJobs, setSupabaseApps, setMessages, setTab, isDesktop }) {
   // All applications across the employer's listings (or just the selected job)
   const sourceJobs = sel ? [sel] : mine;
   const allApps = sourceJobs.flatMap(j => (j.apps||[]).map(a => ({ ...a, _job:j })));
@@ -4115,10 +4118,10 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, se
     .filter(a => !search.trim() || (a.name||"").toLowerCase().includes(search.toLowerCase()) || (a.email||"").toLowerCase().includes(search.toLowerCase()))
     .sort((a,b)=>b.ts-a.ts);
 
-  const selectedApp = filtered.find(a=>a.id===selectedAppId) || filtered[0] || null;
+  const selectedApp = allApps.find(a=>a.id===selectedAppId) || filtered[0] || null;
 
   // ── Pipeline rail ──
-  const PipelineRail = () => (
+  const renderPipelineRail = () => (
     <div>
       <div style={{ position:"relative", marginBottom:10 }}>
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search names or email…"
@@ -4135,7 +4138,7 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, se
   );
 
   // ── Applicant list (mobile + the middle column on desktop) ──
-  const ApplicantList = ({ onPick }) => (
+  const renderApplicantList = (onPick) => (
     <div>
       {filtered.length===0 && (
         <div style={{ padding:"30px 16px", textAlign:"center", color:C.textFaint, fontSize:13, background:"#fff", borderRadius:11, border:`1px dashed ${C.border}` }}>
@@ -4172,11 +4175,11 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, se
           <span style={{ color:C.textSoft, fontSize:13 }}>· {allApps.length} total</span>
         </div>
         <div style={{ flex:1, display:"grid", gridTemplateColumns:"230px 300px 1fr", overflow:"hidden" }}>
-          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14, background:C.bgSoft }}><PipelineRail/></div>
-          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14 }}><ApplicantList onPick={setSelectedAppId}/></div>
+          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14, background:C.bgSoft }}>{renderPipelineRail()}</div>
+          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14 }}>{renderApplicantList(setSelectedAppId)}</div>
           <div style={{ overflowY:"auto", padding:20 }}>
             {selectedApp
-              ? <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab}/>
+              ? <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setSupabaseApps={setSupabaseApps} setMessages={setMessages} setTab={setTab}/>
               : <div style={{ textAlign:"center", color:C.textFaint, fontSize:14, marginTop:60 }}>Select an applicant to view details</div>
             }
           </div>
@@ -4194,7 +4197,7 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, se
       </div>
 
       {selectedAppId && selectedApp ? (
-        <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab}/>
+        <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setSupabaseApps={setSupabaseApps} setMessages={setMessages} setTab={setTab}/>
       ) : (
         <>
           {/* Stage filter chips */}
@@ -4206,7 +4209,7 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, se
               </button>
             ))}
           </div>
-          <ApplicantList onPick={setSelectedAppId}/>
+          {renderApplicantList(setSelectedAppId)}
         </>
       )}
     </div>
@@ -4886,7 +4889,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Applications */}
         {tab==="apps" && (
-          <ApplicationsManager mine={mine} sel={sel} setSel={setSel} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab} isDesktop={isDesktop}/>
+          <ApplicationsManager mine={mine} sel={sel} setSel={setSel} user={user} setJobs={setJobs} setSupabaseApps={setSupabaseApps} setMessages={setMessages} setTab={setTab} isDesktop={isDesktop}/>
         )}
 
         {/* Talent discovery */}
