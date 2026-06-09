@@ -3994,6 +3994,225 @@ function EmployerBrowse({ jobs, user, onExpand }) {
   );
 }
 
+// ─── Applications Manager (SEEK-style pipeline) ──────────────────────────────
+const SCREENING_Q_LABELS = {
+  rightToWork:         'Right to work',
+  yearsExperience:     'Years of experience',
+  noticePeriod:        'Notice period',
+  policeCheck:         'Police check',
+  availableWeekends:   'Available weekends',
+  availablePublicHols: 'Available public holidays',
+  driverLicence:       "Driver's licence",
+  willingToRelocate:   'Willing to relocate',
+};
+const PIPELINE_STAGES = ["Sent","Viewed","Shortlisted","Interview","Offer","Not Suitable"];
+const STAGE_BG = { Sent:C.bgSoft, Viewed:C.blueL, Shortlisted:C.sageL, Interview:"#FFF8EE", Offer:"#ECFDF5", "Not Suitable":"#FEF2F0" };
+const STAGE_FG = { Sent:C.textMid, Viewed:C.blue, Shortlisted:C.sage, Interview:C.featured, Offer:C.sage, "Not Suitable":C.error };
+
+function ApplicantDetailCard({ a, job, user, setJobs, setMessages, setTab }) {
+  const setStatus = async (newStatus) => {
+    setJobs(p=>p.map(jj=>jj.id===job.id?{...jj,apps:jj.apps.map(ap=>ap.id===a.id?{...ap,status:newStatus}:ap)}:jj));
+    try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){}
+  };
+  const messageApplicant = () => {
+    const key=`${a.uid}-${user.id}`;
+    setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${job.title}. We'd love to have a chat.`, ts:Date.now() }] }));
+    setTab("messages");
+  };
+  const screening = a.screeningAnswers || {};
+  const screeningKeys = Object.keys(screening).filter(k=>screening[k]);
+  return (
+    <div style={{ padding:"4px 2px" }}>
+      {/* Header */}
+      <div style={{ display:"flex", alignItems:"flex-start", gap:12, marginBottom:14 }}>
+        <div style={{ width:48, height:48, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, color:"#fff", fontWeight:700, flexShrink:0 }}>
+          {(a.name||"?").charAt(0).toUpperCase()}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:19, fontWeight:700, color:C.textDark }}>{a.name}</div>
+          <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>Applied {ago(a.ts)} ago</div>
+          <div style={{ display:"flex", gap:6, marginTop:6, flexWrap:"wrap" }}>
+            <span style={{ background:STAGE_BG[a.status||"Sent"], color:STAGE_FG[a.status||"Sent"], fontSize:11, fontWeight:700, padding:"3px 10px", borderRadius:20 }}>{a.status||"Sent"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Contact + actions */}
+      <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
+        {a.email && <a href={`mailto:${a.email}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>✉️ {a.email}</a>}
+        {a.phone && <a href={`tel:${a.phone}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>📞 {a.phone}</a>}
+        <button className="tap" onClick={messageApplicant} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"7px 14px", color:C.terracotta, fontSize:13, fontWeight:700 }}>Message</button>
+      </div>
+
+      {/* Documents */}
+      {(a.resume_url||a.cover_url) && (
+        <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
+          {a.resume_url && <a href={a.resume_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:6, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:9, padding:"9px 14px", color:C.sage, fontSize:13, fontWeight:600, textDecoration:"none" }}>📋 Download Résumé ↗</a>}
+          {a.cover_url && <a href={a.cover_url} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:6, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:9, padding:"9px 14px", color:C.sage, fontSize:13, fontWeight:600, textDecoration:"none" }}>✉️ Download Cover Letter ↗</a>}
+        </div>
+      )}
+
+      {/* Cover note */}
+      {a.msg && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Cover note</div>
+          <div style={{ color:C.textMid, fontSize:14, background:C.bgSoft, padding:"12px 14px", borderRadius:10, lineHeight:1.6, fontStyle:"italic" }}>"{a.msg}"</div>
+        </div>
+      )}
+
+      {/* Screening questions checklist */}
+      {(screeningKeys.length>0 || a.visa || a.notice || (a.availability||[]).length>0 || (a.hours||[]).length>0) && (
+        <div style={{ marginBottom:16 }}>
+          <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Screening questions</div>
+          <div style={{ border:`1px solid ${C.border}`, borderRadius:11, overflow:"hidden" }}>
+            {a.visa && <ScreenRow label="Right to work / visa" value={a.visa}/>}
+            {(a.availability||[]).length>0 && <ScreenRow label="Availability" value={(a.availability||[]).join(", ")}/>}
+            {(a.hours||[]).length>0 && <ScreenRow label="Preferred hours" value={(a.hours||[]).join(", ")}/>}
+            {a.notice && <ScreenRow label="Notice period" value={a.notice}/>}
+            {screeningKeys.map(k=><ScreenRow key={k} label={SCREENING_Q_LABELS[k]||k} value={screening[k]}/>)}
+          </div>
+        </div>
+      )}
+
+      {/* Move through pipeline */}
+      <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Move to stage</div>
+      <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
+        {PIPELINE_STAGES.map(s=>(
+          <button key={s} className="tap" onClick={()=>setStatus(s)}
+            style={{ background:(a.status||"Sent")===s?STAGE_FG[s]:STAGE_BG[s], color:(a.status||"Sent")===s?"#fff":STAGE_FG[s], border:`1px solid ${(a.status||"Sent")===s?STAGE_FG[s]:C.border}`, borderRadius:20, padding:"7px 14px", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ScreenRow({ label, value }) {
+  return (
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"10px 13px", borderBottom:`1px solid ${C.border}`, background:"#fff" }}>
+      <span style={{ color:C.sage, fontSize:14, marginTop:1, flexShrink:0 }}>✓</span>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ color:C.textSoft, fontSize:12 }}>{label}</div>
+        <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginTop:1 }}>{value}</div>
+      </div>
+    </div>
+  );
+}
+
+function ApplicationsManager({ mine, sel, setSel, user, setJobs, setMessages, setTab, isDesktop }) {
+  // All applications across the employer's listings (or just the selected job)
+  const sourceJobs = sel ? [sel] : mine;
+  const allApps = sourceJobs.flatMap(j => (j.apps||[]).map(a => ({ ...a, _job:j })));
+  const [stageFilter, setStageFilter] = useState("All");
+  const [selectedAppId, setSelectedAppId] = useState(null);
+  const [search, setSearch] = useState("");
+
+  const counts = PIPELINE_STAGES.reduce((acc,s)=>{ acc[s]=allApps.filter(a=>(a.status||"Sent")===s).length; return acc; }, { All: allApps.length });
+
+  const filtered = allApps
+    .filter(a => stageFilter==="All" || (a.status||"Sent")===stageFilter)
+    .filter(a => !search.trim() || (a.name||"").toLowerCase().includes(search.toLowerCase()) || (a.email||"").toLowerCase().includes(search.toLowerCase()))
+    .sort((a,b)=>b.ts-a.ts);
+
+  const selectedApp = filtered.find(a=>a.id===selectedAppId) || filtered[0] || null;
+
+  // ── Pipeline rail ──
+  const PipelineRail = () => (
+    <div>
+      <div style={{ position:"relative", marginBottom:10 }}>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search names or email…"
+          style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", fontSize:13, color:C.textDark }}/>
+      </div>
+      {[["All","All applications"],...PIPELINE_STAGES.map(s=>[s,s])].map(([key,label])=>(
+        <button key={key} className="tap" onClick={()=>{ setStageFilter(key); setSelectedAppId(null); }}
+          style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"11px 13px", marginBottom:4, background:stageFilter===key?C.terracottaL:"#fff", border:`1px solid ${stageFilter===key?C.terracottaM:C.border}`, borderRadius:10, cursor:"pointer" }}>
+          <span style={{ color:stageFilter===key?C.terracotta:C.textDark, fontSize:13, fontWeight:stageFilter===key?700:500 }}>{label}</span>
+          <span style={{ background:key!=="All"?STAGE_BG[key]:C.bgSoft, color:key!=="All"?STAGE_FG[key]:C.textMid, fontSize:12, fontWeight:700, minWidth:24, textAlign:"center", padding:"2px 8px", borderRadius:20 }}>{counts[key]||0}</span>
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── Applicant list (mobile + the middle column on desktop) ──
+  const ApplicantList = ({ onPick }) => (
+    <div>
+      {filtered.length===0 && (
+        <div style={{ padding:"30px 16px", textAlign:"center", color:C.textFaint, fontSize:13, background:"#fff", borderRadius:11, border:`1px dashed ${C.border}` }}>
+          {allApps.length===0 ? "No applications yet" : `No ${stageFilter==="All"?"":stageFilter+" "}applications`}
+        </div>
+      )}
+      {filtered.map(a=>(
+        <button key={a.id} className="tap" onClick={()=>onPick(a.id)}
+          style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:11, padding:"12px 13px", marginBottom:6, background:selectedApp?.id===a.id?C.terracottaL:"#fff", border:`1px solid ${selectedApp?.id===a.id?C.terracottaM:C.border}`, borderRadius:12, cursor:"pointer" }}>
+          <div style={{ width:40, height:40, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:16, color:"#fff", fontWeight:700, flexShrink:0 }}>
+            {(a.name||"?").charAt(0).toUpperCase()}
+          </div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ color:C.textDark, fontWeight:700, fontSize:14, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a.name}</div>
+            {!sel && <div style={{ color:C.textSoft, fontSize:11, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{a._job?.title}</div>}
+            <div style={{ display:"flex", alignItems:"center", gap:6, marginTop:3 }}>
+              <span style={{ background:STAGE_BG[a.status||"Sent"], color:STAGE_FG[a.status||"Sent"], fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:20 }}>{a.status||"Sent"}</span>
+              <span style={{ color:C.textFaint, fontSize:11 }}>{ago(a.ts)} ago</span>
+            </div>
+          </div>
+          {(a.resume_url||a.cover_url) && <span style={{ color:C.sage, fontSize:13 }}>📎</span>}
+        </button>
+      ))}
+    </div>
+  );
+
+  // ── DESKTOP: three-column pipeline | list | detail ──
+  if (isDesktop) {
+    return (
+      <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+          {sel && <button className="tap" onClick={()=>setSel(null)} style={{ background:"none", border:"none", padding:2 }}><Icon name="back" size={20} color={C.textDark}/></button>}
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{sel?sel.title:"All Applications"}</div>
+          <span style={{ color:C.textSoft, fontSize:13 }}>· {allApps.length} total</span>
+        </div>
+        <div style={{ flex:1, display:"grid", gridTemplateColumns:"230px 300px 1fr", overflow:"hidden" }}>
+          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14, background:C.bgSoft }}><PipelineRail/></div>
+          <div style={{ borderRight:`1px solid ${C.border}`, overflowY:"auto", padding:14 }}><ApplicantList onPick={setSelectedAppId}/></div>
+          <div style={{ overflowY:"auto", padding:20 }}>
+            {selectedApp
+              ? <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab}/>
+              : <div style={{ textAlign:"center", color:C.textFaint, fontSize:14, marginTop:60 }}>Select an applicant to view details</div>
+            }
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── MOBILE: list → drill into detail ──
+  return (
+    <div style={{ height:"100%", overflowY:"auto", padding:"14px" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
+        {(sel || selectedAppId) && <button className="tap" onClick={()=>{ if(selectedAppId) setSelectedAppId(null); else setSel(null); }} style={{ background:"none", border:"none", padding:2 }}><Icon name="back" size={20} color={C.textDark}/></button>}
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700 }}>{selectedAppId&&selectedApp?selectedApp.name:sel?sel.title:"Applications"}</div>
+      </div>
+
+      {selectedAppId && selectedApp ? (
+        <ApplicantDetailCard a={selectedApp} job={selectedApp._job} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab}/>
+      ) : (
+        <>
+          {/* Stage filter chips */}
+          <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:10, marginBottom:6 }}>
+            {[["All",`All ${counts.All}`],...PIPELINE_STAGES.map(s=>[s,`${s} ${counts[s]||0}`])].map(([key,label])=>(
+              <button key={key} className="tap" onClick={()=>setStageFilter(key)}
+                style={{ flexShrink:0, background:stageFilter===key?C.terracotta:"#fff", color:stageFilter===key?"#fff":C.textMid, border:`1px solid ${stageFilter===key?C.terracotta:C.border}`, borderRadius:20, padding:"6px 13px", fontSize:12, fontWeight:600, whiteSpace:"nowrap" }}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <ApplicantList onPick={setSelectedAppId}/>
+        </>
+      )}
+    </div>
+  );
+}
+
 function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
   // Read tier/mode from URL on mount (passed from landing page Get Started buttons)
   const _urlParams = new URLSearchParams(window.location.search);
@@ -4662,76 +4881,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Applications */}
         {tab==="apps" && (
-          <div style={{ height:"100%", overflowY:"auto", padding:"14px" }}>
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-              {sel && <button className="tap" onClick={()=>setSel(null)} style={{ background:"none", border:"none", padding:2 }}><Icon name="back" size={20} color={C.textDark}/></button>}
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:19, color:C.textDark, fontWeight:700 }}>{sel?sel.title:"All Applications"}</div>
-            </div>
-            {(sel?[sel]:mine).map(j=>(
-              <div key={j.id}>
-                {!sel && <div style={{ color:C.textSoft, fontSize:11, fontWeight:700, textTransform:"uppercase", letterSpacing:1, marginBottom:6, marginTop:10 }}>{j.title}</div>}
-                {(()=>{
-                  const filtered = (j.apps||[]).filter(a=>appStatusFilter==="All"||(a.status||"Sent")===appStatusFilter);
-                  if(filtered.length===0) return <div style={{ padding:"16px", background:"#fff", borderRadius:11, color:C.textFaint, fontSize:13, textAlign:"center", border:`1px dashed ${C.border}` }}>{(j.apps||[]).length===0?"No applications yet":`No ${appStatusFilter} applications`}</div>;
-                  return filtered.map((a,i)=>(
-                    <div key={i} style={{ background:"#fff", borderRadius:13, padding:"12px 14px", border:`1px solid ${C.border}`, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:9, marginBottom:a.msg||a.resume||a.cover?9:0 }}>
-                        <div style={{ width:36, height:36, borderRadius:11, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>👤</div>
-                        <div style={{ flex:1 }}><div style={{ color:C.textDark, fontWeight:600, fontSize:14 }}>{a.name}</div><div style={{ color:C.textFaint, fontSize:11 }}>{ago(a.ts)} ago</div></div>
-                        <div style={{ display:"flex", gap:6 }}>
-                          <select value={a.status||"Sent"} onChange={async e=>{ const newStatus=e.target.value; setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,apps:jj.apps.map((ap,ii)=>ii===i?{...ap,status:newStatus}:ap)}:jj)); try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){} }}
-                            style={{ background:({Sent:C.bgSoft,Viewed:C.blueL,Shortlisted:C.sageL,Interview:"#FFF8EE","Not Suitable":"#FEF2F0",Offer:"#ECFDF5"})[a.status||"Sent"]||C.bgSoft, border:`1px solid ${C.border}`, borderRadius:7, padding:"4px 8px", color:({Sent:C.textMid,Viewed:C.blue,Shortlisted:C.sage,Interview:C.featured,"Not Suitable":C.error,Offer:C.sage})[a.status||"Sent"]||C.textMid, fontSize:11, cursor:"pointer", fontWeight:600 }}>
-                            {["Sent","Viewed","Shortlisted","Interview","Not Suitable","Offer"].map(s=><option key={s}>{s}</option>)}
-                          </select>
-                          <button className="tap" onClick={()=>{ const key=`${a.uid}-${user.id}`; setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${j.title}. We'd love to have a chat.`, ts:Date.now() }] })); setTab("messages"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Message</button>
-                        </div>
-                      </div>
-                      {/* Contact details */}
-                      {(a.email||a.phone) && (
-                        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:7 }}>
-                          {a.email && <a href={`mailto:${a.email}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:12, fontWeight:600, textDecoration:"none" }}>✉️ {a.email}</a>}
-                          {a.phone && <a href={`tel:${a.phone}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:12, fontWeight:600, textDecoration:"none" }}>📞 {a.phone}</a>}
-                        </div>
-                      )}
-                      {a.msg && <div style={{ color:C.textMid, fontSize:13, background:C.bgSoft, padding:"9px 11px", borderRadius:8, lineHeight:1.55, marginBottom:7 }}>{a.msg}</div>}
-                      {/* Application details */}
-                      {(a.visa||a.notice||(a.availability||[]).length>0) && (
-                        <div style={{ background:C.bgSoft, borderRadius:8, padding:"8px 11px", marginBottom:7, display:"flex", flexWrap:"wrap", gap:6 }}>
-                          {a.visa && <span style={{ color:C.textSoft, fontSize:11 }}>🛂 {a.visa}</span>}
-                          {a.notice && <span style={{ color:C.textSoft, fontSize:11 }}>⏱ {a.notice}</span>}
-                          {(a.availability||[]).length>0 && <span style={{ color:C.textSoft, fontSize:11 }}>📅 {(a.availability||[]).join(", ")}</span>}
-                        </div>
-                      )}
-                      {(a.resume||a.cover) && (
-                        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                          {a.resume && (
-                            <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
-                              <span style={{ fontSize:12 }}>📋</span>
-                              {a.resume_url
-                                ? <a href={a.resume_url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, fontWeight:600, textDecoration:"none" }}>Download Résumé ↗</a>
-                                : <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Résumé</span>
-                              }
-                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.resume_name||a.resume?.name||""}</span>
-                            </div>
-                          )}
-                          {a.cover && (
-                            <div style={{ display:"flex", alignItems:"center", gap:5, background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:8, padding:"5px 10px" }}>
-                              <span style={{ fontSize:12 }}>✉️</span>
-                              {a.cover_url
-                                ? <a href={a.cover_url} target="_blank" rel="noreferrer" style={{ color:C.sage, fontSize:12, fontWeight:600, textDecoration:"none" }}>Download Cover Letter ↗</a>
-                                : <span style={{ color:C.sage, fontSize:12, fontWeight:600 }}>Cover Letter</span>
-                              }
-                              <span style={{ color:C.textFaint, fontSize:10 }}>{a.cover_name||a.cover?.name||""}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  ));
-                })()}
-              </div>
-            ))}
-          </div>
+          <ApplicationsManager mine={mine} sel={sel} setSel={setSel} user={user} setJobs={setJobs} setMessages={setMessages} setTab={setTab} isDesktop={isDesktop}/>
         )}
 
         {/* Talent discovery */}
