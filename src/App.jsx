@@ -4225,7 +4225,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
   const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : (_viewParam==="apps" ? "apps" : "feed"));
   const [prevTab, setPrevTab] = useState("feed");
-  const setTab = (next) => { setPrevTab(t => t); setTabRaw(prev => { setPrevTab(prev); return next; }); };
+  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
   const goBack = () => setTabRaw(prevTab);
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
@@ -4496,6 +4496,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         </div>
       )}
       <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.96)", backdropFilter:"blur(10px)", flexShrink:0 }}>
+        {tab!=="feed" && (
+          <button className="tap" onClick={goBack} style={{ background:"none", border:"none", padding:"2px 8px 2px 0", marginRight:4, display:"flex", alignItems:"center" }} title="Back">
+            <Icon name="back" size={22} color={C.textDark}/>
+          </button>
+        )}
         <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, flex:1 }}>{user.avatar} {user.name}</div>
         {user.isTrial
           ? <span style={{ background:C.sageL, color:C.sage, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.sage}50`, marginRight:10 }}>TRIAL</span>
@@ -5340,6 +5345,11 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       <style>{G}</style>
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", padding:"10px 16px", borderBottom:`1px solid ${C.border}`, background:"rgba(255,255,255,0.97)", backdropFilter:"blur(10px)", flexShrink:0, zIndex:50 }}>
+        {tab!=="home" && (
+          <button className="tap" onClick={goBack} style={{ background:"none", border:"none", padding:"2px 8px 2px 0", display:"flex", alignItems:"center" }} title="Back">
+            <Icon name="back" size={22} color={C.textDark}/>
+          </button>
+        )}
         <a href="/" style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:24, color:C.textDark, flex:1, letterSpacing:-0.3, textDecoration:"none" }}><span style={{ color:C.terracotta }}>Hospo</span>Search</a>
         <div style={{ display:"flex", gap:8, alignItems:"center" }}>
           <button className="tap" onClick={()=>setNotifOpen(true)} style={{ background:"none", border:"none", padding:2, position:"relative" }}>
@@ -5607,7 +5617,10 @@ function AdminUploads({ supabase }) {
 }
 
 function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
-  const [tab, setTab] = useState("listings");
+  const [tab, setTabRaw] = useState("listings");
+  const [prevTab, setPrevTab] = useState("listings");
+  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
+  const goBack = () => setTabRaw(prevTab);
   const [editJob, setEditJob] = useState(null);
   const [viewJob, setViewJob] = useState(null);
   const [editUser, setEditUser] = useState(null);
@@ -5705,7 +5718,17 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
       <style>{G}</style>
       <div style={{ display:"flex", alignItems:"center", padding:"12px 16px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        {(editJob||viewJob||editUser) ? (
+          <button className="tap" onClick={()=>{ setEditJob(null); setViewJob(null); setEditUser(null); }} style={{ background:"none", border:"none", padding:"2px 8px 2px 0", display:"flex", alignItems:"center" }} title="Back">
+            <Icon name="back" size={22} color={C.textDark}/>
+          </button>
+        ) : tab!=="listings" && (
+          <button className="tap" onClick={goBack} style={{ background:"none", border:"none", padding:"2px 8px 2px 0", display:"flex", alignItems:"center" }} title="Back">
+            <Icon name="back" size={22} color={C.textDark}/>
+          </button>
+        )}
         <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:19, color:C.textDark, flex:1 }}>🛡️ Admin Panel</div>
+        <button className="tap" onClick={()=>window.location.href='/'} style={{ background:"none", border:"none", marginRight:10, padding:2 }} title="Home"><Icon name="home" size={20} color={C.textSoft}/></button>
         <span style={{ background:"#FEF2F0", color:C.error, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.error}30`, marginRight:10 }}>ADMIN</span>
         <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
       </div>
