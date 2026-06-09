@@ -296,16 +296,20 @@ export async function uploadDocument(file, applicantId, type) {
 }
 
 export async function applyForJob(jobId, applicantId, formData) {
-  // Upload documents to Supabase Storage first
+  // Upload documents to Supabase Storage first (only if new file data provided)
   let resumeData = null
   let coverData = null
-  
+
   if (formData.resume?.data) {
     resumeData = await uploadDocument(formData.resume, applicantId, 'resume')
   }
   if (formData.cover?.data) {
     coverData = await uploadDocument(formData.cover, applicantId, 'cover')
   }
+
+  // Fall back to an existing URL from the candidate's saved profile docs
+  const resumeUrl  = resumeData?.url || formData.resume?.url || null
+  const coverUrl   = coverData?.url  || formData.cover?.url  || null
 
   const { data, error } = await supabase
     .from('applications')
@@ -322,9 +326,10 @@ export async function applyForJob(jobId, applicantId, formData) {
       notice:       formData.notice || '',
       resume_name:  formData.resume?.name || null,
       resume_size:  formData.resume?.size || null,
-      resume_url:   resumeData?.url || null,
+      resume_url:   resumeUrl,
       cover_name:   formData.cover?.name || null,
-      cover_url:    coverData?.url || null,
+      cover_url:    coverUrl,
+      screening_answers: formData.screeningAnswers || {},
     })
     .select().single()
   if (error) {

@@ -2634,7 +2634,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
   const submit = () => {
     if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
-    onApply(job, {...fd, resume, cover}); setDone(true);
+    onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}}); setDone(true);
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
   const isDesktopDetail = typeof window !== 'undefined' && window.innerWidth >= 768;
@@ -2785,6 +2785,40 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     })}
                   </div>
                 </div>
+
+                {/* Screening questions from employer */}
+                {job.screeningQ && Object.keys(job.screeningQ).filter(k=>job.screeningQ[k]).length > 0 && (() => {
+                  const SCREENING_LABELS = {
+                    rightToWork:        'Right to work in this country?',
+                    yearsExperience:    'Years of hospitality experience?',
+                    noticePeriod:       'Notice period / when can you start?',
+                    policeCheck:        'Do you have a current police check?',
+                    availableWeekends:  'Available to work weekends?',
+                    availablePublicHols:'Available to work public holidays?',
+                    driverLicence:      'Do you hold a current driver\'s licence?',
+                    willingToRelocate:  'Willing to relocate?',
+                  };
+                  const activeQ = Object.keys(job.screeningQ).filter(k=>job.screeningQ[k]);
+                  return (
+                    <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+                      <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📋 Screening Questions</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>{job.venue} would like to know:</div>
+                      <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                        {activeQ.map(key=>(
+                          <div key={key}>
+                            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>{SCREENING_LABELS[key]||key}</div>
+                            <input
+                              value={(fd.screeningAnswers||{})[key]||""}
+                              onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [key]:e.target.value}}))}
+                              placeholder="Your answer…"
+                              style={IS}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Notice period */}
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
@@ -3977,8 +4011,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const _urlMode = _urlParams.get('mode') || 'listing';
   const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TfwBfGkG9EGtGJgBv341e2n', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TfwBlGkG9EGtGJgGxDjQEhS', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TfwBrGkG9EGtGJg6O8z5oAu', featured:true } };
   const _initTier = _tierMap[_urlTier] || _tierMap.bronze;
+  const _viewParam = _urlParams.get('view');
+  const _jobIdParam = _urlParams.get('jobId');
 
-  const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : "feed");
+  const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : (_viewParam==="apps" ? "apps" : "feed"));
   const [prevTab, setPrevTab] = useState("feed");
   const setTab = (next) => { setPrevTab(t => t); setTabRaw(prev => { setPrevTab(prev); return next; }); };
   const goBack = () => setTabRaw(prevTab);
@@ -3987,7 +4023,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
   // Clean URL after reading tier param so back-nav isn't affected
   useEffect(()=>{
-    if (window.location.search.includes('tier=') || window.location.search.includes('mode=')) {
+    if (window.location.search.includes('tier=') || window.location.search.includes('mode=') || window.location.search.includes('view=')) {
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
@@ -4005,9 +4041,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [lastSeenApps, setLastSeenApps] = useState(() => parseInt(localStorage.getItem('hs_last_seen_apps')||'0'));
   const [newAppsCount, setNewAppsCount] = useState(0);
 
-  // Load applications from Supabase when apps tab is opened
+  // Load applications from Supabase (when viewing apps/listings/analytics)
   useEffect(()=>{
-    if(tab!=="apps") return;
+    if(tab!=="apps" && tab!=="feed" && tab!=="analytics") return;
     const loadApps = async () => {
       try {
         const { data } = await supabase
@@ -4026,11 +4062,14 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
               id: a.id,
               uid: a.applicant_id,
               name: a.name,
+              email: a.email,
+              phone: a.phone,
               msg: a.message,
               visa: a.visa,
               availability: a.availability || [],
               hours: a.hours || [],
               notice: a.notice,
+              screeningAnswers: a.screening_answers || {},
               resume: a.resume_name ? { name:a.resume_name, size:a.resume_size } : null,
               resume_url: a.resume_url,
               cover: a.cover_name ? { name:a.cover_name } : null,
@@ -4044,6 +4083,14 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     };
     loadApps();
   }, [tab]);
+
+  // If arriving from email "View all applicants", select that job once loaded
+  useEffect(()=>{
+    if (_jobIdParam && jobs.length) {
+      const target = jobs.find(j => String(j.id) === String(_jobIdParam));
+      if (target) setSel(target);
+    }
+  }, [jobs.length]);
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
   const [videoFile, setVideoFile] = useState(null);
@@ -4654,6 +4701,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                           <button className="tap" onClick={()=>{ const key=`${a.uid}-${user.id}`; setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${j.title}. We'd love to have a chat.`, ts:Date.now() }] })); setTab("messages"); }} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:11, fontWeight:600 }}>Message</button>
                         </div>
                       </div>
+                      {/* Contact details */}
+                      {(a.email||a.phone) && (
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:7 }}>
+                          {a.email && <a href={`mailto:${a.email}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:12, fontWeight:600, textDecoration:"none" }}>✉️ {a.email}</a>}
+                          {a.phone && <a href={`tel:${a.phone}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.terracotta, fontSize:12, fontWeight:600, textDecoration:"none" }}>📞 {a.phone}</a>}
+                        </div>
+                      )}
                       {a.msg && <div style={{ color:C.textMid, fontSize:13, background:C.bgSoft, padding:"9px 11px", borderRadius:8, lineHeight:1.55, marginBottom:7 }}>{a.msg}</div>}
                       {/* Application details */}
                       {(a.visa||a.notice||(a.availability||[]).length>0) && (
@@ -4943,6 +4997,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
   const homeFiltered = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
+  const appliedCount = jobs.filter(j=>j.apps?.some(a=>a.uid===user.id)).length;
   // Keep avatar_url in sync
   const [liveAvatarUrl, setLiveAvatarUrl] = useState(user?.avatar_url||null);
   const pullStartY = useRef(null);
@@ -4975,6 +5030,38 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [bookmarks, setBookmarks] = useState([]);
   const [alerts, setAlerts] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Load this candidate's own applications and merge into jobs.apps
+  useEffect(() => {
+    let cancelled = false;
+    const loadMyApps = async () => {
+      try {
+        const { data } = await supabase
+          .from('applications')
+          .select('*')
+          .eq('applicant_id', user.id)
+          .order('created_at', { ascending:false });
+        if (data && !cancelled) {
+          setJobs(prev => prev.map(j => {
+            const mine = data.filter(a => a.job_id === j.id);
+            if (mine.length === 0) return j;
+            const existing = (j.apps || []).filter(a => a.uid !== user.id);
+            const myApps = mine.map(a => ({
+              id: a.id, uid: a.applicant_id, name: a.name,
+              email: a.email, phone: a.phone, msg: a.message,
+              visa: a.visa, availability: a.availability || [], hours: a.hours || [],
+              notice: a.notice, resume_url: a.resume_url, resume_name: a.resume_name,
+              cover_url: a.cover_url, cover_name: a.cover_name,
+              status: a.status || 'Sent', ts: new Date(a.created_at).getTime(),
+            }));
+            return { ...j, apps: [...existing, ...myApps] };
+          }));
+        }
+      } catch(e) { console.warn('Load my applications error:', e); }
+    };
+    loadMyApps();
+    return () => { cancelled = true; };
+  }, [user.id]);
 
   const toggleFollow = async (id) => {
     const isFollowing = following.includes(id);
@@ -5032,7 +5119,16 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             jobTitle: job.title,
             venueName: job.venue || profileName || '',
             jobId: job.id,
-            dashboardUrl: 'https://www.hosposearch.com.au/app',
+            dashboardUrl: `https://www.hosposearch.com.au/app?view=apps&jobId=${job.id}`,
+            resumeUrl: savedApp?.resume_url || null,
+            resumeName: fd.resume?.name || null,
+            coverUrl: savedApp?.cover_url || null,
+            coverName: fd.cover?.name || null,
+            visa: fd.visa || '',
+            availability: fd.availability || [],
+            hours: fd.hours || [],
+            notice: fd.notice || '',
+            screeningAnswers: fd.screeningAnswers || {},
           }),
         });
       }
@@ -5180,8 +5276,8 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
         <NavBtn t="home"     ic="home"      l="Home"/>
         <NavBtn t="explore"  ic="search"    l="Explore"/>
+        <NavBtn t="activity" ic="briefcase" l="Applied" badge={appliedCount}/>
         <NavBtn t="following" ic="heart"    l="Following" badge={following.length}/>
-        <NavBtn t="messages" ic="chat"      l="Messages" badge={unreadMessages}/>
         <NavBtn t="profile"  ic="person"    l="Profile"/>
       </div>
 
@@ -6137,6 +6233,16 @@ export default function App() {
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
+
+  // Populate profile docs from the saved user record so they auto-attach to applications
+  useEffect(()=>{
+    if (!user) return;
+    setProfile(p => ({
+      ...p,
+      resume: user.resume_url ? { name:user.resume_name||'Résumé', url:user.resume_url } : p.resume,
+      coverLetter: user.cover_url ? { name:user.cover_name||'Cover Letter', url:user.cover_url } : p.coverLetter,
+    }));
+  }, [user?.id]);
 
   // Load following from Supabase
   useEffect(()=>{
