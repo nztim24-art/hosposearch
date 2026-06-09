@@ -739,7 +739,7 @@ function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=
 }
 
 function Avatar({ emp, size=36, fontSize=18 }) {
-  const imgUrl = emp?.logo_url || emp?.avatar_url;
+  const imgUrl = emp?.avatar_url;
   return (
     <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0, overflow:"hidden", border:`1px solid ${C.border}` }}>
       {imgUrl
@@ -2517,14 +2517,17 @@ function MineJobCard({ job, onEdit, onApps, onExpand }) {
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
   const emp = getEmp(job);
-  const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const appliedApp = job.apps?.find(a=>a.uid===currentUser?.id);
+  const applied = !!appliedApp;
+  const isOwnListing = currentUser?.id && job.empId === currentUser.id;
+  const isNew = job.ts && (Date.now() - job.ts) < 3*24*60*60*1000;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
   const [quickApplyVisible, setQuickApplyVisible] = useState(false);
   const hoverTimer = useRef(null);
 
   const onMouseEnter = () => {
-    if (applied) return;
+    if (applied || isOwnListing) return;
     hoverTimer.current = setTimeout(() => setQuickApplyVisible(true), 600);
   };
   const onMouseLeave = () => {
@@ -2559,6 +2562,19 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
       <div onClick={()=>onExpand(job)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
         style={{ cursor:"pointer", position:"relative" }}>
         <Carousel photos={job.photos} video={job.video}/>
+        {/* New listing badge — top right, 3 days */}
+        {isNew && (
+          <div style={{ position:"absolute", top:10, right:10, background:C.terracotta, color:"#fff", fontSize:11, fontWeight:700, letterSpacing:0.5, padding:"4px 10px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:2 }}>
+            New listing
+          </div>
+        )}
+        {/* Applied tick — shows only to the candidate who applied */}
+        {applied && (
+          <div style={{ position:"absolute", top:10, left:10, background:"rgba(107,143,113,0.95)", color:"#fff", fontSize:11, fontWeight:700, padding:"5px 11px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:2, display:"flex", flexDirection:"column", alignItems:"flex-start", lineHeight:1.3 }}>
+            <span style={{ display:"flex", alignItems:"center", gap:4 }}>✓ Applied</span>
+            {appliedApp?.ts && <span style={{ fontSize:9, fontWeight:500, opacity:0.9 }}>{new Date(appliedApp.ts).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</span>}
+          </div>
+        )}
         {/* Quick Apply overlay — desktop hover only */}
         <div style={{
           position:"absolute", inset:0,
@@ -2576,10 +2592,16 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         </div>
       </div>
       <div style={{ padding:"10px 14px 4px", display:"flex", alignItems:"center", gap:12 }}>
-        <button className="btn-cta tap" onClick={e=>{e.stopPropagation();onApply(job);}}
-          style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:9, padding:"7px 16px", color:applied?C.sage:"#fff", fontWeight:700, fontSize:13, boxShadow:applied?"none":"0 2px 10px rgba(196,98,58,0.2)" }}>
-          {applied ? "✓ Applied" : "Apply Now"}
-        </button>
+        {isOwnListing ? (
+          <div style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"7px 16px", color:C.textSoft, fontWeight:600, fontSize:13, display:"flex", alignItems:"center", gap:6 }}>
+            <Icon name="person" size={13} color={C.textSoft}/> Your listing
+          </div>
+        ) : (
+          <button className="btn-cta tap" onClick={e=>{e.stopPropagation();onApply(job);}}
+            style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:9, padding:"7px 16px", color:applied?C.sage:"#fff", fontWeight:700, fontSize:13, boxShadow:applied?"none":"0 2px 10px rgba(196,98,58,0.2)" }}>
+            {applied ? "✓ Applied" : "Apply Now"}
+          </button>
+        )}
         <div style={{ flex:1 }}/>
         {job.video && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.clay, fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:20, display:"flex", alignItems:"center", gap:3 }}><Icon name="video" size={10} color={C.clay}/>Reel</span>}
         <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>
@@ -2622,6 +2644,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick }) {
   const emp = getEmp(job);
   const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const isOwnListing = currentUser?.id && job.empId === currentUser.id;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks?.includes(job.id);
   const [showForm, setShowForm] = useState(false);
@@ -2685,7 +2708,16 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
           </div>
           <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, whiteSpace:"pre-line", borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }}>{job.full}</div>
-          {!showForm && !done && (() => {
+          {!showForm && !done && isOwnListing && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", background:C.sandL, borderRadius:13, border:`1px solid ${C.sand}40` }}>
+              <Icon name="eye" size={18} color={C.clay}/>
+              <div>
+                <div style={{ color:C.textDark, fontSize:14, fontWeight:700 }}>This is your listing</div>
+                <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>This is how candidates see it. Manage it from My Listings.</div>
+              </div>
+            </div>
+          )}
+          {!showForm && !done && !isOwnListing && (() => {
             const hasLink = job.link && job.link.trim() && job.link.trim() !== "#";
             return (
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
@@ -3643,44 +3675,40 @@ function AccountSettings({ user, onLogout }) {
 }
 
 // ─── Employer Profile Tab ────────────────────────────────────────────────────
-function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout, altAccount, onSwitchAccount }) {
+function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout, altAccount, onSwitchAccount, onAvatarChange }) {
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
-  // Avatar / profile picture
+  // Avatar / profile picture — staged: pick → preview → confirm save
   const [avatarUrl, setAvatarUrl] = useState(user.avatar_url || null);
+  const [pendingAvatar, setPendingAvatar] = useState(null); // { file, preview }
   const [avatarSaving, setAvatarSaving] = useState(false);
-  const uploadAvatar = async (e) => {
+  const [avatarSaved, setAvatarSaved] = useState(false);
+
+  const pickAvatar = (e) => {
     const f = e.target.files[0]; if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => setPendingAvatar({ file:f, preview:ev.target.result });
+    reader.readAsDataURL(f);
+  };
+  const saveAvatar = async () => {
+    if (!pendingAvatar) return;
     setAvatarSaving(true);
     try {
-      const ext = f.name.split(".").pop();
-      const path = `avatars/${user.id}/avatar.${ext}`;
-      await supabase.storage.from("job-photos").upload(path, f, { upsert:true, contentType:f.type });
+      const ext = pendingAvatar.file.name.split(".").pop();
+      const path = `avatars/${user.id}/avatar-${Date.now()}.${ext}`;
+      await supabase.storage.from("job-photos").upload(path, pendingAvatar.file, { upsert:true, contentType:pendingAvatar.file.type });
       const { data: urlData } = supabase.storage.from("job-photos").getPublicUrl(path);
       const url = urlData.publicUrl;
       await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
       setAvatarUrl(url);
-    } catch(e) { console.warn("Avatar upload error:", e); }
+      setPendingAvatar(null);
+      setAvatarSaved(true);
+      setTimeout(()=>setAvatarSaved(false), 2500);
+      if (onAvatarChange) onAvatarChange(url); // propagate to app + listings immediately
+    } catch(e) { console.warn("Avatar save error:", e); }
     setAvatarSaving(false);
   };
-
-  // Venue logo
-  const [logoUrl, setLogoUrl] = useState(user.logo_url || null);
-  const [logoSaving, setLogoSaving] = useState(false);
-  const uploadLogo = async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    setLogoSaving(true);
-    try {
-      const ext = f.name.split(".").pop();
-      const path = `logos/${user.id}/logo.${ext}`;
-      await supabase.storage.from("job-photos").upload(path, f, { upsert:true, contentType:f.type });
-      const { data: urlData } = supabase.storage.from("job-photos").getPublicUrl(path);
-      const url = urlData.publicUrl;
-      await supabase.from("profiles").update({ logo_url: url }).eq("id", user.id);
-      setLogoUrl(url);
-    } catch(e) { console.warn("Logo upload error:", e); }
-    setLogoSaving(false);
-  };
+  const cancelAvatar = () => setPendingAvatar(null);
 
   // Bio section
   const [bio, setBio] = useState(user.bio||"");
@@ -3773,38 +3801,40 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
   return (
     <div style={{ height:"100%", overflowY:"auto", padding:"20px 16px 40px" }}>
 
-      {/* Header — avatar + logo */}
+      {/* Header — avatar with confirm-to-save */}
       <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
-        {/* Profile picture */}
-        <label style={{ position:"relative", cursor:"pointer", flexShrink:0 }}>
-          <div style={{ width:72, height:72, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, border:`3px solid ${C.border}`, overflow:"hidden" }}>
-            {avatarUrl
-              ? <img src={avatarUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-              : <span>{user.avatar}</span>
-            }
-          </div>
-          <div style={{ position:"absolute", bottom:0, right:0, width:22, height:22, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            {avatarSaving ? <span style={{ fontSize:10 }}>⏳</span> : <Icon name="edit" size={11} color="#fff"/>}
-          </div>
-          <input type="file" accept="image/*" style={{ display:"none" }} onChange={uploadAvatar}/>
-        </label>
+        <div style={{ flexShrink:0, textAlign:"center" }}>
+          <label style={{ position:"relative", cursor:"pointer", display:"inline-block" }}>
+            <div style={{ width:72, height:72, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:34, border:`3px solid ${C.border}`, overflow:"hidden" }}>
+              {(pendingAvatar?.preview || avatarUrl)
+                ? <img src={pendingAvatar?.preview || avatarUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                : <span>{user.avatar}</span>
+              }
+            </div>
+            <div style={{ position:"absolute", bottom:0, right:0, width:22, height:22, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
+              <Icon name="edit" size={11} color="#fff"/>
+            </div>
+            <input type="file" accept="image/*" style={{ display:"none" }} onChange={pickAvatar}/>
+          </label>
+          {pendingAvatar && (
+            <div style={{ display:"flex", gap:5, marginTop:8, justifyContent:"center" }}>
+              <button className="tap" onClick={saveAvatar} disabled={avatarSaving}
+                style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:7, padding:"5px 12px", color:"#fff", fontSize:11, fontWeight:700 }}>
+                {avatarSaving ? "⏳" : "Save"}
+              </button>
+              <button className="tap" onClick={cancelAvatar}
+                style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:7, padding:"5px 10px", color:C.textMid, fontSize:11, fontWeight:600 }}>
+                Cancel
+              </button>
+            </div>
+          )}
+          {avatarSaved && <div style={{ color:C.sage, fontSize:11, fontWeight:600, marginTop:6 }}>✓ Updated</div>}
+        </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, color:C.textDark, fontWeight:700 }}>{user.name}</div>
           <div style={{ color:C.textSoft, fontSize:13, marginBottom:6 }}>@{user.handle}</div>
           {user.verified && <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}><Icon name="check" size={12} color={C.sage}/>Verified Employer</div>}
         </div>
-        {/* Venue logo */}
-        <label style={{ cursor:"pointer", flexShrink:0 }}>
-          <div style={{ width:64, height:64, borderRadius:12, background:logoUrl?"#fff":C.bgSoft, border:`2px dashed ${logoUrl?C.sage:C.borderMid}`, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", position:"relative" }}>
-            {logoUrl
-              ? <img src={logoUrl} alt="logo" style={{ width:"100%", height:"100%", objectFit:"contain", padding:4 }}/>
-              : <div style={{ textAlign:"center" }}><div style={{ fontSize:20, opacity:0.4 }}>🏷️</div><div style={{ fontSize:9, color:C.textFaint, marginTop:2 }}>LOGO</div></div>
-            }
-            {logoSaving && <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.7)", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:16 }}>⏳</span></div>}
-          </div>
-          <div style={{ fontSize:10, color:C.textFaint, textAlign:"center", marginTop:3 }}>Venue logo</div>
-          <input type="file" accept="image/*" style={{ display:"none" }} onChange={uploadLogo}/>
-        </label>
       </div>
 
       {/* Stats */}
@@ -3836,46 +3866,6 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
             <input value={instagram} onChange={e=>setInstagram(e.target.value)} placeholder="@yourvenue" style={IS}/>
           </div>
         </div>
-      </SectionCard>
-
-      {/* Documents */}
-      <SectionCard title="📄 Documents" action={<SaveBtn saving={docSaving} saved={docSaved} onClick={saveDocs} label="Upload & Save"/>}>
-        <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>Upload your venue media kit and a benefits sheet — candidates can download these from your listings</div>
-        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-          {[["Company Deck / Media Kit","resume","📋"],["Benefits & Perks Sheet","cover","✉️"]].map(([label, key, icon])=>{
-            const file = key==="resume" ? resume : cover;
-            const setFile = key==="resume" ? setResume : setCover;
-            return (
-              <div key={key}>
-                <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>{label}</div>
-                {file ? (
-                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
-                    <span style={{ fontSize:18 }}>{icon}</span>
-                    <div style={{ flex:1 }}>
-                      <div style={{ color:C.sage, fontSize:13, fontWeight:600 }}>{file.name}</div>
-                      {file.url && <a href={file.url} target="_blank" rel="noreferrer" style={{ color:C.textSoft, fontSize:11, textDecoration:"none" }}>View uploaded file ↗</a>}
-                    </div>
-                    <button onClick={()=>setFile(null)} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, cursor:"pointer" }}>×</button>
-                  </div>
-                ) : (
-                  <label style={{ display:"flex", alignItems:"center", gap:8, padding:"11px 13px", background:C.bgSoft, border:`1.5px dashed ${C.border}`, borderRadius:10, cursor:"pointer" }}>
-                    <span style={{ fontSize:18 }}>{icon}</span>
-                    <span style={{ color:C.textMid, fontSize:13 }}>Tap to upload {label}</span>
-                    <input type="file" accept=".pdf,.doc,.docx" style={{ display:"none" }}
-                      onChange={e=>{
-                        const f = e.target.files[0]; if(!f) return;
-                        const reader = new FileReader();
-                        reader.onload = ev => setFile({ name:f.name, size:f.size, data:ev.target.result });
-                        reader.readAsDataURL(f);
-                      }}
-                    />
-                  </label>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        <div style={{ color:C.textFaint, fontSize:11, marginTop:10 }}>Tap "Upload & Save" above to save your documents permanently</div>
       </SectionCard>
 
       {/* Notification settings */}
@@ -4041,9 +4031,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   const [lastSeenApps, setLastSeenApps] = useState(() => parseInt(localStorage.getItem('hs_last_seen_apps')||'0'));
   const [newAppsCount, setNewAppsCount] = useState(0);
 
-  // Load applications from Supabase (when viewing apps/listings/analytics)
+  // Load applications from Supabase on mount (and refresh when switching tabs)
   useEffect(()=>{
-    if(tab!=="apps" && tab!=="feed" && tab!=="analytics") return;
     const loadApps = async () => {
       try {
         const { data } = await supabase
@@ -4051,38 +4040,14 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
           .select('*')
           .order('created_at', { ascending:false });
         if (data) {
-          // Count new applications since last seen
           const newCount = data.filter(a => new Date(a.created_at).getTime() > lastSeenApps).length;
           setNewAppsCount(newCount);
-          // Merge into jobs state
           setSupabaseApps(data);
-          setJobs(prev => prev.map(j => ({
-            ...j,
-            apps: data.filter(a => a.job_id === j.id).map(a => ({
-              id: a.id,
-              uid: a.applicant_id,
-              name: a.name,
-              email: a.email,
-              phone: a.phone,
-              msg: a.message,
-              visa: a.visa,
-              availability: a.availability || [],
-              hours: a.hours || [],
-              notice: a.notice,
-              screeningAnswers: a.screening_answers || {},
-              resume: a.resume_name ? { name:a.resume_name, size:a.resume_size } : null,
-              resume_url: a.resume_url,
-              cover: a.cover_name ? { name:a.cover_name } : null,
-              cover_url: a.cover_url,
-              status: a.status || 'Sent',
-              ts: new Date(a.created_at).getTime(),
-            }))
-          })));
         }
       } catch(e) { console.warn('Load applications error:', e); }
     };
     loadApps();
-  }, [tab]);
+  }, [tab, user.id]);
 
   // If arriving from email "View all applicants", select that job once loaded
   useEffect(()=>{
@@ -4103,6 +4068,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
   };
   const [posted, setPosted] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
   const [editId, setEditId] = useState(null); // when set, the Post form is editing this job id
   const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
@@ -4114,8 +4080,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     return ()=>{ alive = false; };
   }, [user.id, jobs]);
   // Active listings: prefer the live `jobs` list (has fresh apps/views), fall back to myJobs
-  const mine = (myJobs || jobs.filter(j=>j.empId===user.id)).filter(j=>j.empId===user.id && (j.active!==false));
-  const expiredMine = (myJobs || []).filter(j=>j.empId===user.id && j.active===false);
+  const _attachApps = (j) => {
+    const jobApps = supabaseApps
+      .filter(a => String(a.job_id) === String(j.id))
+      .map(a => ({
+        id: a.id, uid: a.applicant_id, name: a.name, email: a.email, phone: a.phone,
+        msg: a.message, visa: a.visa, availability: a.availability || [], hours: a.hours || [],
+        notice: a.notice, screeningAnswers: a.screening_answers || {},
+        resume: a.resume_name ? { name:a.resume_name, size:a.resume_size } : null, resume_url: a.resume_url, resume_name: a.resume_name,
+        cover: a.cover_name ? { name:a.cover_name } : null, cover_url: a.cover_url, cover_name: a.cover_name,
+        status: a.status || 'Sent', ts: new Date(a.created_at).getTime(),
+      }));
+    return jobApps.length ? { ...j, apps: jobApps } : { ...j, apps: j.apps || [] };
+  };
+  const mine = (myJobs || jobs.filter(j=>j.empId===user.id)).filter(j=>j.empId===user.id && (j.active!==false)).map(_attachApps);
+  const expiredMine = (myJobs || []).filter(j=>j.empId===user.id && j.active===false).map(_attachApps);
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
 
@@ -4656,6 +4635,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                       </span>
                     </div>
                   )}
+                  {nj.title.trim() && (
+                    <button className="tap" onClick={()=>setShowPreview(true)}
+                      style={{ width:"100%", background:"#fff", border:`1.5px solid ${C.terracotta}`, borderRadius:12, padding:"12px 0", color:C.terracotta, fontWeight:700, fontSize:14, marginBottom:10, display:"flex", alignItems:"center", justifyContent:"center", gap:8 }}>
+                      <Icon name="eye" size={16} color={C.terracotta}/> Preview how it looks
+                    </button>
+                  )}
                   <button className="btn-cta tap" onClick={post} disabled={posting}
                     style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
                     {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : user.isTrial ? "🚀 Publish Free Listing" : "Continue to Payment →"}
@@ -4792,7 +4777,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Profile */}
         {tab==="profile" && (
-          <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout} altAccount={altAccount} onSwitchAccount={onSwitchAccount}/>
+          <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout} altAccount={altAccount} onSwitchAccount={onSwitchAccount} onAvatarChange={(url)=>{ user.avatar_url = url; setJobs(prev=>prev.map(j=>j.empId===user.id?{...j, avatar_url:url}:j)); }}/>
         )}
       </div>
 
@@ -4812,6 +4797,25 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       </div>
 
       {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
+
+      {/* Job card preview */}
+      {showPreview && (() => {
+        const previewJob = { ...buildJobData(), id:"preview", ts:Date.now(), views:0, apps:[], avatar_url:user.avatar_url };
+        return (
+          <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3500, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(3px)" }}>
+            <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:440, maxHeight:"88vh", overflowY:"auto", borderRadius:16 }}>
+              <div style={{ textAlign:"center", marginBottom:12 }}>
+                <span style={{ background:"#fff", color:C.textMid, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:100 }}>Preview — this is how candidates see it</span>
+              </div>
+              <JobCard job={previewJob} currentUser={{id:"preview-viewer"}} following={[]} bookmarks={[]} onApply={()=>{}} onExpand={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={()=>{}}/>
+              <button className="tap" onClick={()=>setShowPreview(false)}
+                style={{ width:"100%", background:"#fff", border:"none", borderRadius:12, padding:"13px 0", color:C.textDark, fontWeight:700, fontSize:14, marginTop:6 }}>
+                Close preview
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Re-activate expired listing — choose any tier, repay, fresh 30-day clock */}
       {reactivateJob && (
