@@ -479,6 +479,17 @@ const isVid   = s => typeof s==="string" && s.startsWith("data:video");
 // ─── HTML sanitizer ───────────────────────────────────────────────────────────
 // Strips scripts, event handlers, and unsafe tags from user-submitted rich text
 // before rendering via dangerouslySetInnerHTML. Allows only safe formatting tags.
+// Render a job description that may be plain text (with newlines) OR html.
+// If it has no HTML tags, convert blank-line paragraph breaks and single
+// newlines into proper spacing so it doesn't collapse into one block.
+function descToHtml(text) {
+  if (!text || typeof text !== "string") return "";
+  const hasTags = /<(p|br|div|ul|ol|li|strong|b|em|i)\b/i.test(text);
+  if (hasTags) return sanitizeHtml(text);
+  const paras = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  return paras.map(p => `<p style="margin:0 0 14px;">${p.replace(/\n/g, "<br>")}</p>`).join("");
+}
+
 function sanitizeHtml(html) {
   if (!html || typeof html !== "string") return "";
   try {
@@ -3072,39 +3083,52 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
 
       {/* Expanded job — shows preview, prompts login to apply */}
       {expandedJob && (
-        <div onClick={()=>setExpandedJob(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:3000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(4px)" }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:"22px 22px 0 0", width:"100%", maxWidth:560, maxHeight:"90vh", overflowY:"auto", padding:"6px 0 40px", position:"relative" }}>
-            <button className="tap" onClick={()=>setExpandedJob(null)} title="Close" style={{ position:"absolute", top:12, right:14, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0, zIndex:5 }}>×</button>
-            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 16px" }}/>
+        <div onClick={()=>setExpandedJob(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:3000, display:"flex", alignItems: isDesktop ? "center" : "flex-end", justifyContent:"center", backdropFilter:"blur(4px)", padding: isDesktop ? 20 : 0 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius: isDesktop ? 20 : "22px 22px 0 0", width:"100%", maxWidth:560, height: isDesktop ? "88vh" : "92vh", maxHeight: isDesktop ? "88vh" : "92vh", overflow:"hidden", position:"relative", display:"flex", flexDirection:"column" }}>
 
-            {/* Job header */}
-            <div style={{ padding:"0 18px 16px" }}>
-              <div style={{ color:C.textSoft, fontSize:12, fontWeight:600, marginBottom:4 }}>{expandedJob.venue}</div>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:700, color:C.textDark, marginBottom:6 }}>{expandedJob.title}</div>
-              <div style={{ color:C.sand, fontWeight:700, fontSize:15, marginBottom:10 }}>{expandedJob.salary}</div>
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:14 }}>
-                {[expandedJob.type, expandedJob.loc, ...(expandedJob.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
-                  <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
-                ))}
+            {/* Fixed header bar */}
+            <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:"#fff", zIndex:10 }}>
+              <div style={{ minWidth:0, flex:1 }}>
+                <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{expandedJob.venue}</div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{expandedJob.title}</div>
               </div>
-              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:14 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.short) }}/>
+              <button className="tap" onClick={()=>setExpandedJob(null)} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0, flexShrink:0, marginLeft:10 }}>×</button>
+            </div>
 
-              {/* Full description — fully readable, like SEEK */}
-              {expandedJob.full && expandedJob.full !== expandedJob.short && (
-                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.full) }}/>
+            {/* Scrollable body */}
+            <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
+              {/* Photo */}
+              {(expandedJob.photos?.length > 0 || expandedJob.video) && (
+                <Carousel photos={expandedJob.photos||[]} video={expandedJob.video} height={isDesktop ? 320 : 240}/>
               )}
 
-              {/* Apply gate — account only needed to apply */}
-              <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
-                <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply — takes 30 seconds</div>
-                <button onClick={onSignup||onLogin} className="btn-cta tap"
-                  style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
-                  Apply via HospoSearch →
-                </button>
-                <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, cursor:"pointer" }}>
-                  Already have an account? Log in →
-                </button>
+              <div style={{ padding:"16px 18px 24px" }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:700, color:C.textDark, marginBottom:6 }}>{expandedJob.title}</div>
+                <div style={{ color:C.sand, fontWeight:700, fontSize:15, marginBottom:10 }}>{expandedJob.salary}</div>
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
+                  {[expandedJob.type, expandedJob.loc, ...(expandedJob.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
+                    <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
+                  ))}
+                </div>
+                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:14 }} dangerouslySetInnerHTML={{ __html: descToHtml(expandedJob.short) }}/>
+
+                {/* Full description */}
+                {expandedJob.full && expandedJob.full !== expandedJob.short && (
+                  <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: descToHtml(expandedJob.full) }}/>
+                )}
+
+                {/* Apply gate */}
+                <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply — takes 30 seconds</div>
+                  <button onClick={onSignup||onLogin} className="btn-cta tap"
+                    style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
+                    Apply via HospoSearch →
+                  </button>
+                  <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, cursor:"pointer" }}>
+                    Already have an account? Log in →
+                  </button>
+                </div>
               </div>
             </div>
           </div>
