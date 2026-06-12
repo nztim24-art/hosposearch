@@ -162,14 +162,22 @@ const LOCATIONS = {
     "ACT":                ["Canberra"],
   },
   "New Zealand": {
-    "Auckland":           ["Auckland CBD","North Shore","Waiheke Island","Queenstown"],
-    "Wellington":         ["Wellington CBD","Lower Hutt","Porirua","Kapiti Coast"],
-    "Canterbury":         ["Christchurch","Queenstown","Wanaka","Timaru"],
-    "Waikato":            ["Hamilton","Tauranga","Rotorua","Cambridge"],
-    "Otago":              ["Dunedin","Queenstown","Wanaka","Arrowtown","Alexandra"],
-    "Bay of Plenty":      ["Tauranga","Rotorua","Whakatāne","Mount Maunganui"],
-    "Marlborough":        ["Blenheim","Picton","Kaikōura"],
-    "Northland":          ["Whangarei","Paihia","Kerikeri"],
+    "Northland":          ["Whangārei","Paihia","Kerikeri","Dargaville","Kaitaia"],
+    "Auckland":           ["Auckland CBD","North Shore","Waiheke Island","Manukau","Waitākere"],
+    "Waikato":            ["Hamilton","Cambridge","Taupō","Matamata","Te Awamutu"],
+    "Bay of Plenty":      ["Tauranga","Rotorua","Whakatāne","Mount Maunganui","Te Puke"],
+    "Gisborne":           ["Gisborne","Tolaga Bay","Ruatoria"],
+    "Hawke's Bay":        ["Napier","Hastings","Havelock North","Waipukurau"],
+    "Taranaki":           ["New Plymouth","Stratford","Hāwera","Inglewood"],
+    "Manawatū-Whanganui": ["Palmerston North","Whanganui","Levin","Feilding","Taumarunui"],
+    "Wellington":         ["Wellington CBD","Lower Hutt","Upper Hutt","Porirua","Kapiti Coast","Wairarapa"],
+    "Tasman":             ["Richmond","Motueka","Tākaka","Māpua"],
+    "Nelson":             ["Nelson","Stoke","Tāhunanui"],
+    "Marlborough":        ["Blenheim","Picton","Kaikōura","Renwick"],
+    "West Coast":         ["Greymouth","Hokitika","Westport","Franz Josef"],
+    "Canterbury":         ["Christchurch","Timaru","Ashburton","Rangiora","Akaroa"],
+    "Otago":              ["Dunedin","Queenstown","Wānaka","Arrowtown","Alexandra","Cromwell","Oamaru"],
+    "Southland":          ["Invercargill","Gore","Te Anau","Bluff","Stewart Island"],
   },
   // ── Rest of World ────────────────────────────────────────────────────────
   "United Kingdom": {
@@ -532,6 +540,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     back:     <><path d="M19 12H5M12 19l-7-7 7-7" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></>,
     check:    <><path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></>,
     close:    <><path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="1.8" strokeLinecap="round"/></>,
+    logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
     grid:     <><rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/></>,
     video:    <><polygon points="23,7 16,12 23,17" stroke={color} strokeWidth="1.6" fill={fill}/><rect x="1" y="5" width="15" height="14" rx="2" stroke={color} strokeWidth="1.6"/></>,
     camera:   <><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="13" r="4" stroke={color} strokeWidth="1.6"/></>,
@@ -773,6 +782,43 @@ function Avatar({ emp, size=36, fontSize=18 }) {
   );
 }
 
+// Top-right logged-in avatar with a dropdown: Open dashboard + Sign out
+function AvatarMenu({ user, onDashboard, onLogout, badge=false }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDoc = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", onDoc);
+    return () => document.removeEventListener("mousedown", onDoc);
+  }, [open]);
+  const imgUrl = user?.avatar_url;
+  return (
+    <div ref={ref} style={{ position:"relative" }}>
+      <button className="tap" onClick={()=>setOpen(o=>!o)} style={{ position:"relative", width:32, height:32, borderRadius:10, background:imgUrl?"#fff":`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, overflow:"hidden", cursor:"pointer", padding:0 }}>
+        {imgUrl
+          ? <img src={imgUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          : (user?.avatar||"\u{1F464}")}
+        {badge && <div style={{ position:"absolute", top:-2, right:-2, width:9, height:9, borderRadius:"50%", background:C.sage, border:"2px solid #fff" }}/>}
+      </button>
+      {open && (
+        <div style={{ position:"absolute", top:40, right:0, background:"#fff", border:`1px solid ${C.border}`, borderRadius:12, boxShadow:"0 8px 28px rgba(20,14,10,0.16)", minWidth:190, zIndex:5000, overflow:"hidden" }}>
+          <div style={{ padding:"12px 14px", borderBottom:`1px solid ${C.border}` }}>
+            <div style={{ fontWeight:700, fontSize:13, color:C.textDark, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{user?.name||"Account"}</div>
+            {user?.email && <div style={{ color:C.textFaint, fontSize:11, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{user.email}</div>}
+          </div>
+          <button className="tap" onClick={()=>{ setOpen(false); onDashboard&&onDashboard(); }} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:9, background:"none", border:"none", padding:"11px 14px", color:C.textDark, fontSize:13, fontWeight:500, cursor:"pointer" }}>
+            <Icon name="person" size={16} color={C.textMid}/> Open dashboard
+          </button>
+          <button className="tap" onClick={()=>{ setOpen(false); onLogout&&onLogout(); }} style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", gap:9, background:"none", border:"none", borderTop:`1px solid ${C.border}`, padding:"11px 14px", color:C.error, fontSize:13, fontWeight:500, cursor:"pointer" }}>
+            <Icon name="logout" size={16} color={C.error}/> Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Chip({ label, color, bg, border }) {
   return <span className="chip" style={{ color, background:bg||`${color}15`, border:`1px solid ${border||color+"30"}` }}>{label}</span>;
 }
@@ -820,13 +866,14 @@ function FileZone({ label, icon, file, onFile, onRemove }) {
 function getEmp(job) {
   if (!job) return null;
   const found = EMPLOYERS.find(e => e.id === job.empId);
-  if (found) return found;
+  if (found) return { ...found, avatar_url: job.avatar_url || found.avatar_url };
   const venueName = job.venue || 'HospoSearch';
   return {
     id:       job.empId || 'admin',
     name:     venueName,
     handle:   venueName.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''),
     avatar:   '🍽️',
+    avatar_url: job.avatar_url || null,
     verified: job.verified || false,
     bio:      job.loc || '',
     cuisine:  job.sector || '',
@@ -2758,7 +2805,13 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               {job.tags.map(t=><span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>)}
             </div>
           )}
-          {isOwnListing && (
+          {job.address && (
+            <a href={`https://maps.google.com/?q=${encodeURIComponent(job.address)}`} target="_blank" rel="noreferrer" style={{ display:"flex", alignItems:"center", gap:7, padding:"9px 12px", background:C.bgSoft, borderRadius:10, marginBottom:16, border:`1px solid ${C.border}`, textDecoration:"none" }}>
+              <Icon name="pin" size={15} color={C.terracotta}/>
+              <span style={{ color:C.textMid, fontSize:13 }}>{job.address}</span>
+              <span style={{ marginLeft:"auto", color:C.terracotta, fontSize:11, fontWeight:600 }}>Map ↗</span>
+            </a>
+          )}
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
               <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
               <span style={{ color:C.textFaint }}>·</span>
@@ -4411,7 +4464,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
       salary: j.salary||"", salaryBand: j.salaryBand||"$70–90k", type: j.type||"Full-time",
       country: j.country||"Australia", state: j.state||"", city: j.city||"",
       sector: j.sector||"", roleType: j.roleType||"", link: (j.link&&j.link!=="#")?j.link:"",
-      applyEmail: j.applyEmail||"", venueName: j.venue||"", tags: j.tags||[],
+      applyEmail: j.applyEmail||"", venueName: j.venue||"", address: j.address||"", tags: j.tags||[],
       featured: j.featured||false, tier: j.tier||"bronze",
       sellingPoints: j.sellingPoints||["","",""], screeningQ: j.screeningQ||{},
     });
@@ -4431,7 +4484,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null };
   };
 
   const resetForm = () => {
@@ -4592,8 +4645,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
           ? <span style={{ background:C.sageL, color:C.sage, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.sage}50`, marginRight:10 }}>TRIAL</span>
           : <span style={{ background:C.terracottaL, color:C.terracotta, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.terracottaM}`, marginRight:10 }}>EMPLOYER</span>
         }
-        <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", marginRight:6, padding:2, position:"relative" }}><Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textSoft}/></button>
-        <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
+        <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", marginRight:10, padding:2, position:"relative" }}><Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textSoft}/></button>
+        <AvatarMenu user={user} onDashboard={()=>setTab("feed")} onLogout={onLogout}/>
       </div>
 
       <div style={{ flex:1, overflow:"hidden" }}>
@@ -4727,6 +4780,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Name <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — defaults to your profile name)</span></div>
               <input value={nj.venueName||""} onChange={e=>setNj(j=>({...j,venueName:e.target.value}))} placeholder="Leave blank to use your profile name" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 13px", color:C.textDark, fontSize:14 }}/>
+            </div>
+            {/* Venue Address — so candidates can see the location */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Address <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on the listing)</span></div>
+              <input value={nj.address||""} onChange={e=>setNj(j=>({...j,address:e.target.value}))} placeholder="e.g. 12 Marine Parade, Burleigh Heads QLD 4220" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 13px", color:C.textDark, fontSize:14 }}/>
             </div>
             {[["Job Title *","title","e.g. Head Chef…"],["Salary / Rate","salary","e.g. $70k–$85k"],["Apply Link","link","https://…"]].map(([l,k,p])=>(
               <div key={k} style={{ marginBottom:12 }}>
@@ -5454,10 +5512,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             <Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textDark}/>
             {unreadMessages>0 && <div style={{ position:"absolute", top:0, right:0, width:8, height:8, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff" }}/>}
           </button>
-          <button className="tap" onClick={()=>setTab("profile")} style={{ position:"relative", width:32, height:32, borderRadius:10, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17 }}>
-            {user.avatar}
-            {hasDocs && <div style={{ position:"absolute", top:-2, right:-2, width:9, height:9, borderRadius:"50%", background:C.sage, border:"2px solid #fff" }}/>}
-          </button>
+          <AvatarMenu user={user} badge={hasDocs} onDashboard={()=>setTab("profile")} onLogout={onLogout}/>
         </div>
       </div>
 
