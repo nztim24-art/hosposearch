@@ -2707,6 +2707,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             {isFollowed ? "Following" : "Follow"}
           </button>
           {onToggleBookmark && <button className="tap" onClick={()=>onToggleBookmark(job.id)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/></button>}
+          <button className="tap" onClick={guardedClose} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, marginLeft:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0 }}>×</button>
         </div>
         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
         <Carousel photos={job.photos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
@@ -3060,7 +3061,8 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
       {/* Expanded job — shows preview, prompts login to apply */}
       {expandedJob && (
         <div onClick={()=>setExpandedJob(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:3000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(4px)" }}>
-          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:"22px 22px 0 0", width:"100%", maxWidth:560, maxHeight:"90vh", overflowY:"auto", padding:"6px 0 40px" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:"22px 22px 0 0", width:"100%", maxWidth:560, maxHeight:"90vh", overflowY:"auto", padding:"6px 0 40px", position:"relative" }}>
+            <button className="tap" onClick={()=>setExpandedJob(null)} title="Close" style={{ position:"absolute", top:12, right:14, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0, zIndex:5 }}>×</button>
             <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 16px" }}/>
 
             {/* Job header */}
@@ -5487,15 +5489,15 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               {(homeSearch.trim() ? homeFiltered : sortedJobs).map((j,i)=>(
                 <div key={j.id}>
                   {!homeSearch.trim() && i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 12px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
-                  {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+                  {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>setExpandedJob(j)} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
                 </div>
               ))}
             </div>
             <div style={{ textAlign:"center", padding:"32px 0", color:C.textFaint, fontSize:13 }}><div style={{ fontSize:24, marginBottom:7 }}>🌿</div>You're all caught up!</div>
           </div>
         )}
-        {tab==="following" && <FollowingScreen following={following} jobs={jobs} currentUser={user} onUnfollow={toggleFollow} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }}/>}
-        {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow}/>}
+        {tab==="following" && <FollowingScreen following={following} jobs={jobs} currentUser={user} onUnfollow={toggleFollow} onOpen={j=>setExpandedJob(j)}/>}
+        {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>setExpandedJob(j)} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
         {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
         {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} userId={user.id} onBack={goBack}/>}
