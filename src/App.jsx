@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -1284,21 +1284,31 @@ function MessagesScreen({ currentUser, userType, messages, setMessages, jobs, on
 }
 
 // ─── Job Alerts ───────────────────────────────────────────────────────────────
-function JobAlertsScreen({ alerts, setAlerts, onBack }) {
+function JobAlertsScreen({ alerts, setAlerts, userId, onBack }) {
   const [newAlert, setNewAlert] = useState({ role:"", loc:"", type:"Any", salary:"Any", tags:[] });
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
-  const save = () => {
-    if (!newAlert.role.trim()) return;
-    setAlerts(a=>[...a, { ...newAlert, id:"alert"+Date.now(), active:true, createdAt:Date.now() }]);
-    setNewAlert({ role:"", loc:"", type:"Any", salary:"Any", tags:[] });
-    setSaved(true); setTimeout(()=>setSaved(false), 2000);
+  const save = async () => {
+    if (!newAlert.role.trim() || saving) return;
+    setSaving(true);
+    try {
+      const created = await sbCreateAlert(userId, newAlert);
+      setAlerts(a=>[created, ...a]);
+      setNewAlert({ role:"", loc:"", type:"Any", salary:"Any", tags:[] });
+      setSaved(true); setTimeout(()=>setSaved(false), 2000);
+    } catch(e) { console.warn("Save alert error:", e); }
+    setSaving(false);
+  };
+  const remove = async (id) => {
+    setAlerts(al=>al.filter(x=>x.id!==id));
+    try { await sbDeleteAlert(id); } catch(e) { console.warn("Delete alert error:", e); }
   };
   return (
     <div style={{ height:"100%", overflowY:"auto" }}>
       <div style={{ padding:"16px 16px 10px", borderBottom:`1px solid ${C.border}` }}>
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:3 }}>Job Alerts</div>
-        <div style={{ color:C.textSoft, fontSize:13 }}>Get notified when matching roles are posted</div>
+        <div style={{ color:C.textSoft, fontSize:13 }}>Get emailed when matching roles are posted</div>
       </div>
       <div style={{ padding:"16px" }}>
         <div style={{ marginBottom:20 }}>
@@ -1316,8 +1326,8 @@ function JobAlertsScreen({ alerts, setAlerts, onBack }) {
             </div>
           ))}
           {saved
-            ? <div style={{ display:"flex", alignItems:"center", gap:9, padding:"13px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Alert saved!</span></div>
-            : <button className="btn-cta tap" onClick={save} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 4px 12px rgba(196,98,58,0.22)" }}>Save Alert</button>
+            ? <div style={{ display:"flex", alignItems:"center", gap:9, padding:"13px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Alert saved! We'll email you new matches.</span></div>
+            : <button className="btn-cta tap" onClick={save} disabled={saving} style={{ width:"100%", background:saving?"#ccc":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:"0 4px 12px rgba(196,98,58,0.22)" }}>{saving?"Saving…":"Save Alert"}</button>
           }
         </div>
         {alerts.length>0 && (
@@ -1330,7 +1340,7 @@ function JobAlertsScreen({ alerts, setAlerts, onBack }) {
                   <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{a.role}</div>
                   <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>{[a.loc, a.type!=="Any"&&a.type, a.salary!=="Any"&&a.salary].filter(Boolean).join(" · ")}</div>
                 </div>
-                <button className="tap" onClick={()=>setAlerts(al=>al.filter(x=>x.id!==a.id))} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1 }}>×</button>
+                <button className="tap" onClick={()=>remove(a.id)} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1 }}>×</button>
               </div>
             ))}
           </div>
@@ -5224,7 +5234,15 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [storyJob, setStoryJob] = useState(null);
   const [bookmarks, setBookmarks] = useState([]);
   const [alerts, setAlerts] = useState([]);
+  const [savedSearchToast, setSavedSearchToast] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+
+  // Load this candidate's saved searches / job alerts from Supabase
+  useEffect(() => {
+    let cancelled = false;
+    sbFetchAlerts(user.id).then(list => { if (!cancelled && Array.isArray(list)) setAlerts(list); }).catch(()=>{});
+    return () => { cancelled = true; };
+  }, [user.id]);
 
   // Load this candidate's own applications and merge into jobs.apps
   useEffect(() => {
@@ -5443,6 +5461,18 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                 <input value={homeSearch} onChange={e=>setHomeSearch(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
                 {homeSearch && <button className="tap" onClick={()=>setHomeSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, cursor:"pointer" }}>×</button>}
               </div>
+              {homeSearch.trim() && (
+                <button className="tap" onClick={async ()=>{
+                  try {
+                    const created = await sbCreateAlert(user.id, { role:homeSearch.trim(), loc:"", type:"Any", salary:"Any", label:homeSearch.trim() });
+                    setAlerts(a=>[created, ...a]);
+                    setSavedSearchToast(true); setTimeout(()=>setSavedSearchToast(false), 2600);
+                  } catch(e) { console.warn("Save search error:", e); }
+                }}
+                  style={{ marginTop:12, background:savedSearchToast?C.sageL:"#fff", border:`1.5px solid ${savedSearchToast?C.sage:C.terracotta}`, borderRadius:100, padding:"9px 18px", color:savedSearchToast?C.sage:C.terracotta, fontWeight:700, fontSize:13, display:"inline-flex", alignItems:"center", gap:7 }}>
+                  {savedSearchToast ? "✓ Saved — we'll email you new matches" : <><Icon name="bell" size={14} color={C.terracotta}/> Save this search & get alerts</>}
+                </button>
+              )}
             </div>
             <StoryBar jobs={jobs} following={following} currentUser={user} onOpen={(stories, startIndex)=>setStoryJob({ stories, startIndex })}/>
             {featuredJobs.length>0 && (
@@ -5468,7 +5498,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>{ setJobs(p=>p.map(jj=>jj.id===j.id?{...jj,views:(jj.views||0)+1}:jj)); setExpandedJob(j); }} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
         {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
-        {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} onBack={goBack}/>}
+        {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} userId={user.id} onBack={goBack}/>}
         {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 

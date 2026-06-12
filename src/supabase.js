@@ -485,3 +485,58 @@ function normaliseJob(row) {
     expiresAt:  row.expires_at ? new Date(row.expires_at).getTime() : null,
   }
 }
+
+// ─── Job Alerts (saved searches) ──────────────────────────────────────────────
+
+export async function fetchAlerts(userId) {
+  const { data, error } = await supabase
+    .from('job_alerts')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data || []).map(a => ({
+    id: a.id,
+    role: a.role || '',
+    loc: a.location || '',
+    type: a.emp_type || 'Any',
+    salary: a.salary_band || 'Any',
+    tags: a.tags || [],
+    label: a.label || '',
+    active: a.active !== false,
+    createdAt: new Date(a.created_at).getTime(),
+  }))
+}
+
+export async function createAlert(userId, alert) {
+  const { data, error } = await supabase
+    .from('job_alerts')
+    .insert({
+      user_id: userId,
+      role: alert.role || '',
+      location: alert.loc || '',
+      emp_type: alert.type || 'Any',
+      salary_band: alert.salary || 'Any',
+      tags: alert.tags || [],
+      label: alert.label || alert.role || 'Saved search',
+      active: true,
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return {
+    id: data.id, role: data.role||'', loc: data.location||'', type: data.emp_type||'Any',
+    salary: data.salary_band||'Any', tags: data.tags||[], label: data.label||'',
+    active: data.active!==false, createdAt: new Date(data.created_at).getTime(),
+  }
+}
+
+export async function deleteAlert(alertId) {
+  const { error } = await supabase.from('job_alerts').delete().eq('id', alertId)
+  if (error) throw error
+}
+
+export async function toggleAlertActive(alertId, active) {
+  const { error } = await supabase.from('job_alerts').update({ active }).eq('id', alertId)
+  if (error) throw error
+}
