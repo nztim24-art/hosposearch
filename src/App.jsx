@@ -2653,6 +2653,28 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const [cover, setCover] = useState(profile?.coverLetter||null);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Count the view once per open
+  useEffect(() => {
+    if (job?.id && job.id !== "preview") {
+      try { incrementViews(job.id); } catch(e) {}
+    }
+  }, [job?.id]);
+
+  // Guarded close: confirm if the application form has unsaved content
+  const formHasContent = showForm && !done && (fd.msg?.trim() || (fd.screeningAnswers && Object.values(fd.screeningAnswers).some(v=>v?.trim?.())));
+  const guardedClose = () => {
+    if (formHasContent && !window.confirm("Discard your application? Your answers won't be saved.")) return;
+    onClose();
+  };
+
+  // ESC closes the modal (with the same guard)
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") guardedClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showForm, done, fd]);
+
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
   const submit = () => {
@@ -2662,10 +2684,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   };
   const isDesktopDetail = typeof window !== 'undefined' && window.innerWidth >= 768;
   return (
-    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3000, overflow:"hidden", backdropFilter:"blur(3px)", display:"flex", justifyContent:"center", alignItems: isDesktopDetail ? "center" : "flex-end" }}>
+    <div onClick={guardedClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3000, overflow:"hidden", backdropFilter:"blur(3px)", display:"flex", justifyContent:"center", alignItems: isDesktopDetail ? "center" : "flex-end" }}>
       <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth: isDesktopDetail ? 720 : 560, background:C.bg, height: isDesktopDetail ? "90vh" : "100%", maxHeight: isDesktopDetail ? "90vh" : "100vh", margin: isDesktopDetail ? "0 auto" : 0, borderRadius: isDesktopDetail ? 20 : 0, overflow:"hidden", display:"flex", flexDirection:"column" }}>
         <div style={{ display:"flex", alignItems:"center", padding:"12px 14px", borderBottom:`1px solid ${C.border}`, flexShrink:0, background:"rgba(250,250,248,0.96)", backdropFilter:"blur(10px)", zIndex:10 }}>
-          <button className="tap" onClick={onClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
+          <button className="tap" onClick={guardedClose} style={{ background:"none", border:"none", marginRight:10, padding:4 }}><Icon name="back" size={22} color={C.textDark}/></button>
           <div style={{ flex:1 }}>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600 }}>{job.venue||emp?.name}</div>
             <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark }}>{job.title}</div>
@@ -2895,6 +2917,18 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
   const [pubSearch, setPubSearch] = useState(initialSearch);
   const isDesktop = useIsDesktop();
 
+  // ESC closes the preview
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") setExpandedJob(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // Count public views too
+  useEffect(() => {
+    if (expandedJob?.id) { try { incrementViews(expandedJob.id); } catch(e) {} }
+  }, [expandedJob?.id]);
+
   const pubFiltered = pubSearch.trim() ? smartSearch(jobs.filter(j=>j&&j.id&&j.title), pubSearch) : jobs.filter(j=>j&&j.id&&j.title);
 
   const handleExpand = (job) => {
@@ -3029,21 +3063,20 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                   <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
                 ))}
               </div>
-              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.short) }}/>
+              <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:14 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.short) }}/>
 
-              {/* Blurred full description teaser */}
-              <div style={{ position:"relative", marginBottom:20 }}>
-                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, filter:"blur(4px)", userSelect:"none", maxHeight:80, overflow:"hidden" }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.full||expandedJob.short) }}/>
-                <div style={{ position:"absolute", inset:0, background:"linear-gradient(transparent, #fff 60%)" }}/>
-              </div>
+              {/* Full description — fully readable, like SEEK */}
+              {expandedJob.full && expandedJob.full !== expandedJob.short && (
+                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: sanitizeHtml(expandedJob.full) }}/>
+              )}
 
-              {/* Login prompt */}
+              {/* Apply gate — account only needed to apply */}
               <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Sign up to view the full listing & apply</div>
-                <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Free for job seekers — takes 30 seconds</div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
+                <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply — takes 30 seconds</div>
                 <button onClick={onSignup||onLogin} className="btn-cta tap"
                   style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
-                  🔍 Create Free Account
+                  Apply via HospoSearch →
                 </button>
                 <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, cursor:"pointer" }}>
                   Already have an account? Log in →
