@@ -2637,7 +2637,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         )}
         <div style={{ flex:1 }}/>
         {job.video && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.clay, fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:20, display:"flex", alignItems:"center", gap:3 }}><Icon name="video" size={10} color={C.clay}/>Reel</span>}
-        <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>
+        {isOwnListing && <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>}
         <button className="tap" onClick={e=>{e.stopPropagation();onToggleBookmark(job.id);}} style={{ background:"none", border:"none", padding:2 }}>
           <Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/>
         </button>
@@ -2758,11 +2758,13 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               {job.tags.map(t=><span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>)}
             </div>
           )}
-          <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
-            <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
-            <span style={{ color:C.textFaint }}>·</span>
-            <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
-          </div>
+          {isOwnListing && (
+            <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
+              <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
+              <span style={{ color:C.textFaint }}>·</span>
+              <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
+            </div>
+          )}
           <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, whiteSpace:"pre-line", borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }}>{job.full}</div>
           {!showForm && !done && isOwnListing && (
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", background:C.sandL, borderRadius:13, border:`1px solid ${C.sand}40` }}>
