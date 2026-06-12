@@ -90,6 +90,18 @@ const G = `
 const EMPLOYERS = [];
 const EMPLOYEES = [];
 const ADMIN = { id:"admin", email:"admin@hosposearch.com.au", password:"hospo2024!", name:"HospoSearch Admin", handle:"admin", avatar:"🛡️" };
+
+// Admin job actions run through a service-role API endpoint (bypasses RLS safely)
+const ADMIN_SECRET = "LXqDinIuU7kZrPST5dhELfFGxqBboDsk";
+async function adminJobAction(action, jobId, fields) {
+  const res = await fetch("/api/admin-job", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ secret: ADMIN_SECRET, action, jobId, fields }),
+  });
+  if (!res.ok) throw new Error(`admin-job ${action} failed: ${res.status}`);
+  return res.json();
+}
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
 const ROLE_TAGS = ["Chef Hat Venue","Fine Dining","Rooftop Bar","Resort","Group Venue","Michelin-Calibre","Hatted Restaurant","Waterfront","CBD","Regional","Award-Winning","Seasonal Menu"];
 const SALARY_BANDS = ["Under $50k","$50–70k","$70–90k","$90–110k","$110k+","Hourly Rate"];
@@ -5824,8 +5836,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       <button className="tap" onClick={async ()=>{ if(window.confirm("Delete this listing?")) {
   setJobs(p=>p.filter(x=>x.id!==j.id));
   try {
-    await supabase.from('jobs').delete().eq('id', j.id);
-  } catch(e) { console.warn('Delete job error:', e); }
+    await adminJobAction('delete', j.id);
+  } catch(e) { console.warn('Delete job error:', e); alert('Delete failed — please try again.'); }
 }}} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>Delete</button>
                       <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>{j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
@@ -6412,9 +6424,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   }
                   const locStr = [editJob.city,editJob.state,editJob.country].filter(Boolean).join(", ")||editJob.loc||"Australia";
                   const updated = {...editJob, loc:locStr, photos:updatedPhotos, link:(editJob.link||"").trim()||"#"};
-                  // Save to Supabase
+                  // Save to Supabase via admin API (service role, bypasses RLS)
                   try {
-                    await supabase.from('jobs').update({
+                    await adminJobAction('update', updated.id, {
                       title: updated.title, venue: updated.venue, loc: updated.loc,
                       country: updated.country, state: updated.state, city: updated.city,
                       sector: updated.sector, role_type: updated.roleType,
@@ -6423,8 +6435,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       short: updated.short, full_desc: updated.full,
                       link: updated.link, apply_email: updated.applyEmail||"", photos: updatedPhotos,
                       featured: updated.featured, verified: updated.verified,
-                    }).eq('id', updated.id);
-                  } catch(e) { console.warn('Update job error:', e); }
+                    });
+                  } catch(e) { console.warn('Update job error:', e); alert('Save failed — please try again.'); }
                   setJobs(p=>p.map(j=>j.id===updated.id?updated:j));
                   setEditSaving(false);
                   setEditSaved(true);
