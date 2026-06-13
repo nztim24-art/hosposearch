@@ -869,7 +869,7 @@ function FileZone({ label, icon, file, onFile, onRemove }) {
             <div style={{ color:C.textDark, fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{file.name}</div>
             <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>{fmtSize(file.size)}{file.fromProfile?" · From profile":""}</div>
           </div>
-          <button className="tap" onClick={onRemove} style={{ background:"none", border:"none", color:C.textSoft, fontSize:18, lineHeight:1 }}>×</button>
+          <button className="tap" onClick={()=>{ if(window.confirm(`Are you sure you want to delete your ${label}? This can't be undone.`)) onRemove(); }} style={{ background:"none", border:"none", color:C.textSoft, fontSize:18, lineHeight:1 }}>×</button>
         </div>
       )}
     </div>
@@ -1285,7 +1285,6 @@ function VenueProfile({ emp, jobs, following, currentUser, onToggleFollow, onApp
             style={{ flex:1, background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:9, padding:"8px 0", color:isFollowed?C.sage:C.textDark, fontSize:13, fontWeight:600, transition:"all 0.18s" }}>
             {isFollowed ? "✓ Following" : "+ Follow"}
           </button>
-          <button className="tap" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"8px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>Message</button>
         </div>
       </div>
       {/* Listings grid */}
@@ -1726,17 +1725,26 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
 
       {/* Candidate detail modal */}
       {selected && (
-        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:4000, display:"flex", alignItems:"flex-end", backdropFilter:"blur(2px)" }}>
-          <div style={{ width:"100%", maxWidth:520, margin:"0 auto", background:"#fff", borderRadius:"22px 22px 0 0", padding:"6px 20px 40px", maxHeight:"88vh", overflowY:"auto" }}>
-            <div style={{ width:36, height:4, background:C.border, borderRadius:2, margin:"10px auto 18px" }}/>
-            <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16 }}>
-              <div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, border:`3px solid ${C.border}`, flexShrink:0 }}>{selected.avatar}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:2 }}>
+        <div onClick={()=>setSelected(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center", backdropFilter:"blur(3px)", padding:16 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:20, padding:"20px 20px 32px", maxHeight:"88vh", overflowY:"auto", position:"relative" }}>
+
+            {/* X close button */}
+            <button className="tap" onClick={()=>setSelected(null)}
+              style={{ position:"absolute", top:14, right:14, width:32, height:32, borderRadius:"50%", background:C.bgSoft, border:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:18, color:C.textMid, cursor:"pointer", lineHeight:1, padding:0, zIndex:2 }}>×</button>
+
+            {/* Header — photo + name */}
+            <div style={{ display:"flex", alignItems:"flex-start", gap:14, marginBottom:16, paddingRight:40 }}>
+              <div style={{ width:64, height:64, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:28, border:`3px solid ${C.border}`, flexShrink:0, overflow:"hidden" }}>
+                {selected.avatarUrl
+                  ? <img src={selected.avatarUrl} alt={selected.name} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none";}}/>
+                  : selected.avatar||"👤"}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:2 }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark }}>{selected.name}</div>
                   {selected.available && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}><span style={{ width:5, height:5, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
                 </div>
-                <div style={{ color:C.textSoft, fontSize:13 }}>{selected.role} · {selected.experience}</div>
+                <div style={{ color:C.textSoft, fontSize:13 }}>{selected.role}{selected.experience ? ` · ${selected.experience}` : ""}</div>
                 {selected.location && <div style={{ color:C.textFaint, fontSize:12, marginTop:3 }}>📍 {selected.location}</div>}
               </div>
             </div>
@@ -1798,34 +1806,22 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
               </div>
             )}
 
-            {/* Contact email */}
+            {/* Contact — email only, no direct messaging */}
             {selected.contactEmail && (
-              <div style={{ marginBottom:16 }}>
+              <div style={{ marginTop:16 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:7 }}>Contact</div>
-                <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`Opportunity via HospoSearch`)}&body=${encodeURIComponent(`Hi ${selected.name},\n\nI found your profile on HospoSearch and would love to talk about a role.\n\n`)}`}
+                <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`Opportunity via HospoSearch`)}&body=${encodeURIComponent(`Hi ${selected.name},\n\nI found your profile on HospoSearch and would love to discuss an opportunity with you.\n\n`)}`}
                   className="btn-cta tap"
-                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, textDecoration:"none", boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                  style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, textDecoration:"none", boxShadow:"0 3px 10px rgba(196,98,58,0.22)", marginBottom:10 }}>
                   ✉️ Email {selected.name.split(" ")[0]}
                 </a>
-                {selected.instagram && <a href={`https://instagram.com/${selected.instagram.replace(/^@/,"")}`} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.sage, fontSize:12, marginTop:8, fontWeight:600 }}>@{selected.instagram.replace(/^@/,"")} on Instagram ↗</a>}
+                {selected.instagram && <a href={`https://instagram.com/${selected.instagram.replace(/^@/,"")}`} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.sage, fontSize:12, fontWeight:600 }}>@{selected.instagram.replace(/^@/,"")} on Instagram ↗</a>}
               </div>
             )}
-
-            {/* Message */}
-            <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
-              <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:9 }}>Send a message</div>
-              {msgSent ? (
-                <div style={{ display:"flex", alignItems:"center", gap:9, padding:"12px 14px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40` }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Message sent to {selected.name}!</span></div>
-              ) : (
-                <>
-                  <textarea value={msgDraft} onChange={e=>setMsgDraft(e.target.value)} placeholder={`Hi ${selected.name}, we'd love to chat about a role…`} rows={3} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:13, resize:"none" }}/>
-                  <div style={{ display:"flex", gap:9, marginTop:10 }}>
-                    <button className="tap" onClick={()=>setSelected(null)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13 }}>Close</button>
-                    <button className="btn-cta tap" onClick={sendMessage} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Send Message</button>
-                  </div>
-                </>
-              )}
-            </div>
+            <button className="tap" onClick={()=>setSelected(null)}
+              style={{ width:"100%", marginTop:16, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13, fontWeight:500, cursor:"pointer" }}>
+              Close
+            </button>
           </div>
         </div>
       )}
@@ -4237,11 +4233,6 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
     setJobs(p=>p.map(jj=>jj.id===job.id?{...jj,apps:(jj.apps||[]).map(ap=>ap.id===a.id?{...ap,status:newStatus}:ap)}:jj));
     try { if(a.id) await sbUpdateAppStatus(a.id, newStatus); } catch(err){}
   };
-  const messageApplicant = () => {
-    const key=`${a.uid}-${user.id}`;
-    setMessages(m=>({ ...m, [key]: [...(m[key]||[]), { from:user.id, text:`Hi ${a.name}, thanks for applying for ${job.title}. We'd love to have a chat.`, ts:Date.now() }] }));
-    setTab("messages");
-  };
   const screening = a.screeningAnswers || {};
   const screeningKeys = Object.keys(screening).filter(k=>screening[k]);
   return (
@@ -4264,7 +4255,6 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
         {a.email && <a href={`mailto:${a.email}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>✉️ {a.email}</a>}
         {a.phone && <a href={`tel:${a.phone}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>📞 {a.phone}</a>}
-        <button className="tap" onClick={messageApplicant} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"7px 14px", color:C.terracotta, fontSize:13, fontWeight:700 }}>Message</button>
       </div>
 
       {/* Documents */}
@@ -4729,7 +4719,6 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
           ? <span style={{ background:C.sageL, color:C.sage, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.sage}50`, marginRight:10 }}>TRIAL</span>
           : <span style={{ background:C.terracottaL, color:C.terracotta, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.terracottaM}`, marginRight:10 }}>EMPLOYER</span>
         }
-        <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", marginRight:10, padding:2, position:"relative" }}><Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textSoft}/></button>
         <AvatarMenu user={user} onDashboard={()=>setTab("feed")} onLogout={onLogout}/>
       </div>
 
@@ -5166,9 +5155,6 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
 
         {/* Talent discovery */}
         {tab==="talent" && <CandidateDiscovery jobs={jobs} messages={messages} setMessages={setMessages} currentUser={user} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements}/>}
-
-        {/* Messages */}
-        {tab==="messages" && <MessagesScreen currentUser={user} userType="employer" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
 
         {/* Analytics */}
         {tab==="subscribe" && (
@@ -5642,10 +5628,6 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
             <Icon name="bell" size={22} color={C.textDark}/>
             {(notifs[user.id]||[]).filter(n=>!n.read).length>0 && <div style={{ position:"absolute", top:0, right:0, width:8, height:8, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff" }}/>}
           </button>
-          <button className="tap" onClick={()=>setTab("messages")} style={{ background:"none", border:"none", padding:2, position:"relative" }}>
-            <Icon name="chat" size={22} color={tab==="messages"?C.terracotta:C.textDark}/>
-            {unreadMessages>0 && <div style={{ position:"absolute", top:0, right:0, width:8, height:8, borderRadius:"50%", background:C.terracotta, border:"2px solid #fff" }}/>}
-          </button>
           <AvatarMenu user={user} badge={hasDocs} onDashboard={()=>setTab("profile")} onLogout={onLogout}/>
         </div>
       </div>
@@ -5726,7 +5708,6 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="following" && <FollowingScreen following={following} jobs={jobs} currentUser={user} onUnfollow={toggleFollow} onOpen={j=>setExpandedJob(j)}/>}
         {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>setExpandedJob(j)} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
-        {tab==="messages" && <MessagesScreen currentUser={user} userType="employee" messages={messages} setMessages={setMessages} jobs={jobs} onBack={goBack}/>}
         {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} userId={user.id} onBack={goBack}/>}
         {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
