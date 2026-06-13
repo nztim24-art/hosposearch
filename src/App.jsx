@@ -2207,6 +2207,7 @@ function MyApplications({ userId, jobs, bookmarks, onExpand }) {
 
 // ─── Explore Grid ─────────────────────────────────────────────────────────────
 function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggleFollow }) {
+  const isDesktop = useIsDesktop();
   const [search, setSearch] = useState("");
   const [showFilters, setShowFilters] = useState(false);
   const [country, setCountry]     = useState("");
@@ -2353,7 +2354,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
                 <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                 <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
                 <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
-                <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                   <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
                   <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
@@ -2444,7 +2445,7 @@ function MineJobCard({ job, onEdit, onApps, onExpand }) {
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 // Wraps Carousel inside a JobCard — intercepts horizontal swipes so they scroll
 // photos without triggering the card's onClick (which would open the listing).
-function CarouselWrapper({ children }) {
+function CarouselWrapper({ children, onSwipe }) {
   const ref = useRef(null);
   const swipedRef = useRef(false);
   const startX = useRef(0);
@@ -2461,7 +2462,10 @@ function CarouselWrapper({ children }) {
     const onMove = (e) => {
       const dx = Math.abs(e.touches[0].clientX - startX.current);
       const dy = Math.abs(e.touches[0].clientY - startY.current);
-      if (dx > 8 && dx > dy) swipedRef.current = true;
+      if (dx > 8 && dx > dy) {
+        swipedRef.current = true;
+        onSwipe && onSwipe();
+      }
     };
     el.addEventListener('touchstart', onStart, { passive: true });
     el.addEventListener('touchmove',  onMove,  { passive: true });
@@ -2469,7 +2473,7 @@ function CarouselWrapper({ children }) {
       el.removeEventListener('touchstart', onStart);
       el.removeEventListener('touchmove',  onMove);
     };
-  }, []);
+  }, [onSwipe]);
 
   return (
     <div ref={ref} onClick={e => { if (swipedRef.current) { e.stopPropagation(); swipedRef.current = false; } }}>
@@ -3019,22 +3023,21 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
               const pbg = PBG[typeof j.photos?.[0]==="number"?j.photos[0]%PBG.length:i%PBG.length];
               const emp = getEmp(j);
               return (
-                <div key={j.id} className="tap" onClick={()=>handleExpand(j)}
-                  style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", cursor:"pointer", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
+                <div key={j.id} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", transition:"box-shadow 0.2s, transform 0.2s" }}
                   onMouseEnter={e=>{ e.currentTarget.style.boxShadow="0 8px 24px rgba(0,0,0,0.12)"; e.currentTarget.style.transform="translateY(-2px)"; }}
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
-                  {/* Image */}
-                  <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
-                    {hm ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
-                      : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
-                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                  {/* Swipeable photo carousel — no login needed */}
+                  <div className="tap" onClick={()=>handleExpand(j)} style={{ display:"block", cursor:"pointer" }}>
+                    <CarouselWrapper onSwipe={()=>{ try { incrementViews(j.id); } catch(e){} }}>
+                      <Carousel photos={j.photos} video={j.video}/>
+                    </CarouselWrapper>
                   </div>
-                  {/* Text */}
-                  <div style={{ padding:"12px 14px 14px" }}>
+                  {/* Text — tap to open */}
+                  <div className="tap" onClick={()=>handleExpand(j)} style={{ padding:"12px 14px 14px", cursor:"pointer" }}>
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                     <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
                     <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
-                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
                       <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
@@ -3582,42 +3585,255 @@ function SubscribePlans({ user, onSubscribe }) {
 // ─── Account Settings ─────────────────────────────────────────────────────────
 // ─── Talent Share Card ────────────────────────────────────────────────────────
 function TalentShareCard({ user }) {
-  const [isPublic, setIsPublic] = useState(user?.is_public===true);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [isPublic, setIsPublic]   = useState(user?.is_public===true);
+  const [expanded, setExpanded]   = useState(false); // show config panel
+  const [saving, setSaving]       = useState(false);
+  const [msg, setMsg]             = useState("");
+  const [showInfo, setShowInfo]   = useState(false);
 
-  const toggle = async () => {
-    const next = !isPublic;
-    setIsPublic(next);
+  // Contact / privacy fields
+  const [contactEmail, setContactEmail] = useState(user?.contact_email||user?.email||"");
+  const [contactPhone, setContactPhone] = useState(user?.contact_phone||"");
+  const [showEmail, setShowEmail]   = useState(user?.show_email !== false);
+  const [showPhone, setShowPhone]   = useState(user?.show_phone === true);
+  const [showResume, setShowResume] = useState(user?.show_resume !== false);
+
+  // Structured discovery fields
+  const [role,     setRole]     = useState(user?.role||"");
+  const [sector,   setSector]   = useState(user?.sector||"");
+  const [country,  setCountry]  = useState(user?.country||"Australia");
+  const [state,    setState]    = useState(user?.state||"");
+  const [city,     setCity]     = useState(user?.city||"");
+  const [yearsExp, setYearsExp] = useState(user?.years_exp||user?.experience||"");
+
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 };
+
+  const saveAndShare = async () => {
+    if (!showEmail && !showPhone) {
+      setMsg("You must share at least your email or phone so employers can contact you.");
+      setTimeout(()=>setMsg(""), 3500); return;
+    }
+    if (showEmail && !contactEmail.trim()) {
+      setMsg("Please enter a contact email first.");
+      setTimeout(()=>setMsg(""), 3000); return;
+    }
     setSaving(true);
+    const locStr = [city, state, country].filter(Boolean).join(", ");
     try {
-      await supabase.from("profiles").update({ is_public: next }).eq("id", user.id);
-      setMsg(next ? "✓ Visible to employers" : "Profile is now private");
-      setTimeout(() => setMsg(""), 2500);
-    } catch(e) { setIsPublic(!next); setMsg("Couldn't update — try again"); }
+      await supabase.from("profiles").update({
+        is_public: true,
+        contact_email: contactEmail.trim()||user.email,
+        contact_phone: contactPhone.trim()||null,
+        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        role: role||null, sector: sector||null,
+        country: country||null, state: state||null, city: city||null,
+        years_exp: yearsExp||null, experience: yearsExp||null,
+        location: locStr||null,
+      }).eq("id", user.id);
+      setIsPublic(true);
+      setExpanded(false);
+      setMsg("✓ Your profile is now visible to employers");
+      setTimeout(()=>setMsg(""), 3000);
+    } catch(e) { setMsg("Couldn't save — try again"); }
     setSaving(false);
   };
 
+  const goPrivate = async () => {
+    setSaving(true);
+    try {
+      await supabase.from("profiles").update({ is_public: false }).eq("id", user.id);
+      setIsPublic(false);
+      setExpanded(false);
+      setMsg("Your profile is now private");
+      setTimeout(()=>setMsg(""), 2500);
+    } catch(e) { setMsg("Couldn't update — try again"); }
+    setSaving(false);
+  };
+
+  const saveSettings = async () => {
+    if (!showEmail && !showPhone) {
+      setMsg("You must share at least your email or phone.");
+      setTimeout(()=>setMsg(""), 3000); return;
+    }
+    setSaving(true);
+    const locStr = [city, state, country].filter(Boolean).join(", ");
+    try {
+      await supabase.from("profiles").update({
+        contact_email: contactEmail.trim()||user.email,
+        contact_phone: contactPhone.trim()||null,
+        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        role: role||null, sector: sector||null,
+        country: country||null, state: state||null, city: city||null,
+        years_exp: yearsExp||null, experience: yearsExp||null,
+        location: locStr||null,
+      }).eq("id", user.id);
+      setMsg("✓ Settings saved");
+      setTimeout(()=>setMsg(""), 2000);
+    } catch(e) { setMsg("Couldn't save — try again"); }
+    setSaving(false);
+  };
+
+  const PrivacyCheck = ({ label, sub, checked, onChange, required }) => (
+    <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
+      <button className="tap" onClick={onChange}
+        style={{ width:22, height:22, borderRadius:6, border:`2px solid ${checked?C.sage:C.border}`, background:checked?C.sage:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", marginTop:2 }}>
+        {checked && <Icon name="check" size={12} color="#fff"/>}
+      </button>
+      <div style={{ flex:1, minWidth:0 }}>
+        <div style={{ fontSize:13, fontWeight:600, color:C.textDark, display:"flex", alignItems:"center", gap:6 }}>
+          {label}
+          {required && <span style={{ fontSize:10, color:C.terracotta, fontWeight:700, background:C.terracottaL, padding:"1px 7px", borderRadius:10 }}>Required</span>}
+        </div>
+        {sub && <div style={{ fontSize:11, color:C.textFaint, marginTop:1 }}>{sub}</div>}
+      </div>
+    </div>
+  );
+
   return (
-    <div style={{ margin:"0 0 16px", borderRadius:14, border:`2px solid ${isPublic ? C.sage : C.border}`, background:isPublic ? C.sageL : "#fff", overflow:"hidden" }}>
-      <div style={{ padding:"16px", display:"flex", alignItems:"center", gap:12 }}>
-        <div style={{ width:44, height:44, borderRadius:12, background:isPublic ? C.sage : C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>
+    <div style={{ marginBottom:16 }}>
+
+      {/* Header card — always visible */}
+      <div style={{ borderRadius: expanded ? "14px 14px 0 0" : 14, border:`2px solid ${isPublic?C.sage:C.terracotta}`, background:isPublic?C.sageL:"#fff", padding:"14px 16px", display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ width:42, height:42, borderRadius:12, background:isPublic?C.sage:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
           {isPublic ? "👁️" : "🔒"}
         </div>
         <div style={{ flex:1, minWidth:0 }}>
-          <div style={{ fontWeight:700, fontSize:15, color:C.textDark, marginBottom:2 }}>
-            {isPublic ? "Visible to Employers" : "Share Profile to Talent Search"}
+          <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:1 }}>
+            <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>
+              {isPublic ? "Visible to Employers" : "Share Profile to Talent Search"}
+            </div>
+            {/* Info button */}
+            <button className="tap" onClick={()=>setShowInfo(true)}
+              style={{ width:18, height:18, borderRadius:"50%", background:C.bgSoft, border:`1px solid ${C.border}`, fontSize:10, fontWeight:700, color:C.textSoft, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>?</button>
           </div>
-          <div style={{ color:C.textSoft, fontSize:12 }}>
-            {isPublic ? "Employers can find and contact you" : "Let employers discover your profile — set details in Account Settings"}
+          <div style={{ fontSize:12, color:C.textSoft }}>
+            {isPublic ? "Employers can find and contact you · tap to edit settings" : "Tap to set your details and share with employers"}
           </div>
-          {msg && <div style={{ color:isPublic ? C.sage : C.terracotta, fontSize:12, fontWeight:600, marginTop:4 }}>{msg}</div>}
+          {msg && <div style={{ fontSize:12, fontWeight:600, color:msg.startsWith("✓")?C.sage:C.terracotta, marginTop:3 }}>{msg}</div>}
         </div>
-        <button className="tap" onClick={toggle} disabled={saving}
-          style={{ flexShrink:0, padding:"10px 18px", borderRadius:22, border:"none", background:isPublic ? `linear-gradient(135deg,${C.sage},#4A7A52)` : `linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:`0 3px 10px ${isPublic ? C.sage + "40" : "rgba(196,98,58,0.3)"}` }}>
-          {saving ? "…" : isPublic ? "Go Private" : "Share Profile"}
-        </button>
+        {isPublic ? (
+          <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
+            <button className="tap" onClick={()=>setExpanded(e=>!e)} disabled={saving}
+              style={{ padding:"7px 14px", borderRadius:20, border:`1px solid ${C.sage}`, background:"#fff", color:C.sage, fontWeight:700, fontSize:12, cursor:"pointer" }}>
+              {expanded ? "Done" : "Edit"}
+            </button>
+            <button className="tap" onClick={goPrivate} disabled={saving}
+              style={{ padding:"7px 14px", borderRadius:20, border:`1px solid ${C.border}`, background:"#fff", color:C.textSoft, fontWeight:600, fontSize:12, cursor:"pointer" }}>
+              {saving ? "…" : "Go Private"}
+            </button>
+          </div>
+        ) : (
+          <button className="tap" onClick={()=>setExpanded(e=>!e)} disabled={saving}
+            style={{ flexShrink:0, padding:"10px 18px", borderRadius:22, border:"none", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
+            Share Profile
+          </button>
+        )}
       </div>
+
+      {/* Expandable config panel */}
+      {expanded && (
+        <div style={{ border:`2px solid ${isPublic?C.sage:C.terracotta}`, borderTop:"none", borderRadius:"0 0 14px 14px", background:"#fff", padding:"16px" }}>
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+
+            {/* Role + Sector */}
+            <div>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Role</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                <select value={role} onChange={e=>setRole(e.target.value)} style={IS}>
+                  <option value="">Select your role…</option>
+                  {["Head Chef","Sous Chef","Chef de Partie","Commis Chef","Pastry Chef","Executive Chef","Kitchen Hand","Bar Manager","Bartender","Sommelier","Front of House Manager","Floor Manager","Barista","Waiter / Waitress","Venue Manager","Events Coordinator","Food & Beverage Manager","Restaurant Manager","Hospitality Professional"].map(r=><option key={r}>{r}</option>)}
+                </select>
+                <select value={sector} onChange={e=>setSector(e.target.value)} style={IS}>
+                  <option value="">Select industry / sector…</option>
+                  {["Fine Dining","Casual Dining","Café","Bakery","Pub / Bar","Hotel & Resort","Events & Catering","Fast Casual","Bistro","Club","Winery / Cellar Door","Food Truck","Corporate Catering"].map(s=><option key={s}>{s}</option>)}
+                </select>
+                <select value={yearsExp} onChange={e=>setYearsExp(e.target.value)} style={IS}>
+                  <option value="">Years of experience…</option>
+                  {["Less than 1 year","1–2 years","2–5 years","5–10 years","10–15 years","15+ years"].map(y=><option key={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>Your Location</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                <select value={country} onChange={e=>{ setCountry(e.target.value); setState(""); setCity(""); }} style={IS}>
+                  {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                </select>
+                {country && Object.keys(LOCATIONS[country]||{}).length>0 && (
+                  <select value={state} onChange={e=>{ setState(e.target.value); setCity(""); }} style={IS}>
+                    <option value="">Select region / state…</option>
+                    {Object.keys(LOCATIONS[country]||{}).map(s=><option key={s}>{s}</option>)}
+                  </select>
+                )}
+                {state && (LOCATIONS[country]?.[state]||[]).length>0 && (
+                  <select value={city} onChange={e=>setCity(e.target.value)} style={IS}>
+                    <option value="">Select city / suburb…</option>
+                    {(LOCATIONS[country]?.[state]||[]).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Contact visibility */}
+            <div>
+              <div style={{ fontSize:11, fontWeight:700, color:C.textSoft, textTransform:"uppercase", letterSpacing:1, marginBottom:8 }}>What Employers Can See</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                <div>
+                  <PrivacyCheck label="Email address" required checked={showEmail} onChange={()=>setShowEmail(v=>!v)}/>
+                  {showEmail && <input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} placeholder="you@email.com" type="email" style={{ ...IS, marginTop:7 }}/>}
+                </div>
+                <div>
+                  <PrivacyCheck label="Phone number" sub="Optional — lets employers call you directly" checked={showPhone} onChange={()=>setShowPhone(v=>!v)}/>
+                  {showPhone && <input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} placeholder="04xx xxx xxx" type="tel" style={{ ...IS, marginTop:7 }}/>}
+                </div>
+                <PrivacyCheck label="Résumé / CV" sub="Let employers download your résumé" checked={showResume} onChange={()=>setShowResume(v=>!v)}/>
+              </div>
+              <div style={{ fontSize:11, color:C.textFaint, marginTop:10, lineHeight:1.5, background:C.bgSoft, borderRadius:8, padding:"8px 10px" }}>
+                ℹ️ Your name, role, bio and work photos are always shown when your profile is public.
+              </div>
+            </div>
+
+            {msg && <div style={{ fontSize:13, fontWeight:600, color:msg.startsWith("✓")?C.sage:C.terracotta }}>{msg}</div>}
+
+            {/* Action buttons */}
+            {isPublic ? (
+              <button className="btn-cta tap" onClick={saveSettings} disabled={saving}
+                style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                {saving ? "Saving…" : "Save Settings"}
+              </button>
+            ) : (
+              <button className="btn-cta tap" onClick={saveAndShare} disabled={saving}
+                style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:11, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                {saving ? "Saving…" : "✓ Share My Profile"}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Info popup */}
+      {showInfo && (
+        <div onClick={()=>setShowInfo(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
+          <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:18, padding:"24px 20px", maxWidth:340, width:"100%", position:"relative" }}>
+            <button onClick={()=>setShowInfo(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:"50%", background:C.bgSoft, border:`1px solid ${C.border}`, fontSize:16, color:C.textMid, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
+            <div style={{ fontSize:30, marginBottom:10 }}>👁️</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>Talent Search</div>
+            <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6, marginBottom:12 }}>
+              When you share your profile, employers hiring on HospoSearch can discover you in their <strong>Talent Search</strong> — even if you haven't applied to their listing.
+            </div>
+            {[["✓","Your name, role and bio are always visible"],["✓","You choose what contact details employers can see"],["✓","Email or phone required so employers can reach you"],["✓","Turn it off any time to go private instantly"]].map(([ic,t])=>(
+              <div key={t} style={{ display:"flex", gap:8, marginBottom:6 }}>
+                <span style={{ color:C.sage, fontWeight:700 }}>{ic}</span>
+                <span style={{ color:C.textMid, fontSize:13 }}>{t}</span>
+              </div>
+            ))}
+            <button className="tap" onClick={()=>setShowInfo(false)}
+              style={{ width:"100%", marginTop:14, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>Got it</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -4018,7 +4234,7 @@ function EmployerBrowse({ jobs, user, onExpand }) {
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                     <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
                     <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
-                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                    <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
                       <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
@@ -4829,7 +5045,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
-              <RichTextEditor value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full details, requirements, benefits…" />
+              <RichTextEditor key={nj.title+"-emp"} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full details, requirements, benefits…" />
             </div>
 
             {/* Key selling points */}
@@ -5605,7 +5821,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                       <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                       <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
                       <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
-                      <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{j.short}</div>
+                      <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
                         <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
@@ -5890,7 +6106,13 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         {/* Post a Job — as HospoSearch */}
         {tab==="post" && (
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
-            <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:4 }}>Post a Job as HospoSearch</div>
+            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
+              <button className="tap" onClick={()=>setTab("listings")}
+                style={{ background:"none", border:"none", padding:"4px 2px", display:"flex", alignItems:"center" }}>
+                <Icon name="back" size={22} color={C.textDark}/>
+              </button>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700 }}>Post a Job as HospoSearch</div>
+            </div>
             <div style={{ color:C.textSoft, fontSize:13, marginBottom:16 }}>Post jobs directly to the feed under the HospoSearch brand.</div>
 
             {njPosted && (
@@ -6001,7 +6223,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Full description — rich text */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on detail page)</span></div>
-                <RichTextEditor value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full job description, responsibilities, requirements…" fontSize={13} />
+                <RichTextEditor key={nj.title+"-admin"} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full job description, responsibilities, requirements…" fontSize={13} />
               </div>
 
               {/* Tags */}
