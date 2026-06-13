@@ -2828,6 +2828,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               <span style={{ marginLeft:"auto", color:C.terracotta, fontSize:11, fontWeight:600 }}>Map ↗</span>
             </a>
           )}
+          {isOwnListing && (
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
               <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
               <span style={{ color:C.textFaint }}>·</span>
