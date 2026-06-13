@@ -775,7 +775,7 @@ function Avatar({ emp, size=36, fontSize=18 }) {
   return (
     <div style={{ width:size, height:size, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize, flexShrink:0, overflow:"hidden", border:`1px solid ${C.border}` }}>
       {imgUrl
-        ? <img src={imgUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+        ? <img src={imgUrl} alt="" onError={e=>{e.target.style.display='none';}} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
         : (emp?.avatar||"👤")
       }
     </div>
@@ -797,7 +797,7 @@ function AvatarMenu({ user, onDashboard, onLogout, badge=false }) {
     <div ref={ref} style={{ position:"relative" }}>
       <button className="tap" onClick={()=>setOpen(o=>!o)} style={{ position:"relative", width:32, height:32, borderRadius:10, background:imgUrl?"#fff":`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"none", display:"flex", alignItems:"center", justifyContent:"center", fontSize:17, overflow:"hidden", cursor:"pointer", padding:0 }}>
         {imgUrl
-          ? <img src={imgUrl} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+          ? <img src={imgUrl} alt="" onError={e=>{e.target.style.display='none';}} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
           : (user?.avatar||"\u{1F464}")}
         {badge && <div style={{ position:"absolute", top:-2, right:-2, width:9, height:9, borderRadius:"50%", background:C.sage, border:"2px solid #fff" }}/>}
       </button>
@@ -2068,9 +2068,10 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
       try {
         const res = await fetch(ev.target.result);
         const blob = await res.blob();
-        const path = `profiles/${user.id}/avatar.jpg`;
-        await supabase.storage.from('documents').upload(path, blob, { upsert:true, contentType:'image/jpeg' });
-        const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
+        // Avatars go in the PUBLIC job-photos bucket so they display everywhere
+        const path = `avatars/${user.id}/avatar-${Date.now()}.jpg`;
+        await supabase.storage.from('job-photos').upload(path, blob, { upsert:true, contentType:'image/jpeg' });
+        const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
         setAvatarUrl(urlData.publicUrl);
         await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
       } catch(e) { console.warn('Avatar upload error:', e); }
@@ -4710,10 +4711,28 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:2 }}>{j.title}</div>
                           <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {j.salary}</div>
-                          <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#FEE2E2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
-                            <Icon name="clock" size={10} color="#B91C1C"/> Expired
-                          </span>
+                          <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                            <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#FEE2E2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
+                              <Icon name="clock" size={10} color="#B91C1C"/> Expired
+                            </span>
+                            {(j.apps?.length||0)>0 && (
+                              <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
+                                <Icon name="briefcase" size={10} color={C.sage}/> {j.apps.length} applicant{j.apps.length!==1?"s":""}
+                              </span>
+                            )}
+                          </div>
                         </div>
+                      </div>
+                      {/* Actions: view applicants (kept after expiry), edit, re-activate */}
+                      <div style={{ display:"flex", borderTop:`1px solid ${C.border}` }}>
+                        <button className="tap" onClick={()=>{ setSel(j); setTab("apps"); }}
+                          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:"none", borderRight:`1px solid ${C.border}`, padding:"11px 0", color:(j.apps?.length||0)>0?C.terracotta:C.textSoft, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                          <Icon name="briefcase" size={13} color={(j.apps?.length||0)>0?C.terracotta:C.textSoft}/> Applicants ({j.apps?.length||0})
+                        </button>
+                        <button className="tap" onClick={()=>{ startEdit(j); setReactivateJob(j); }}
+                          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:"none", padding:"11px 0", color:C.textMid, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                          <Icon name="edit" size={13} color={C.textMid}/> Edit & relist
+                        </button>
                       </div>
                       <button className="tap" onClick={()=>setReactivateJob(j)}
                         style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
@@ -5920,6 +5939,14 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     await adminJobAction('delete', j.id);
   } catch(e) { console.warn('Delete job error:', e); alert('Delete failed — please try again.'); }
 }}} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:7, padding:"4px 10px", color:C.error, fontSize:11, fontWeight:600 }}>Delete</button>
+                      <button className="tap" onClick={async ()=>{
+                        const newFeatured = !j.featured;
+                        setJobs(p=>p.map(x=>x.id===j.id?{...x, featured:newFeatured}:x));
+                        try { await adminJobAction('update', j.id, { featured: newFeatured }); }
+                        catch(e) { console.warn('Pin error:', e); alert('Pin failed — please try again.'); }
+                      }} style={{ background:j.featured?C.featuredL:C.bgSoft, border:`1px solid ${j.featured?C.featured+"40":C.border}`, borderRadius:7, padding:"4px 10px", color:j.featured?C.featured:C.textSoft, fontSize:11, fontWeight:600 }}>
+                        {j.featured ? "📌 Unpin" : "📌 Pin to top"}
+                      </button>
                       <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>{j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
                     </div>
