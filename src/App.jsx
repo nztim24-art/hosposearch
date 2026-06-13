@@ -498,6 +498,21 @@ function descToHtml(text) {
   return paras.map(p => `<p style="margin:0 0 14px;">${p.replace(/\n/g, "<br>")}</p>`).join("");
 }
 
+// Strip HTML tags to plain text — for card teasers where tags shouldn't show
+function stripTags(text) {
+  if (!text || typeof text !== "string") return "";
+  return text
+    .replace(/<\/(p|div|li|br|h[1-6])>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function sanitizeHtml(html) {
   if (!html || typeof html !== "string") return "";
   try {
@@ -2710,7 +2725,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
           </div>
         )}
         {/* Description */}
-        <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6 }}>{job.short}</div>
+        <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6 }}>{stripTags(job.short)}</div>
         <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.terracotta, fontSize:13, marginTop:7, cursor:"pointer", fontWeight:600 }}>View full role →</div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:5 }}>
           <div style={{ color:C.textFaint, fontSize:11, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
@@ -2819,7 +2834,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
             </div>
           )}
-          <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, whiteSpace:"pre-line", borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }}>{job.full}</div>
+          <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }} dangerouslySetInnerHTML={{ __html: descToHtml(job.full) }}/>
           {!showForm && !done && isOwnListing && (
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", background:C.sandL, borderRadius:13, border:`1px solid ${C.sand}40` }}>
               <Icon name="eye" size={18} color={C.clay}/>

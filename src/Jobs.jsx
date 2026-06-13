@@ -34,6 +34,15 @@ function sanitizeHtml(html) {
     return container.innerHTML
   } catch (e) { return html.replace(/<[^>]*>/g, "") }
 }
+function stripTags(text) {
+  if (!text || typeof text !== "string") return ""
+  return text
+    .replace(/<\/(p|div|li|br|h[1-6])>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/\s+/g, " ").trim()
+}
 const ago = (ts) => {
   const d = Math.floor((Date.now()-ts)/86400000)
   if (d<1) return "today"; if (d===1) return "1d"; if (d<7) return d+"d"
@@ -137,7 +146,7 @@ function JobCard({ job }) {
         <div className="jb-venue">{job.venue}</div>
         <div className="jb-title jb-serif">{job.title}</div>
         <div className="jb-salary">{job.salary}</div>
-        <div className="jb-short">{job.short}</div>
+        <div className="jb-short">{stripTags(job.short)}</div>
         <div className="jb-meta">
           <span>{job.loc} · {ago(job.ts)} ago</span>
           <span className="role">View role →</span>
@@ -225,13 +234,13 @@ function JobDetail({ jobs, loading }) {
 
   useSEO({
     title: job ? `${job.title} — ${job.venue} | HospoSearch` : "Hospitality Role | HospoSearch",
-    description: job ? `${job.title} at ${job.venue}, ${job.loc}. ${(job.short||"").slice(0,140)}` : "View this hospitality role on HospoSearch.",
+    description: job ? `${job.title} at ${job.venue}, ${job.loc}. ${stripTags(job.short||"").slice(0,140)}` : "View this hospitality role on HospoSearch.",
     canonical: job ? `https://www.hosposearch.com.au/jobs/${job.id}` : undefined,
     jsonLd: job ? {
       "@context":"https://schema.org",
       "@type":"JobPosting",
       "title":job.title,
-      "description":job.full||job.short,
+      "description":stripTags(job.full||job.short),
       "datePosted":new Date(job.ts).toISOString(),
       "employmentType":(job.type||"FULL_TIME").toUpperCase().replace("-","_"),
       "hiringOrganization":{ "@type":"Organization","name":job.venue },
