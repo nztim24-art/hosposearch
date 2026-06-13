@@ -323,39 +323,15 @@ const INIT_JOBS = [];
 
 const INIT_MESSAGES = {};
 
-// ─── Sample references seed data ─────────────────────────────────────────────
-const INIT_REFERENCES = {
-  "u1": [
-    { id:"ref1", requestedFrom:"emp1", venue:"Attica", refName:"Ben Shewry", refRole:"Head Chef / Owner", status:"confirmed", text:"Jordan is one of the most technically gifted CDPs I've worked with. Exceptional palate, calm under pressure, and a genuine leader in the making. I would hire him again without hesitation.", ts:Date.now()-3600000*72, skills:["Fine Dining","Leadership","Menu Development","Pastry"] },
-  ],
-  "u2": [],
-};
-
 // ─── Sample notifications seed data ──────────────────────────────────────────
 const INIT_NOTIFS = {
   "u1": [
-    { id:"n1", type:"message", text:"Attica sent you a message", sub:"Hi Jordan, thanks for applying…", ts:Date.now()-3600000*1, read:false, icon:"💬" },
     { id:"n2", type:"application", text:"Application viewed", sub:"Attica viewed your Head Chef application", ts:Date.now()-3600000*3, read:false, icon:"👁️" },
     { id:"n3", type:"listing", text:"New listing from Tetsuya's", sub:"Sous Chef · Sydney NSW · $80–95k", ts:Date.now()-3600000*8, read:true, icon:"🆕" },
   ],
   "u2": [
     { id:"n4", type:"listing", text:"New listing from Quay Restaurant", sub:"Floor Manager · Sydney NSW", ts:Date.now()-3600000*2, read:false, icon:"🆕" },
   ],
-};
-
-// ─── Skill endorsements data ─────────────────────────────────────────────────
-const INIT_ENDORSEMENTS = {
-  "u1": {
-    "Knife Skills":     [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*48 }],
-    "Menu Development": [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*48 }, { by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*24 }],
-    "Sauce Work":       [{ by:"emp1", name:"Attica",    avatar:"🍽️", ts:Date.now()-3600000*72 }],
-    "Pastry":           [{ by:"emp3", name:"Quay",      avatar:"⚓", ts:Date.now()-3600000*12 }],
-  },
-  "u2": {
-    "Sommelier":        [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }],
-    "Guest Relations":  [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }, { by:"emp3", name:"Quay", avatar:"⚓", ts:Date.now()-3600000*10 }],
-    "Wine Pairing":     [{ by:"emp2", name:"Tetsuya's", avatar:"🌸", ts:Date.now()-3600000*36 }],
-  },
 };
 
 // ─── Discount codes ──────────────────────────────────────────────────────────
@@ -1501,92 +1477,9 @@ function NotifCentre({ userId, notifs, setNotifs }) {
   );
 }
 
-// ─── References & Endorsements ────────────────────────────────────────────────
-function ReferencesPanel({ userId, refs, setRefs }) {
-  const mine = refs[userId]||[];
-  const [showRequest, setShowRequest] = useState(false);
-  const [req, setReq] = useState({ venue:"", refName:"", refRole:"", email:"" });
-  const [sent, setSent] = useState(false);
-  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13 };
-
-  const submitRequest = () => {
-    if (!req.venue.trim()||!req.refName.trim()) return;
-    const pending = { id:"ref"+Date.now(), requestedFrom:null, venue:req.venue, refName:req.refName, refRole:req.refRole, status:"pending", text:"", ts:Date.now(), skills:[] };
-    setRefs(p=>({ ...p, [userId]:[...(p[userId]||[]), pending] }));
-    setReq({ venue:"", refName:"", refRole:"", email:"" });
-    setSent(true); setShowRequest(false); setTimeout(()=>setSent(false), 2500);
-  };
-
-  return (
-    <div style={{ marginBottom:24 }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
-        <div style={{ fontWeight:600, fontSize:14, color:C.textDark, display:"flex", alignItems:"center", gap:7 }}>
-          <Icon name="award" size={16} color={C.terracotta}/>
-          References & Endorsements
-          {mine.filter(r=>r.status==="confirmed").length>0 && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>✓ {mine.filter(r=>r.status==="confirmed").length} verified</span>}
-        </div>
-        <button className="tap" onClick={()=>setShowRequest(!showRequest)} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:20, padding:"5px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>+ Request</button>
-      </div>
-
-      {sent && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"11px 13px", background:C.sageL, borderRadius:11, border:`1px solid ${C.sage}40`, marginBottom:12 }}><span>✅</span><span style={{ color:C.sage, fontWeight:600, fontSize:13 }}>Reference request sent!</span></div>}
-
-      {showRequest && (
-        <div style={{ background:"#fff", borderRadius:14, padding:16, border:`1px solid ${C.border}`, marginBottom:14, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
-          <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:10 }}>Request a Reference</div>
-          <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-            {[["Venue / Company","venue","e.g. Attica, Noma…"],["Referee's Name","refName","e.g. Ben Shewry"],["Their Role","refRole","e.g. Head Chef, Manager"],["Their Email","email","optional — for direct request"]].map(([l,k,p])=>(
-              <div key={k}><div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:4, fontWeight:600 }}>{l}</div><input value={req[k]} onChange={e=>setReq(r=>({...r,[k]:e.target.value}))} placeholder={p} style={IS}/></div>
-            ))}
-            <div style={{ display:"flex", gap:9 }}>
-              <button className="tap" onClick={()=>setShowRequest(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 0", color:C.textMid, fontSize:13 }}>Cancel</button>
-              <button className="btn-cta tap" onClick={submitRequest} style={{ flex:2, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>Send Request</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {mine.length===0 && !showRequest && (
-        <div style={{ background:C.bgSoft, borderRadius:12, padding:"16px", textAlign:"center", border:`1px dashed ${C.border}` }}>
-          <div style={{ fontSize:28, marginBottom:6 }}>⭐</div>
-          <div style={{ color:C.textMid, fontSize:13, fontWeight:500, marginBottom:3 }}>No references yet</div>
-          <div style={{ color:C.textFaint, fontSize:12 }}>Request a reference from a past employer to build trust with future venues</div>
-        </div>
-      )}
-
-      {mine.map(ref=>(
-        <div key={ref.id} style={{ background:"#fff", borderRadius:14, border:`1px solid ${ref.status==="confirmed"?C.sage+"50":C.border}`, padding:"14px 16px", marginBottom:10, boxShadow:"0 1px 6px rgba(0,0,0,0.04)" }}>
-          <div style={{ display:"flex", alignItems:"flex-start", gap:10, marginBottom:ref.text?10:0 }}>
-            <div style={{ width:40, height:40, borderRadius:13, background:ref.status==="confirmed"?C.sageL:C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>
-              {ref.status==="confirmed" ? "✅" : ref.status==="pending" ? "⏳" : "❌"}
-            </div>
-            <div style={{ flex:1 }}>
-              <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>{ref.refName}</div>
-              <div style={{ color:C.textSoft, fontSize:12 }}>{ref.refRole} · {ref.venue}</div>
-              <div style={{ marginTop:4 }}>
-                {ref.status==="confirmed" && <span style={{ background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:20 }}>✓ Verified Reference</span>}
-                {ref.status==="pending"   && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.sand, fontSize:11, fontWeight:600, padding:"2px 9px", borderRadius:20 }}>⏳ Awaiting response</span>}
-              </div>
-            </div>
-          </div>
-          {ref.text && (
-            <div style={{ background:C.bgSoft, borderRadius:10, padding:"11px 13px", borderLeft:`3px solid ${C.sage}`, marginBottom:ref.skills?.length>0?10:0 }}>
-              <div style={{ color:C.textSoft, fontSize:11, marginBottom:5, display:"flex", alignItems:"center", gap:5 }}><Icon name="quote" size={13} color={C.textSoft}/> Reference</div>
-              <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6, fontStyle:"italic" }}>"{ref.text}"</div>
-            </div>
-          )}
-          {ref.skills?.length>0 && (
-            <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
-              {ref.skills.map(s=><span key={s} style={{ background:C.sageL, border:`1px solid ${C.sage}30`, color:C.sage, fontSize:11, fontWeight:600, padding:"2px 9px", borderRadius:20 }}>{s}</span>)}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 // ─── Candidate Discovery (Employer) ──────────────────────────────────────────
-function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, endorsements, setEndorsements }) {
+function CandidateDiscovery({ jobs, currentUser }) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("All");
   const [locFilter, setLocFilter] = useState("All");
@@ -1684,7 +1577,6 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
       <div style={{ flex:1, overflowY:"auto", padding:"10px 12px" }}>
         <div style={{ color:C.textFaint, fontSize:11, marginBottom:10 }}>{candidates.length} candidate{candidates.length!==1?"s":""} found</div>
         {candidates.map(cand=>{
-          const candRefs = (refs[cand.id]||[]).filter(r=>r.status==="confirmed");
           return (
             <div key={cand.id} className="tap" onClick={()=>setSelected(cand)} style={{ background:"#fff", borderRadius:14, padding:"14px 15px", border:`1px solid ${C.border}`, marginBottom:10, boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
               <div style={{ display:"flex", gap:12, alignItems:"flex-start" }}>
@@ -1694,21 +1586,10 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
                     <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>{cand.name}</div>
                     {cand.available && <div style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:700, padding:"2px 8px", borderRadius:20 }}><span style={{ width:5, height:5, borderRadius:"50%", background:C.sage, display:"inline-block" }}/>Open to work</div>}
                   </div>
-                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:3 }}>{cand.role} · {cand.experience}</div>
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:3 }}>{cand.role}{cand.yearsExp ? ` · ${cand.yearsExp}` : cand.experience ? ` · ${cand.experience}` : ""}</div>
                   {cand.location && <div style={{ color:C.textFaint, fontSize:12, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}>📍 {cand.location}</div>}
                   {cand.bio && <div style={{ color:C.textMid, fontSize:12, lineHeight:1.5, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{cand.bio}</div>}
-                  {cand.cuisine?.length>0 && (
-                    <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
-                      {cand.cuisine.map(c=><span key={c} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{c}</span>)}
-                    </div>
-                  )}
-                  {candRefs.length>0 && (
-                    <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-                      <Icon name="shield" size={13} color={C.sage} fill={C.sageL}/>
-                      <span style={{ color:C.sage, fontSize:11, fontWeight:600 }}>{candRefs.length} verified reference{candRefs.length!==1?"s":""}</span>
-                      {candRefs[0]?.skills?.slice(0,2).map(s=><span key={s} style={{ background:C.sageL, color:C.sage, fontSize:10, padding:"1px 7px", borderRadius:20, border:`1px solid ${C.sage}30` }}>{s}</span>)}
-                    </div>
-                  )}
+                  {cand.sector && <span style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{cand.sector}</span>}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
                   <button className="btn-cta tap" onClick={e=>{ e.stopPropagation(); setSelected(cand); }} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:8, padding:"7px 13px", color:"#fff", fontSize:12, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.2)" }}>View</button>
@@ -1749,34 +1630,6 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
               </div>
             </div>
             {selected.bio && <div style={{ color:C.textMid, fontSize:14, lineHeight:1.65, marginBottom:16, background:C.bgSoft, borderRadius:11, padding:"12px 14px" }}>{selected.bio}</div>}
-            {selected.cuisine?.length>0 && (
-              <div style={{ marginBottom:14 }}>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:7 }}>Cuisine Specialties</div>
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
-                  {selected.cuisine.map(c=><span key={c} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:12, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{c}</span>)}
-                </div>
-              </div>
-            )}
-            {/* Endorsements on candidate */}
-            {selected.skills?.length>0 && (
-              <div style={{ marginBottom:16 }}>
-                <SkillEndorsements candidateId={selected.id} skills={selected.skills} endorsements={endorsements} setEndorsements={()=>{}} currentUser={currentUser} isOwnProfile={false}/>
-              </div>
-            )}
-            {/* References on candidate */}
-            {(refs[selected.id]||[]).filter(r=>r.status==="confirmed").length>0 && (
-              <div style={{ marginBottom:16 }}>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:9 }}>Verified References</div>
-                {(refs[selected.id]||[]).filter(r=>r.status==="confirmed").map(ref=>(
-                  <div key={ref.id} style={{ background:C.sageL, borderRadius:12, padding:"12px 14px", border:`1px solid ${C.sage}40`, marginBottom:9 }}>
-                    <div style={{ fontWeight:600, fontSize:13, color:C.textDark, marginBottom:1 }}>{ref.refName} <span style={{ color:C.textSoft, fontWeight:400 }}>· {ref.refRole}</span></div>
-                    <div style={{ color:C.sage, fontSize:11, fontWeight:600, marginBottom:8 }}>{ref.venue} · ✓ Verified</div>
-                    {ref.text && <div style={{ color:C.textMid, fontSize:13, lineHeight:1.6, fontStyle:"italic" }}>"{ref.text}"</div>}
-                    {ref.skills?.length>0 && <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginTop:8 }}>{ref.skills.map(s=><span key={s} style={{ background:"#fff", border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{s}</span>)}</div>}
-                  </div>
-                ))}
-              </div>
-            )}
             {/* Work photos */}
             {selected.photos?.length>0 && (
               <div style={{ marginBottom:16 }}>
@@ -1841,67 +1694,6 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
   );
 }
 
-
-// ─── Skill Endorsements widget ────────────────────────────────────────────────
-function SkillEndorsements({ candidateId, skills, endorsements, setEndorsements, currentUser, isOwnProfile }) {
-  const myEndorsements = endorsements[candidateId]||{};
-
-  const endorse = (skill) => {
-    if (!currentUser || isOwnProfile) return;
-    const existing = myEndorsements[skill]||[];
-    const alreadyDone = existing.some(e=>e.by===currentUser.id);
-    if (alreadyDone) return; // can't double-endorse
-    const newEntry = { by:currentUser.id, name:currentUser.name, avatar:currentUser.avatar, ts:Date.now() };
-    setEndorsements(prev=>({ ...prev, [candidateId]:{ ...(prev[candidateId]||{}), [skill]:[...(prev[candidateId]?.[skill]||[]), newEntry] } }));
-  };
-
-  if (!skills?.length) return null;
-  return (
-    <div style={{ marginBottom:20 }}>
-      <div style={{ fontWeight:600, fontSize:14, color:C.textDark, marginBottom:10, display:"flex", alignItems:"center", gap:7 }}>
-        <Icon name="thumbsup" size={15} color={C.terracotta}/>
-        Skills & Endorsements
-        {Object.values(myEndorsements).flat().length>0 && (
-          <span style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:700, padding:"2px 8px", borderRadius:20 }}>
-            {Object.values(myEndorsements).flat().length} total
-          </span>
-        )}
-      </div>
-      <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
-        {skills.map(skill=>{
-          const endorsers = myEndorsements[skill]||[];
-          const alreadyEndorsed = endorsers.some(e=>e.by===currentUser?.id);
-          const canEndorse = !isOwnProfile && currentUser && !alreadyEndorsed;
-          return (
-            <div key={skill} style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 13px", background:endorsers.length>0?C.terracottaL:"#fff", borderRadius:12, border:`1px solid ${endorsers.length>0?C.terracottaM:C.border}`, transition:"all 0.2s" }}>
-              <div style={{ flex:1 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:7, marginBottom:endorsers.length>0?4:0 }}>
-                  <span style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{skill}</span>
-                  {endorsers.length>0 && <span style={{ background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, padding:"1px 7px", borderRadius:20 }}>{endorsers.length}</span>}
-                </div>
-                {endorsers.length>0 && (
-                  <div style={{ display:"flex", alignItems:"center", gap:-4 }}>
-                    {endorsers.slice(0,4).map((e,i)=>(
-                      <div key={i} title={e.name} style={{ width:20, height:20, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:10, marginLeft:i>0?-6:0, zIndex:endorsers.length-i }}>{e.avatar}</div>
-                    ))}
-                    {endorsers.length>4 && <span style={{ color:C.textSoft, fontSize:10, marginLeft:6 }}>+{endorsers.length-4} more</span>}
-                    <span style={{ color:C.textSoft, fontSize:11, marginLeft:6 }}>endorsed this</span>
-                  </div>
-                )}
-              </div>
-              {canEndorse && (
-                <button className="tap" onClick={()=>endorse(skill)} style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:8, padding:"5px 10px", color:C.textMid, fontSize:11, fontWeight:600, flexShrink:0, display:"flex", alignItems:"center", gap:4 }}>
-                  <Icon name="thumbsup" size={12} color={C.textSoft}/>Endorse
-                </button>
-              )}
-              {alreadyEndorsed && <span style={{ color:C.sage, fontSize:11, fontWeight:600, flexShrink:0 }}>✓ Endorsed</span>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 // ─── Portfolio & Work History ─────────────────────────────────────────────────
 function PortfolioSection({ user, profile, setProfile }) {
@@ -2065,7 +1857,6 @@ function NotifPrefsPanel({ prefs, setPrefs }) {
     ["matchingAlerts", "🎯", "Alert matches",           "Notifications when a listing matches one of your job alerts"],
     ["appUpdates",     "📋", "Application updates",     "When employers view or update the status of your application"],
     ["messages",       "💬", "Messages",                "New messages from employers"],
-    ["endorsements",   "⭐", "Skill endorsements",      "When an employer endorses one of your skills"],
     ["weeklyDigest",   "📰", "Weekly digest",           "A weekly summary of new roles and activity"],
   ];
   return (
@@ -2095,7 +1886,7 @@ function NotifPrefsPanel({ prefs, setPrefs }) {
 }
 
 // ─── Candidate Profile ────────────────────────────────────────────────────────
-function CandidateProfile({ user, profile, setProfile, following, setFollowing, altAccount, onSwitchAccount, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
+function CandidateProfile({ user, profile, setProfile, following, setFollowing, altAccount, onSwitchAccount, applications, bookmarks, notifPrefs, setNotifPrefs, onLogout }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({
     ...user,
@@ -2337,9 +2128,7 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
 
         <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
 
-        <SkillEndorsements candidateId={user.id} skills={user.skills||[]} endorsements={endorsements} setEndorsements={setEndorsements} currentUser={user} isOwnProfile={true}/>
-
-        <ReferencesPanel userId={user.id} refs={refs} setRefs={setRefs}/>
+        <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
 
         <NotifPrefsPanel prefs={notifPrefs} setPrefs={setNotifPrefs}/>
 
@@ -3780,6 +3569,16 @@ function AccountSettings({ user, onLogout }) {
   const [showResume, setShowResume] = useState(user?.show_resume !== false);
   const [discMsg, setDiscMsg] = useState("");
   const [showInfoPopup, setShowInfoPopup] = useState(false);
+  // Local draft for structured talent profile fields
+  const [draft, setDraft] = useState({
+    role:     user?.role||"",
+    sector:   user?.sector||"",
+    country:  user?.country||"Australia",
+    state:    user?.state||"",
+    city:     user?.city||"",
+    yearsExp: user?.yearsExp||user?.years_exp||user?.experience||"",
+    location: user?.location||"",
+  });
   const IS = { width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:10, padding:"10px 13px", color:C.textDark, fontSize:14 };
 
   const toggleDiscoverable = async () => {
@@ -4651,7 +4450,7 @@ function ApplicationsManager({ mine, sel, setSel, user, setJobs, setSupabaseApps
   );
 }
 
-function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endorsements, setEndorsements, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
+function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCodes, onLogout, paymentStatus, setPaymentStatus, altAccount, onSwitchAccount }) {
   // Read tier/mode from URL on mount (passed from landing page Get Started buttons)
   const _urlParams = new URLSearchParams(window.location.search);
   const _urlTier = _urlParams.get('tier') || 'bronze';
@@ -5379,7 +5178,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
         )}
 
         {/* Talent discovery */}
-        {tab==="talent" && <CandidateDiscovery jobs={jobs} messages={messages} setMessages={setMessages} currentUser={user} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements}/>}
+        {tab==="talent" && <CandidateDiscovery jobs={jobs} currentUser={user}/>}
 
         {/* Analytics */}
         {tab==="subscribe" && (
@@ -5631,7 +5430,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
   );
 }
 
-function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, refs, setRefs, notifs, setNotifs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
+function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, notifs, setNotifs, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
   const isDesktop = useIsDesktop();
   const [tab, setTabRaw] = useState("home");
   const [prevTab, setPrevTab] = useState("home");
@@ -5934,7 +5733,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="explore" && <ExploreGrid jobs={jobs} following={following} currentUser={user} bookmarks={bookmarks} onOpen={j=>setExpandedJob(j)} onToggleFollow={toggleFollow}/>}
         {tab==="activity" && <MyApplications userId={user.id} jobs={jobs} bookmarks={bookmarks} onExpand={setExpandedJob}/>}
         {tab==="alerts" && <JobAlertsScreen alerts={alerts} setAlerts={setAlerts} userId={user.id} onBack={goBack}/>}
-        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} refs={refs} setRefs={setRefs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
+        {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
       {/* Bottom Nav */}
@@ -6991,9 +6790,7 @@ export default function App() {
       .then(({ data }) => { if (data) setFollowing(data.map(r=>r.following_id)); });
   }, [user?.id]);
   const [messages, setMessages]   = useState(INIT_MESSAGES);
-  const [refs, setRefs]           = useState(INIT_REFERENCES);
   const [notifs, setNotifs]       = useState(INIT_NOTIFS);
-  const [endorsements, setEndorsements] = useState(INIT_ENDORSEMENTS);
   const [notifPrefs, setNotifPrefs]     = useState(DEFAULT_NOTIF_PREFS);
   const [codes, setCodes]               = useState(INIT_CODES);
 
@@ -7106,6 +6903,6 @@ export default function App() {
   if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
   if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
-  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} refs={refs} endorsements={endorsements} setEndorsements={setEndorsements} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
-  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} refs={refs} setRefs={setRefs} notifs={notifs} setNotifs={setNotifs} endorsements={endorsements} setEndorsements={setEndorsements} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
+  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
+  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
 }
