@@ -2778,7 +2778,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const isOwnListing = currentUser?.id && job.empId === currentUser.id;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks?.includes(job.id);
-  const [showForm, setShowForm] = useState(openToApply && !applied && !isOwnListing);
+  const [showForm, setShowForm] = useState(openToApply && !isOwnListing);
   const [fd, setFd] = useState({ name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
   const [resume, setResume] = useState(profile?.resume||null);
   const [cover, setCover] = useState(profile?.coverLetter||null);
@@ -2894,10 +2894,28 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 /* No external link — apply through HospoSearch */
                 <>
                   {(profile?.resume||profile?.coverLetter)&&!applied && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}><span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach</div></div>}
-                  <button className="btn-cta tap" onClick={openForm} disabled={applied}
-                    style={{ background:applied?C.sageL:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:applied?`1px solid ${C.sage}`:"none", borderRadius:13, padding:"15px 0", color:applied?C.sage:"#fff", fontWeight:700, fontSize:15, boxShadow:applied?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
-                    {applied ? "✓ Already Applied" : "Apply via HospoSearch"}
-                  </button>
+                  {applied ? (
+                    <div style={{ borderRadius:13, border:`1px solid ${C.sage}40`, overflow:"hidden" }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"13px 16px", background:C.sageL }}>
+                        <div style={{ width:28, height:28, borderRadius:"50%", background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <Icon name="check" size={14} color="#fff"/>
+                        </div>
+                        <div>
+                          <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>You've already applied</div>
+                          {appliedApp?.ts && <div style={{ color:C.textSoft, fontSize:12 }}>Submitted {new Date(appliedApp.ts).toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})}</div>}
+                        </div>
+                      </div>
+                      <button className="tap" onClick={openForm}
+                        style={{ width:"100%", background:"#fff", border:"none", borderTop:`1px solid ${C.border}`, padding:"12px 16px", color:C.terracotta, fontWeight:600, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
+                        <Icon name="edit" size={15} color={C.terracotta}/> Apply again with a new application
+                      </button>
+                    </div>
+                  ) : (
+                    <button className="btn-cta tap" onClick={openForm}
+                      style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
+                      Apply via HospoSearch
+                    </button>
+                  )}
                 </>
               )}
             </div>
