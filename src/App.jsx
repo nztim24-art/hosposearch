@@ -1908,6 +1908,26 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
   const [saving, setSaving] = useState(false);
+  const [bioSaving, setBioSaving] = useState(false); const [bioSaved, setBioSaved] = useState(false);
+  const [locSaving, setLocSaving] = useState(false); const [locSaved, setLocSaved] = useState(false);
+  const [expSaving, setExpSaving] = useState(false); const [expSaved, setExpSaved] = useState(false);
+
+  const saveBio = async () => {
+    setBioSaving(true);
+    try { await supabase.from("profiles").update({ bio: draft.bio }).eq("id", user.id); setBioSaved(true); setTimeout(()=>setBioSaved(false),2000); } catch(e) {}
+    setBioSaving(false);
+  };
+  const saveLocation = async () => {
+    setLocSaving(true);
+    const loc = [draft.city, draft.state, draft.country].filter(Boolean).join(", ");
+    try { await supabase.from("profiles").update({ country: draft.country, state: draft.state||null, city: draft.city||null, location: loc }).eq("id", user.id); setLocSaved(true); setTimeout(()=>setLocSaved(false),2000); } catch(e) {}
+    setLocSaving(false);
+  };
+  const saveExp = async () => {
+    setExpSaving(true);
+    try { await supabase.from("profiles").update({ experience: draft.experience||draft.yearsExp }).eq("id", user.id); setExpSaved(true); setTimeout(()=>setExpSaved(false),2000); } catch(e) {}
+    setExpSaving(false);
+  };
 
   // Upload avatar photo
   const uploadAvatar = async (file) => {
@@ -2066,15 +2086,57 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
       </div>
 
       <div style={{ borderTop:`1px solid ${C.border}`, padding:"16px 18px" }}>
-        {/* Edit form */}
+        {/* Edit form — separate sections each with own save */}
         {editing && (
           <div style={{ marginBottom:20 }}>
-            {[["Bio","bio","Tell employers about yourself…"],["Location","location","e.g. Sydney NSW"],["Experience","experience","e.g. 5 years fine dining"]].map(([l,k,p])=>(
-              <div key={k} style={{ marginBottom:11 }}>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
-                {k==="bio" ? <textarea value={draft[k]||""} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))} placeholder={p} rows={3} style={{...IS,resize:"none"}}/> : <input value={draft[k]||""} onChange={e=>setDraft(d=>({...d,[k]:e.target.value}))} placeholder={p} style={IS}/>}
+
+            {/* Bio */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Bio</div>
+              <textarea value={draft.bio||""} onChange={e=>setDraft(d=>({...d,bio:e.target.value}))}
+                placeholder="Tell employers about yourself…" rows={3} style={{...IS,resize:"none",marginBottom:8}}/>
+              <button className="tap" onClick={saveBio} disabled={bioSaving}
+                style={{ width:"100%", background:bioSaved?C.sage:bioSaving?"#aaa":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, transition:"all 0.3s" }}>
+                {bioSaved?"✓ Saved":bioSaving?"Saving…":"Update Bio"}
+              </button>
+            </div>
+
+            {/* Location — cascading dropdowns */}
+            <div style={{ marginBottom:16 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Location</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:7, marginBottom:8 }}>
+                <select value={draft.country||"Australia"} onChange={e=>setDraft(d=>({...d,country:e.target.value,state:"",city:""}))} style={IS}>
+                  {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                </select>
+                {draft.country && Object.keys(LOCATIONS[draft.country]||{}).length>0 && (
+                  <select value={draft.state||""} onChange={e=>setDraft(d=>({...d,state:e.target.value,city:""}))} style={IS}>
+                    <option value="">Select region / state…</option>
+                    {Object.keys(LOCATIONS[draft.country]||{}).map(s=><option key={s}>{s}</option>)}
+                  </select>
+                )}
+                {draft.state && (LOCATIONS[draft.country]?.[draft.state]||[]).length>0 && (
+                  <select value={draft.city||""} onChange={e=>setDraft(d=>({...d,city:e.target.value}))} style={IS}>
+                    <option value="">Select city / suburb…</option>
+                    {(LOCATIONS[draft.country]?.[draft.state]||[]).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                )}
               </div>
-            ))}
+              <button className="tap" onClick={saveLocation} disabled={locSaving}
+                style={{ width:"100%", background:locSaved?C.sage:locSaving?"#aaa":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, transition:"all 0.3s" }}>
+                {locSaved?"✓ Saved":locSaving?"Saving…":"Update Location"}
+              </button>
+            </div>
+
+            {/* Experience */}
+            <div style={{ marginBottom:4 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Experience</div>
+              <input value={draft.experience||""} onChange={e=>setDraft(d=>({...d,experience:e.target.value}))}
+                placeholder="e.g. 5 years fine dining" style={{...IS, marginBottom:8}}/>
+              <button className="tap" onClick={saveExp} disabled={expSaving}
+                style={{ width:"100%", background:expSaved?C.sage:expSaving?"#aaa":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:13, transition:"all 0.3s" }}>
+                {expSaved?"✓ Saved":expSaving?"Saving…":"Update Experience"}
+              </button>
+            </div>
           </div>
         )}
 
