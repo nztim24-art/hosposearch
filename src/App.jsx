@@ -2692,7 +2692,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             const showBoth    = hasLink && hasEmail;
             return (
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {(profile?.resume||profile?.coverLetter) && !applied && (
+              {(profile?.resume||profile?.coverLetter) && !applied && !showBoth && (
                 <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}>
                   <span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach when applying via HospoSearch</div>
                 </div>
@@ -2716,35 +2716,20 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                   </button>
                 </div>
               ) : showBoth ? (
-                /* Both link and email — show two options */
-                <div style={{ borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden" }}>
-                  <div style={{ padding:"12px 16px 8px", background:C.bgSoft, borderBottom:`1px solid ${C.border}` }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:2 }}>How would you like to apply?</div>
-                    <div style={{ color:C.textSoft, fontSize:12 }}>Choose the option that works best for you</div>
-                  </div>
-                  {/* Option 1 — via HospoSearch (email) */}
-                  <button className="tap" onClick={openForm}
-                    style={{ width:"100%", display:"flex", alignItems:"center", gap:13, padding:"14px 16px", background:"#fff", border:"none", borderBottom:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left" }}>
-                    <div style={{ width:38, height:38, borderRadius:11, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      <Icon name="briefcase" size={18} color={C.terracotta}/>
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Apply via HospoSearch</div>
-                      <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>Your profile, résumé & cover letter sent directly to the employer</div>
-                    </div>
-                    <span style={{ color:C.terracotta, fontSize:18, flexShrink:0 }}>›</span>
+                /* Both link and email — HospoSearch is the hero, website is secondary */
+                <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                  <button className="btn-cta tap" onClick={openForm}
+                    style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"16px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 16px rgba(196,98,58,0.35)", display:"flex", alignItems:"center", justifyContent:"center", gap:9 }}>
+                    <Icon name="briefcase" size={18} color="#fff"/>
+                    Apply via HospoSearch
                   </button>
-                  {/* Option 2 — external website */}
+                  <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}>
+                    <span>📎</span>
+                    <div style={{ color:C.textMid, fontSize:12 }}>Your résumé & cover letter attach automatically</div>
+                  </div>
                   <a href={job.link} target="_blank" rel="noreferrer"
-                    style={{ width:"100%", display:"flex", alignItems:"center", gap:13, padding:"14px 16px", background:"#fff", textDecoration:"none", cursor:"pointer" }}>
-                    <div style={{ width:38, height:38, borderRadius:11, background:C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      <Icon name="link" size={18} color={C.textMid}/>
-                    </div>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Apply on their website</div>
-                      <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>{job.link.replace(/^https?:\/\/(www\.)?/,"").split("/")[0]}</div>
-                    </div>
-                    <span style={{ color:C.textMid, fontSize:18, flexShrink:0 }}>↗</span>
+                    style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"11px 0", borderRadius:13, background:"#fff", border:`1px solid ${C.border}`, color:C.textSoft, fontSize:13, fontWeight:600, textDecoration:"none" }}>
+                    Or apply on their website ↗
                   </a>
                 </div>
               ) : hasLink ? (
