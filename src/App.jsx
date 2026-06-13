@@ -2445,6 +2445,83 @@ function MineJobCard({ job, onEdit, onApps, onExpand }) {
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 // Wraps Carousel inside a JobCard — intercepts horizontal swipes so they scroll
 // photos without triggering the card's onClick (which would open the listing).
+// Reusable sortable photo grid — arrow buttons to reorder, × to delete, + to add
+// photos: array of data URLs or Supabase URLs
+// onPhotos: callback with new array
+// onAdd: callback when + is tapped (optional — opens file picker)
+function SortablePhotoGrid({ photos, onPhotos, onAdd, maxPhotos=5 }) {
+  const filled = (photos||[]).filter(Boolean);
+
+  const move = (from, to) => {
+    if (to < 0 || to >= filled.length) return;
+    const next = [...filled];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    onPhotos(next);
+  };
+
+  const remove = (i) => {
+    const next = filled.filter((_,idx)=>idx!==i);
+    onPhotos(next);
+  };
+
+  const addFromFile = (e) => {
+    const files = Array.from(e.target.files||[]);
+    let current = [...filled];
+    let pending = files.length;
+    files.forEach(file => {
+      if (current.length >= maxPhotos) { pending--; return; }
+      const r = new FileReader();
+      r.onload = ev => {
+        current = [...current, ev.target.result];
+        pending--;
+        if (pending === 0) onPhotos(current);
+      };
+      r.readAsDataURL(file);
+    });
+    e.target.value = "";
+  };
+
+  return (
+    <div>
+      <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+        {filled.map((p, i) => (
+          <div key={i} style={{ position:"relative", width:60, flexShrink:0 }}>
+            {/* Photo thumb */}
+            <div style={{ position:"relative", width:60, height:74, borderRadius:9, overflow:"hidden", border:`2px solid ${i===0?C.terracotta:C.border}` }}>
+              <img src={p} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
+              {i===0 && (
+                <div style={{ position:"absolute", bottom:0, left:0, right:0, background:"rgba(196,98,58,0.85)", color:"#fff", fontSize:8, fontWeight:700, textAlign:"center", letterSpacing:1, padding:"2px 0", textTransform:"uppercase" }}>Cover</div>
+              )}
+              {/* Delete */}
+              <button className="tap" onClick={()=>remove(i)}
+                style={{ position:"absolute", top:2, right:2, width:18, height:18, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:2 }}>×</button>
+            </div>
+            {/* Reorder arrows */}
+            {filled.length > 1 && (
+              <div style={{ display:"flex", justifyContent:"center", gap:4, marginTop:4 }}>
+                <button className="tap" onClick={()=>move(i, i-1)} disabled={i===0}
+                  style={{ width:26, height:20, borderRadius:5, background:i===0?C.bgSoft:C.terracottaL, border:`1px solid ${i===0?C.border:C.terracottaM}`, color:i===0?C.textFaint:C.terracotta, fontSize:11, fontWeight:700, cursor:i===0?"default":"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>‹</button>
+                <button className="tap" onClick={()=>move(i, i+1)} disabled={i===filled.length-1}
+                  style={{ width:26, height:20, borderRadius:5, background:i===filled.length-1?C.bgSoft:C.terracottaL, border:`1px solid ${i===filled.length-1?C.border:C.terracottaM}`, color:i===filled.length-1?C.textFaint:C.terracotta, fontSize:11, fontWeight:700, cursor:i===filled.length-1?"default":"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>›</button>
+              </div>
+            )}
+          </div>
+        ))}
+        {/* Add button */}
+        {filled.length < maxPhotos && (
+          <label style={{ width:60, height:74, borderRadius:9, border:`1.5px dashed ${C.border}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:3, flexShrink:0 }}>
+            <input type="file" accept="image/*" multiple style={{ display:"none" }} onChange={addFromFile}/>
+            <Icon name="camera" size={18} color={C.textFaint}/>
+            <span style={{ fontSize:9, color:C.textFaint, fontWeight:600, textTransform:"uppercase", letterSpacing:1 }}>Add</span>
+          </label>
+        )}
+      </div>
+      {filled.length > 0 && <div style={{ color:C.textFaint, fontSize:11, marginTop:7 }}>First photo is the cover · use ‹ › to reorder</div>}
+    </div>
+  );
+}
+
 function CarouselWrapper({ children, onSwipe }) {
   const ref = useRef(null);
   const swipedRef = useRef(false);
@@ -3979,8 +4056,23 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
   const [bioSaved, setBioSaved] = useState(false);
   const saveBio = async () => {
     setBioSaving(true);
-    try { await supabase.from("profiles").update({ bio }).eq("id", user.id); } catch(e) {}
-    setBioSaving(false); setBioSaved(true); setTimeout(()=>setBioSaved(false), 2000);
+    try { await supabase.from("profiles").update({ bio: bio.trim() }).eq("id", user.id); setBioSaved(true); setTimeout(()=>setBioSaved(false), 2000); } catch(e) {}
+    setBioSaving(false);
+  };
+
+  const [empCountry, setEmpCountry] = useState(user.country||"Australia");
+  const [empState,   setEmpState]   = useState(user.state||"");
+  const [empCity,    setEmpCity]    = useState(user.city||"");
+  const [locSaving,  setLocSaving]  = useState(false);
+  const [locSaved,   setLocSaved]   = useState(false);
+  const saveLocation = async () => {
+    setLocSaving(true);
+    const loc = [empCity, empState, empCountry].filter(Boolean).join(", ");
+    try {
+      await supabase.from("profiles").update({ country: empCountry, state: empState||null, city: empCity||null, location: loc }).eq("id", user.id);
+      setLocSaved(true); setTimeout(()=>setLocSaved(false), 2000);
+    } catch(e) {}
+    setLocSaving(false);
   };
 
   // Website / links
@@ -4111,10 +4203,42 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
       </div>
 
       {/* Bio */}
-      <SectionCard title="📝 About your venue" action={<SaveBtn saving={bioSaving} saved={bioSaved} onClick={saveBio}/>}>
+      <SectionCard title="📝 About your venue">
         <textarea value={bio} onChange={e=>setBio(e.target.value)} rows={4}
           placeholder="Tell candidates about your venue — cuisine, culture, team size, awards…"
-          style={{...IS, resize:"none", width:"100%"}}/>
+          style={{...IS, resize:"none", width:"100%", marginBottom:10}}/>
+        <SaveBtn saving={bioSaving} saved={bioSaved} onClick={saveBio}/>
+      </SectionCard>
+
+      {/* Location */}
+      <SectionCard title="📍 Location">
+        <div style={{ display:"flex", flexDirection:"column", gap:9, marginBottom:10 }}>
+          <div>
+            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>Country</div>
+            <select value={empCountry} onChange={e=>{ setEmpCountry(e.target.value); setEmpState(""); setEmpCity(""); }} style={IS}>
+              {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+            </select>
+          </div>
+          {empCountry && Object.keys(LOCATIONS[empCountry]||{}).length>0 && (
+            <div>
+              <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>State / Region</div>
+              <select value={empState} onChange={e=>{ setEmpState(e.target.value); setEmpCity(""); }} style={IS}>
+                <option value="">Select state / region…</option>
+                {Object.keys(LOCATIONS[empCountry]||{}).map(s=><option key={s}>{s}</option>)}
+              </select>
+            </div>
+          )}
+          {empState && (LOCATIONS[empCountry]?.[empState]||[]).length>0 && (
+            <div>
+              <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>City / Suburb</div>
+              <select value={empCity} onChange={e=>setEmpCity(e.target.value)} style={IS}>
+                <option value="">Select city…</option>
+                {(LOCATIONS[empCountry]?.[empState]||[]).map(c=><option key={c}>{c}</option>)}
+              </select>
+            </div>
+          )}
+        </div>
+        <SaveBtn saving={locSaving} saved={locSaved} onClick={saveLocation}/>
       </SectionCard>
 
       {/* Links */}
@@ -4880,23 +5004,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600 }}>Photos</div>
                 <div style={{ color:C.textFaint, fontSize:11 }}>{photos.filter(Boolean).length}/5</div>
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:5 }}>
-                {Array.from({length:5},(_,i)=>{ const f=photos[i]; return (
-                  <div key={i} style={{ position:"relative" }}>
-                    {f ? (
-                      <div style={{ position:"relative", aspectRatio:"1", borderRadius:9, overflow:"hidden", border:`1.5px solid ${C.sage}` }}>
-                        <img src={f} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                        <button className="tap" onClick={()=>{ const a=[...photos]; a[i]=null; setPhotos(a); }} style={{ position:"absolute", top:2, right:2, width:18, height:18, borderRadius:"50%", background:"rgba(0,0,0,0.6)", border:"none", color:"#fff", fontSize:12, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
-                      </div>
-                    ) : (
-                      <div className="file-zone tap" onClick={()=>pickAndCrop(cropped=>{ const a=[...photos]; a[i]=cropped; setPhotos(a); })}
-                        style={{ aspectRatio:"1", borderRadius:9, border:`1.5px dashed ${C.borderMid}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:3, cursor:"pointer" }}>
-                        <Icon name="camera" size={16} color={C.textFaint}/><span style={{ color:C.textFaint, fontSize:8, textTransform:"uppercase", letterSpacing:1 }}>{i+1}</span>
-                      </div>
-                    )}
-                  </div>
-                ); })}
-              </div>
+              <SortablePhotoGrid
+                photos={photos.filter(Boolean)}
+                onPhotos={newList=>{ const padded = [...newList]; while(padded.length<5) padded.push(null); setPhotos(padded); }}
+                maxPhotos={5}
+              />
             </div>
             <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:9 }}>Reel <span style={{ color:C.textFaint, fontWeight:400, letterSpacing:0, textTransform:"none", fontSize:11 }}>(optional · max 50MB)</span></div>
@@ -6631,41 +6743,12 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
               {/* Photos */}
               <div>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5 · tap × to delete)</span></div>
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:8 }}>
-                  {/* Show ALL photos — both Supabase URLs and base64 */}
-                  {(editJob.photos||[]).filter(p=>isData(p)).map((p,i)=>(
-                    <div key={i} style={{ position:"relative" }}>
-                      <img src={p} alt="" style={{ width:52, height:65, borderRadius:8, objectFit:"cover", border:`1px solid ${C.border}` }}/>
-                      <button onClick={()=>setEditJob(j=>({...j,photos:(j.photos||[]).filter((_,idx)=>idx!==i)}))}
-                        style={{ position:"absolute", top:-5, right:-5, width:20, height:20, borderRadius:"50%", background:C.error, border:"2px solid white", color:"white", fontSize:12, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }}>×</button>
-                    </div>
-                  ))}
-                  {/* Add more photos */}
-                  {(editJob.photos||[]).filter(p=>isData(p)).length < 5 && (
-                    <label style={{ width:52, height:65, borderRadius:8, border:`1.5px dashed ${C.border}`, background:C.bgSoft, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", cursor:"pointer", gap:3 }}>
-                      <input type="file" accept="image/*" multiple style={{ display:"none" }}
-                        onChange={e=>{
-                          const files = Array.from(e.target.files);
-                          files.forEach(file=>{
-                            const r = new FileReader();
-                            r.onload = ev => setEditJob(j=>{
-                              const existing = (j.photos||[]).filter(p=>isData(p));
-                              if(existing.length >= 5) return j;
-                              return {...j, photos:[...existing, ev.target.result]};
-                            });
-                            r.readAsDataURL(file);
-                          });
-                        }}
-                      />
-                      <span style={{ fontSize:18 }}>📷</span>
-                      <span style={{ fontSize:9, color:C.textFaint, fontWeight:600 }}>ADD</span>
-                    </label>
-                  )}
-                </div>
-                {(editJob.photos||[]).filter(p=>isData(p)).length === 0 && (
-                  <div style={{ color:C.textFaint, fontSize:12 }}>No photos — tap ADD to upload</div>
-                )}
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Photos <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(up to 5 · reorder with ‹ ›)</span></div>
+                <SortablePhotoGrid
+                  photos={(editJob.photos||[]).filter(p=>isData(p))}
+                  onPhotos={newList=>setEditJob(j=>({...j, photos:newList}))}
+                  maxPhotos={5}
+                />
               </div>
 
               {/* Transfer to employer */}
