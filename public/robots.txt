@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /jobs
+Allow: /jobs/
+
+# Don't index the app (React SPA — no useful content for crawlers)
+Disallow: /app
+Disallow: /app/
+
+Sitemap: https://www.hosposearch.com.au/sitemap.xml
