@@ -5866,7 +5866,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       photos: fp.length > 0 ? fp : [0, 1, 2],
       video: null,
       verified: true,
-      featured: nj.tier !== "bronze" && nj.tier !== "standard",
+      featured: nj.featured || false,
+      tier: nj.tier || "bronze",
       ts: Date.now(),
       apps: [],
       views: 0,
@@ -6164,6 +6165,30 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   ))}
                 </div>
                 <div style={{ color:C.textFaint, fontSize:11, marginTop:7 }}>Selected questions appear on the application form for this role</div>
+              </div>
+
+              {/* Listing tier */}
+              <div style={{ marginBottom:16 }}>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10, fontWeight:600 }}>Listing Tier</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {[
+                    { key:"bronze", label:"🥉 Bronze — Standard",  price:50,  featured:false, desc:"Listed in the feed · 30-day listing" },
+                    { key:"silver", label:"🥈 Silver — Featured",  price:70,  featured:true,  desc:"Pinned to top · Featured badge · Priority placement" },
+                    { key:"gold",   label:"🥇 Gold — Premium",     price:100, featured:true,  desc:"Max visibility · Highlighted in search · Dedicated support" },
+                  ].map(t=>(
+                    <div key={t.key} className="tap" onClick={()=>setNj(j=>({...j, tier:t.key, featured:t.featured, tierPrice:t.price}))}
+                      style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", background:nj.tier===t.key?C.terracottaL:"#fff", border:`2px solid ${nj.tier===t.key?C.terracotta:C.border}`, borderRadius:12, cursor:"pointer", transition:"all 0.15s" }}>
+                      <div style={{ width:20, height:20, borderRadius:"50%", background:nj.tier===t.key?C.terracotta:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        {nj.tier===t.key && <Icon name="check" size={12} color="#fff"/>}
+                      </div>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ fontWeight:700, fontSize:14, color:nj.tier===t.key?C.terracotta:C.textDark }}>{t.label}</div>
+                        <div style={{ color:C.textSoft, fontSize:11, marginTop:2 }}>{t.desc}</div>
+                      </div>
+                      <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:nj.tier===t.key?C.terracotta:C.textMid }}>${t.price}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Post button */}
