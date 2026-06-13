@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 
 // Desktop detection
 const useIsDesktop = () => {
@@ -905,72 +905,97 @@ function getEmp(job) {
 
 function Carousel({ photos, video, height=null }) {
   const [cur, setCur] = useState(0);
-  const [offset, setOffset] = useState(0);   // live drag offset in px
+  const [offset, setOffset] = useState(0);
   const [sliding, setSliding] = useState(false);
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-  const widthRef = useRef(0);
   const containerRef = useRef(null);
+
+  // All mutable state in refs so handlers are stable — avoids stale closure
+  // bug that broke swipe on Pixel (listeners detaching on every slide change)
+  const state = useRef({ cur:0, startX:null, startY:null, dragging:false, width:300 });
 
   const slides = video
     ? [{ t:"video", src:video }, ...photos.map(s=>({ t:"photo", src:s }))]
     : photos.map(s=>({ t:"photo", src:s }));
 
-  const goTo = (i) => {
-    const next = Math.max(0, Math.min(i, slides.length - 1));
+  const goTo = useCallback((next) => {
+    next = Math.max(0, Math.min(next, slides.length - 1));
+    state.current.cur = next;
     setSliding(true);
     setOffset(0);
     setCur(next);
     setTimeout(() => setSliding(false), 450);
-  };
+  }, [slides.length]);
 
-  const onTouchStart = e => {
-    touchStartX.current = e.touches[0].clientX;
-    touchStartY.current = e.touches[0].clientY;
-    widthRef.current = containerRef.current?.offsetWidth || 300;
+  // Stable handler refs — never recreated, so removeEventListener always finds them
+  const handleStart = useCallback((e) => {
+    const t = e.touches[0];
+    state.current.startX = t.clientX;
+    state.current.startY = t.clientY;
+    state.current.dragging = false;
+    state.current.width = containerRef.current?.offsetWidth || 300;
     setOffset(0);
-  };
+  }, []);
 
-  const onTouchMove = e => {
-    if (touchStartX.current === null) return;
-    const dx = e.touches[0].clientX - touchStartX.current;
-    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
-    if (dy > 50 && Math.abs(dx) < dy) { touchStartX.current = null; return; }
-    // Apply rubber-band resistance at edges
-    const atStart = cur === 0 && dx > 0;
-    const atEnd = cur === slides.length - 1 && dx < 0;
-    const resistance = (atStart || atEnd) ? 0.2 : 1;
-    setOffset(dx * resistance);
-  };
+  const handleMove = useCallback((e) => {
+    const s = state.current;
+    if (s.startX === null) return;
+    const dx = e.touches[0].clientX - s.startX;
+    const dy = e.touches[0].clientY - s.startY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
 
-  const onTouchEnd = e => {
-    if (touchStartX.current === null) return;
-    const dx = e.changedTouches[0].clientX - touchStartX.current;
-    const w = widthRef.current;
-    const threshold = w * 0.3; // 30% of width to trigger
-    if (dx < -threshold && cur < slides.length - 1) goTo(cur + 1);
-    else if (dx > threshold && cur > 0) goTo(cur - 1);
-    else { setSliding(true); setOffset(0); setTimeout(()=>setSliding(false), 400); }
-    touchStartX.current = null;
-  };
+    if (!s.dragging && absDy > absDx && absDy > 8) {
+      s.startX = null; // vertical — let page scroll
+      return;
+    }
+    if (absDx > 8) s.dragging = true;
+    if (!s.dragging) return;
+
+    e.preventDefault(); // block page scroll for horizontal swipe
+
+    const atStart = s.cur === 0 && dx > 0;
+    const atEnd   = s.cur === slides.length - 1 && dx < 0;
+    setOffset(dx * (atStart || atEnd ? 0.2 : 1));
+  }, [slides.length]);
+
+  const handleEnd = useCallback((e) => {
+    const s = state.current;
+    if (s.startX === null) return;
+    const dx = e.changedTouches[0].clientX - s.startX;
+    const threshold = s.width * 0.25;
+    if      (dx < -threshold && s.cur < slides.length - 1) goTo(s.cur + 1);
+    else if (dx >  threshold && s.cur > 0)                 goTo(s.cur - 1);
+    else { setSliding(true); setOffset(0); setTimeout(() => setSliding(false), 400); }
+    s.startX = null;
+    s.dragging = false;
+  }, [slides.length, goTo]);
+
+  // Attach once on mount — stable refs mean no need to re-attach
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.addEventListener('touchstart', handleStart, { passive: true });
+    el.addEventListener('touchmove',  handleMove,  { passive: false }); // passive:false required for preventDefault
+    el.addEventListener('touchend',   handleEnd,   { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', handleStart);
+      el.removeEventListener('touchmove',  handleMove);
+      el.removeEventListener('touchend',   handleEnd);
+    };
+  }, []); // empty deps — stable refs, mount once only
 
   const containerStyle = height
     ? { position:"relative", width:"100%", height, overflow:"hidden" }
     : { position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden" };
 
   return (
-    <div ref={containerRef} style={containerStyle}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}>
+    <div ref={containerRef} style={containerStyle}>
 
       {slides.map((slide, i) => {
         const pbg = PBG[typeof slide.src==="number" ? slide.src%PBG.length : i%PBG.length];
         const diff = i - cur;
-        // Each slide positioned relative to current — offset by diff * 100% + live drag
         const tx = `calc(${diff * 100}% + ${offset}px)`;
-        const isVisible = Math.abs(diff) <= 1; // only render adjacent slides
-
+        const isVisible = Math.abs(diff) <= 1;
         return (
           <div key={i} style={{
             position:"absolute", inset:0,
@@ -999,39 +1024,39 @@ function Carousel({ photos, video, height=null }) {
         );
       })}
 
-      {/* Prev / Next arrow buttons — visible on desktop, complement swipe on mobile */}
+      {/* Photo counter — top right, Instagram style */}
+      {slides.length > 1 && (
+        <div style={{
+          position:"absolute", top:10, right:12, zIndex:10,
+          background:"rgba(0,0,0,0.45)", backdropFilter:"blur(4px)",
+          borderRadius:20, padding:"3px 10px",
+          color:"#fff", fontSize:12, fontWeight:600, letterSpacing:0.3,
+          pointerEvents:"none",
+        }}>
+          {cur + 1}/{slides.length}
+        </div>
+      )}
+
+      {/* Dot indicators — bottom centre */}
+      {slides.length > 1 && (
+        <div style={{ position:"absolute", bottom:10, left:0, right:0, display:"flex", justifyContent:"center", gap:5, pointerEvents:"none" }}>
+          {slides.map((_,i) => (
+            <div key={i} style={{ width: i===cur ? 16 : 6, height:6, borderRadius:3, background: i===cur ? "#fff" : "rgba(255,255,255,0.45)", transition:"width 0.3s, background 0.3s" }}/>
+          ))}
+        </div>
+      )}
+      {/* Arrow buttons — desktop only */}
       {slides.length > 1 && cur > 0 && (
         <button onClick={e=>{e.stopPropagation();goTo(cur-1);}} className="tap"
-          style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
-          onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.5)"}
-          onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.28)"}>
+          style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3 }}>
           <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginRight:1 }}>‹</span>
         </button>
       )}
       {slides.length > 1 && cur < slides.length - 1 && (
         <button onClick={e=>{e.stopPropagation();goTo(cur+1);}} className="tap"
-          style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, transition:"background 0.2s" }}
-          onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.5)"}
-          onMouseLeave={e=>e.currentTarget.style.background="rgba(255,255,255,0.28)"}>
+          style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3 }}>
           <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginLeft:1 }}>›</span>
         </button>
-      )}
-
-      {/* Dot indicators */}
-      {slides.length > 1 && (
-        <div style={{ position:"absolute", bottom:12, left:"50%", transform:"translateX(-50%)", display:"flex", gap:5, zIndex:2 }}>
-          {slides.map((_,i)=>(
-            <div key={i} onClick={e=>{e.stopPropagation();goTo(i);}}
-              style={{ width:i===cur?18:6, height:6, borderRadius:3, background:i===cur?"#fff":"rgba(255,255,255,0.5)", transition:"all 0.25s", cursor:"pointer" }}/>
-          ))}
-        </div>
-      )}
-
-      {/* Counter badge */}
-      {slides.length > 1 && (
-        <div style={{ position:"absolute", top:10, right:12, background:"rgba(0,0,0,0.45)", borderRadius:20, padding:"3px 9px", zIndex:2 }}>
-          <span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>{cur+1}/{slides.length}</span>
-        </div>
       )}
     </div>
   );
