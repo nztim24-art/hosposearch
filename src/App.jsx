@@ -532,6 +532,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     check:    <><path d="M20 6L9 17l-5-5" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></>,
     close:    <><path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="1.8" strokeLinecap="round"/></>,
     logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
+    link:     <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
     grid:     <><rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/></>,
     video:    <><polygon points="23,7 16,12 23,17" stroke={color} strokeWidth="1.6" fill={fill}/><rect x="1" y="5" width="15" height="14" rx="2" stroke={color} strokeWidth="1.6"/></>,
     camera:   <><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="13" r="4" stroke={color} strokeWidth="1.6"/></>,
@@ -2686,42 +2687,78 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             </div>
           )}
           {!showForm && !done && !isOwnListing && (() => {
-            const hasLink = job.link && job.link.trim() && job.link.trim() !== "#";
+            const hasLink     = job.link && job.link.trim() && job.link.trim() !== "#";
+            const hasEmail    = job.applyEmail && job.applyEmail.trim();
+            const showBoth    = hasLink && hasEmail;
             return (
             <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
-              {hasLink ? (
-                /* Employer/admin provided an external apply link — apply there only */
+              {(profile?.resume||profile?.coverLetter) && !applied && (
+                <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}>
+                  <span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach when applying via HospoSearch</div>
+                </div>
+              )}
+
+              {applied ? (
+                /* Already applied — show status + option to reapply */
+                <div style={{ borderRadius:13, border:`1px solid ${C.sage}40`, overflow:"hidden" }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10, padding:"13px 16px", background:C.sageL }}>
+                    <div style={{ width:28, height:28, borderRadius:"50%", background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Icon name="check" size={14} color="#fff"/>
+                    </div>
+                    <div>
+                      <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>You've already applied</div>
+                      {appliedApp?.ts && <div style={{ color:C.textSoft, fontSize:12 }}>Submitted {new Date(appliedApp.ts).toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})}</div>}
+                    </div>
+                  </div>
+                  <button className="tap" onClick={openForm}
+                    style={{ width:"100%", background:"#fff", border:"none", borderTop:`1px solid ${C.border}`, padding:"12px 16px", color:C.terracotta, fontWeight:600, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
+                    <Icon name="edit" size={15} color={C.terracotta}/> Apply again with a new application
+                  </button>
+                </div>
+              ) : showBoth ? (
+                /* Both link and email — show two options */
+                <div style={{ borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden" }}>
+                  <div style={{ padding:"12px 16px 8px", background:C.bgSoft, borderBottom:`1px solid ${C.border}` }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:2 }}>How would you like to apply?</div>
+                    <div style={{ color:C.textSoft, fontSize:12 }}>Choose the option that works best for you</div>
+                  </div>
+                  {/* Option 1 — via HospoSearch (email) */}
+                  <button className="tap" onClick={openForm}
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:13, padding:"14px 16px", background:"#fff", border:"none", borderBottom:`1px solid ${C.border}`, cursor:"pointer", textAlign:"left" }}>
+                    <div style={{ width:38, height:38, borderRadius:11, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Icon name="briefcase" size={18} color={C.terracotta}/>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Apply via HospoSearch</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>Your profile, résumé & cover letter sent directly to the employer</div>
+                    </div>
+                    <span style={{ color:C.terracotta, fontSize:18, flexShrink:0 }}>›</span>
+                  </button>
+                  {/* Option 2 — external website */}
+                  <a href={job.link} target="_blank" rel="noreferrer"
+                    style={{ width:"100%", display:"flex", alignItems:"center", gap:13, padding:"14px 16px", background:"#fff", textDecoration:"none", cursor:"pointer" }}>
+                    <div style={{ width:38, height:38, borderRadius:11, background:C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                      <Icon name="link" size={18} color={C.textMid}/>
+                    </div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Apply on their website</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>{job.link.replace(/^https?:\/\/(www\.)?/,"").split("/")[0]}</div>
+                    </div>
+                    <span style={{ color:C.textMid, fontSize:18, flexShrink:0 }}>↗</span>
+                  </a>
+                </div>
+              ) : hasLink ? (
+                /* Link only — apply externally */
                 <a href={job.link} target="_blank" rel="noreferrer" className="btn-cta tap"
                   style={{ display:"block", textAlign:"center", padding:"15px 0", borderRadius:13, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", textDecoration:"none", fontSize:15, fontWeight:700, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
                   Apply on venue website ↗
                 </a>
               ) : (
-                /* No external link — apply through HospoSearch */
-                <>
-                  {(profile?.resume||profile?.coverLetter)&&!applied && <div style={{ display:"flex", alignItems:"center", gap:9, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}30` }}><span>📎</span><div style={{ color:C.textMid, fontSize:13 }}>Your saved documents will auto-attach</div></div>}
-                  {applied ? (
-                    <div style={{ borderRadius:13, border:`1px solid ${C.sage}40`, overflow:"hidden" }}>
-                      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"13px 16px", background:C.sageL }}>
-                        <div style={{ width:28, height:28, borderRadius:"50%", background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                          <Icon name="check" size={14} color="#fff"/>
-                        </div>
-                        <div>
-                          <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>You've already applied</div>
-                          {appliedApp?.ts && <div style={{ color:C.textSoft, fontSize:12 }}>Submitted {new Date(appliedApp.ts).toLocaleDateString('en-AU',{day:'numeric',month:'long',year:'numeric'})}</div>}
-                        </div>
-                      </div>
-                      <button className="tap" onClick={openForm}
-                        style={{ width:"100%", background:"#fff", border:"none", borderTop:`1px solid ${C.border}`, padding:"12px 16px", color:C.terracotta, fontWeight:600, fontSize:14, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:7 }}>
-                        <Icon name="edit" size={15} color={C.terracotta}/> Apply again with a new application
-                      </button>
-                    </div>
-                  ) : (
-                    <button className="btn-cta tap" onClick={openForm}
-                      style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
-                      Apply via HospoSearch
-                    </button>
-                  )}
-                </>
+                /* Email only — apply via HospoSearch */
+                <button className="btn-cta tap" onClick={openForm}
+                  style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
+                  Apply via HospoSearch
+                </button>
               )}
             </div>
             );
@@ -3064,12 +3101,18 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                 {/* Apply gate */}
                 <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
-                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply — takes 30 seconds</div>
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply in seconds</div>
                   <button onClick={onSignup||onLogin} className="btn-cta tap"
                     style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                     Apply via HospoSearch →
                   </button>
-                  <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, cursor:"pointer" }}>
+                  {expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
+                    <a href={expandedJob.link} target="_blank" rel="noreferrer"
+                      style={{ display:"block", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
+                      Or apply on their website ↗
+                    </a>
+                  )}
+                  <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textFaint, fontSize:12, cursor:"pointer", marginTop:4 }}>
                     Already have an account? Log in →
                   </button>
                 </div>
