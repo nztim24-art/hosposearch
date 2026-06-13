@@ -746,8 +746,8 @@ function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=
   ];
 
   return (
-    <div>
-      <div style={{ display:"flex", gap:4, marginBottom:4, padding:"5px 8px", background:C.bgSoft, border:`1px solid ${C.border}`, borderBottom:"none", borderRadius:"10px 10px 0 0", flexWrap:"wrap" }}>
+    <div style={{ border:`1px solid ${C.border}`, borderRadius:10, overflow:"hidden", background:C.bgSoft }}>
+      <div style={{ display:"flex", gap:4, padding:"6px 8px", background:C.bgSoft, borderBottom:`1px solid ${C.border}`, flexWrap:"wrap", position:"sticky", top:0, zIndex:2 }}>
         {btns.map(b=>(
           <button key={b.cmd} type="button" title={b.title} onMouseDown={e=>{ e.preventDefault(); exec(b.cmd); }}
             style={{ ...b.style, background:"#fff", border:`1px solid ${C.border}`, borderRadius:6, padding:"3px 9px", fontSize:12, color:C.textDark, cursor:"pointer", lineHeight:1.4 }}>
@@ -763,7 +763,7 @@ function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=
         onBlur={pushChange}
         onPaste={handlePaste}
         data-placeholder={placeholder}
-        style={{ width:"100%", minHeight, background:C.bgSoft, border:`1px solid ${C.border}`, borderTop:"none", borderRadius:"0 0 10px 10px", padding:"12px 13px", color:C.textDark, fontSize, lineHeight:1.6, outline:"none", boxSizing:"border-box" }}
+        style={{ width:"100%", minHeight, maxHeight:260, overflowY:"auto", background:C.bgSoft, border:"none", padding:"12px 13px", color:C.textDark, fontSize, lineHeight:1.6, outline:"none", boxSizing:"border-box", WebkitOverflowScrolling:"touch" }}
       />
       <style>{`[contenteditable]:empty:before{content:attr(data-placeholder);color:${C.textFaint};pointer-events:none}[contenteditable] ul{margin:4px 0 4px 18px;padding:0}[contenteditable] ol{margin:4px 0 4px 18px;padding:0}[contenteditable] li{margin-bottom:2px}`}</style>
     </div>
