@@ -2680,17 +2680,6 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const isNew = job.ts && (Date.now() - job.ts) < 3*24*60*60*1000;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
-  const [quickApplyVisible, setQuickApplyVisible] = useState(false);
-  const hoverTimer = useRef(null);
-
-  const onMouseEnter = () => {
-    if (applied || isOwnListing) return;
-    hoverTimer.current = setTimeout(() => setQuickApplyVisible(true), 600);
-  };
-  const onMouseLeave = () => {
-    clearTimeout(hoverTimer.current);
-    setQuickApplyVisible(false);
-  };
 
   return (
     <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
@@ -2716,7 +2705,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         </button>
         <button className="tap" onClick={e=>{e.stopPropagation(); onExpand(job);}} style={{ background:"none", border:"none", padding:"2px 0 2px 4px" }} title="View full listing"><Icon name="more" size={20} color={C.textSoft}/></button>
       </div>
-      <div onClick={()=>onExpand(job)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
+      <div onClick={()=>onExpand(job)}
         style={{ cursor:"pointer", position:"relative" }}>
         <CarouselWrapper><Carousel photos={job.photos} video={job.video}/></CarouselWrapper>
         {/* New listing badge — top right, 3 days */}
@@ -2732,21 +2721,6 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
             {appliedApp?.ts && <span style={{ fontSize:9, fontWeight:500, opacity:0.9 }}>{new Date(appliedApp.ts).toLocaleDateString('en-AU',{day:'numeric',month:'short'})}</span>}
           </div>
         )}
-        {/* Quick Apply overlay — desktop hover only */}
-        <div style={{
-          position:"absolute", inset:0,
-          background:"rgba(20,14,10,0.45)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          opacity: quickApplyVisible ? 1 : 0,
-          pointerEvents: quickApplyVisible ? "auto" : "none",
-          transition:"opacity 0.22s ease",
-          borderRadius:0,
-        }}>
-          <button className="tap" onClick={e=>{ e.stopPropagation(); onApply(job); }}
-            style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:100, padding:"13px 28px", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 20px rgba(0,0,0,0.35)", display:"flex", alignItems:"center", gap:8, cursor:"pointer", transform: quickApplyVisible ? "scale(1)" : "scale(0.9)", transition:"transform 0.22s ease" }}>
-            ⚡ Quick Apply
-          </button>
-        </div>
       </div>
       <div style={{ padding:"10px 14px 4px", display:"flex", alignItems:"center", gap:12 }}>
         {isOwnListing ? (
@@ -2798,13 +2772,13 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 }
 
 // ─── Job Detail ───────────────────────────────────────────────────────────────
-function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick }) {
+function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick, openToApply=false }) {
   const emp = getEmp(job);
   const applied = job.apps?.some(a=>a.uid===currentUser?.id);
   const isOwnListing = currentUser?.id && job.empId === currentUser.id;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks?.includes(job.id);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(openToApply && !applied && !isOwnListing);
   const [fd, setFd] = useState({ name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
   const [resume, setResume] = useState(profile?.resume||null);
   const [cover, setCover] = useState(profile?.coverLetter||null);
@@ -5435,6 +5409,9 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
   const goBack = () => setTabRaw(prevTab);
   const [expandedJob, setExpandedJob] = useState(null);
+  const [openToApply, setOpenToApply] = useState(false);
+  const openJob  = (j) => { setOpenToApply(false); setExpandedJob(j); };
+  const applyJob = (j) => { setOpenToApply(true);  setExpandedJob(j); };
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
@@ -5721,7 +5698,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               {(homeSearch.trim() ? homeFiltered : sortedJobs).map((j,i)=>(
                 <div key={j.id}>
                   {!homeSearch.trim() && i===followedJobs.length&&followedJobs.length>0&&otherJobs.length>0 && <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 12px", color:C.textFaint, fontSize:11 }}><div style={{ flex:1, height:1, background:C.border }}/><span>More listings</span><div style={{ flex:1, height:1, background:C.border }}/></div>}
-                  {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={setExpandedJob} onExpand={j=>setExpandedJob(j)} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+                  {j && j.id && j.title && <JobCard job={j} currentUser={user} following={following} bookmarks={bookmarks} onApply={applyJob} onExpand={openJob} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
                 </div>
               ))}
             </div>
@@ -5757,7 +5734,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         </div>
       )}
       {tab==="alerts" && null}
-      {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>setExpandedJob(null)} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile}/>}
+      {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>{ setExpandedJob(null); setOpenToApply(false); }} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile} openToApply={openToApply}/>}
       {/* Desktop grid view */}
       {isDesktop && tab==="home" && (
         <div style={{ position:"absolute", top:"53px", left:0, right:0, bottom:0, overflowY:"auto", background:C.bg, zIndex:5 }}>
