@@ -20,26 +20,39 @@ export default async function handler(req, res) {
   if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
-  if (!jobId) {
-    return res.status(400).json({ error: 'Missing jobId' });
-  }
 
-  const base = `${SUPABASE_URL}/rest/v1/jobs?id=eq.${jobId}`;
   const headers = {
     apikey: SUPABASE_SERVICE_KEY,
     Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
     'Content-Type': 'application/json',
-    Prefer: 'return=minimal',
   };
 
   try {
+    // CREATE — insert a new job as admin (service role, bypasses RLS)
+    if (action === 'create') {
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/jobs`, {
+        method: 'POST',
+        headers: { ...headers, Prefer: 'return=representation' },
+        body: JSON.stringify(fields || {}),
+      });
+      if (!r.ok) throw new Error(`Create failed: ${r.status} ${await r.text()}`);
+      const rows = await r.json();
+      return res.status(200).json({ ok: true, action: 'create', job: rows[0] });
+    }
+
+    if (!jobId) {
+      return res.status(400).json({ error: 'Missing jobId' });
+    }
+    const base = `${SUPABASE_URL}/rest/v1/jobs?id=eq.${jobId}`;
+    const minHeaders = { ...headers, Prefer: 'return=minimal' };
+
     if (action === 'delete') {
-      const r = await fetch(base, { method: 'DELETE', headers });
+      const r = await fetch(base, { method: 'DELETE', headers: minHeaders });
       if (!r.ok) throw new Error(`Delete failed: ${r.status} ${await r.text()}`);
       return res.status(200).json({ ok: true, action: 'delete', jobId });
     }
     if (action === 'update') {
-      const r = await fetch(base, { method: 'PATCH', headers, body: JSON.stringify(fields || {}) });
+      const r = await fetch(base, { method: 'PATCH', headers: minHeaders, body: JSON.stringify(fields || {}) });
       if (!r.ok) throw new Error(`Update failed: ${r.status} ${await r.text()}`);
       return res.status(200).json({ ok: true, action: 'update', jobId });
     }

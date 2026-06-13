@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -5855,13 +5855,15 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       apps: [],
       views: 0,
     };
-    // Save to Supabase
+    // Save to Supabase via admin API (service role — admin has no auth session)
     try {
-      const saved = await sbCreateJob('admin', newJob);
+      const saved = await sbAdminCreateJob(ADMIN_SECRET, newJob);
       setJobs(p => [saved, ...p]);
     } catch(e) {
-      console.warn('Supabase save failed, using local:', e);
-      setJobs(p => [newJob, ...p]);
+      console.warn('Admin job save failed:', e);
+      alert('Save failed — the job was not posted. Please try again.');
+      setNjPosting(false);
+      return;
     }
     setNjPosting(false);
     setNjPosted(true);

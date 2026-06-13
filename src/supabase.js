@@ -544,3 +544,59 @@ export async function toggleAlertActive(alertId, active) {
   const { error } = await supabase.from('job_alerts').update({ active }).eq('id', alertId)
   if (error) throw error
 }
+
+// ─── Admin create job (via service-role API, bypasses RLS) ────────────────────
+// Admin has no Supabase auth session, so direct inserts are blocked by RLS.
+// This uploads photos then posts to /api/admin-job which inserts as service role.
+export async function adminCreateJob(adminSecret, jobData) {
+  const tempId = 'j' + Date.now()
+  const photoUrls = []
+  const photos = jobData.photos || []
+  for (let i = 0; i < photos.length; i++) {
+    const p = photos[i]
+    if (typeof p === 'string' && p.startsWith('data:')) {
+      const url = await uploadPhoto(p, tempId, i)
+      if (url) photoUrls.push(url)
+    } else if (typeof p === 'number') {
+      photoUrls.push(p)
+    }
+  }
+  const safePhotos = photoUrls.length > 0 ? photoUrls : [0, 1, 2]
+
+  const fields = {
+    emp_id:      'admin',
+    title:       jobData.title || '',
+    venue:       jobData.venue || 'HospoSearch',
+    loc:         jobData.loc || 'Australia',
+    country:     jobData.country || 'Australia',
+    state:       jobData.state || '',
+    city:        jobData.city || '',
+    sector:      jobData.sector || '',
+    role_type:   jobData.roleType || '',
+    salary:      jobData.salary || 'Competitive',
+    salary_band: jobData.salaryBand || '',
+    type:        jobData.type || 'Full-time',
+    tags:        jobData.tags || [],
+    short:       jobData.short || '',
+    full_desc:   jobData.full || jobData.short || '',
+    link:        jobData.link || '#',
+    apply_email: jobData.applyEmail || '',
+    photos:      safePhotos,
+    avatar_url:  jobData.avatar_url || null,
+    address:     jobData.address || '',
+    verified:    jobData.verified !== undefined ? jobData.verified : true,
+    featured:    jobData.featured || false,
+    tier:        jobData.tier || 'bronze',
+    paid:        true,          // admin posts are always live
+    active:      true,
+  }
+
+  const res = await fetch('/api/admin-job', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret: adminSecret, action: 'create', fields }),
+  })
+  if (!res.ok) throw new Error(`adminCreateJob failed: ${res.status}`)
+  const { job } = await res.json()
+  return normaliseJob(job)
+}
