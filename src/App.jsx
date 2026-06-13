@@ -1614,10 +1614,10 @@ function CandidateDiscovery({ jobs, messages, setMessages, currentUser, refs, en
 
   const candidates = profiles.filter(e=>{
     const q = search.toLowerCase();
-    const matchQ = !q || e.name.toLowerCase().includes(q) || (e.role||"").toLowerCase().includes(q) || (e.location||"").toLowerCase().includes(q) || (e.bio||"").toLowerCase().includes(q) || (e.skills||[]).some(s=>s.toLowerCase().includes(q)) || (e.cuisine||[]).some(c=>c.toLowerCase().includes(q));
-    const matchR = roleFilter==="All" || e.role===roleFilter || (e.role||"").toLowerCase().includes(roleFilter.toLowerCase());
+    const matchQ = !q || e.name.toLowerCase().includes(q) || (e.role||"").toLowerCase().includes(q) || (e.location||"").toLowerCase().includes(q) || (e.state||"").toLowerCase().includes(q) || (e.city||"").toLowerCase().includes(q) || (e.sector||"").toLowerCase().includes(q) || (e.bio||"").toLowerCase().includes(q) || (e.skills||[]).some(s=>s.toLowerCase().includes(q)) || (e.cuisine||[]).some(c=>c.toLowerCase().includes(q));
+    const matchR = roleFilter==="All" || (e.role||"").toLowerCase().includes(roleFilter.toLowerCase());
     const matchC = !discCountry || (e.country||"").toLowerCase().includes(discCountry.toLowerCase()) || (e.location||"").toLowerCase().includes(discCountry.toLowerCase());
-    const matchL = !discState || (e.location||"").toLowerCase().includes(discState.toLowerCase());
+    const matchL = !discState || (e.state||"").toLowerCase().includes(discState.toLowerCase()) || (e.city||"").toLowerCase().includes(discState.toLowerCase()) || (e.location||"").toLowerCase().includes(discState.toLowerCase());
     const matchS = !discSector || (e.sector||"").toLowerCase().includes(discSector.toLowerCase());
     const matchA = !availableOnly || e.available;
     return matchQ && matchR && matchC && matchL && matchS && matchA;
@@ -2097,7 +2097,15 @@ function NotifPrefsPanel({ prefs, setPrefs }) {
 // ─── Candidate Profile ────────────────────────────────────────────────────────
 function CandidateProfile({ user, profile, setProfile, following, setFollowing, altAccount, onSwitchAccount, applications, bookmarks, refs, setRefs, endorsements, setEndorsements, notifPrefs, setNotifPrefs, onLogout }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ ...user });
+  const [draft, setDraft] = useState({
+    ...user,
+    role: user?.role||"",
+    sector: user?.sector||"",
+    country: user?.country||"Australia",
+    state: user?.state||"",
+    city: user?.city||"",
+    yearsExp: user?.yearsExp||user?.experience||"",
+  });
   const [resume, setResume] = useState(user.resume_url ? { name:user.resume_name, url:user.resume_url } : profile?.resume||null);
   const [cover, setCover] = useState(user.cover_url ? { name:user.cover_name, url:user.cover_url } : profile?.coverLetter||null);
   const [saved, setSaved] = useState(false);
@@ -3792,6 +3800,14 @@ function AccountSettings({ user, onLogout }) {
         contact_email: contactEmail.trim()||user.email,
         contact_phone: contactPhone.trim()||null,
         show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        role: draft.role||null,
+        sector: draft.sector||null,
+        country: draft.country||null,
+        state: draft.state||null,
+        city: draft.city||null,
+        years_exp: draft.yearsExp||draft.experience||null,
+        experience: draft.yearsExp||draft.experience||null,
+        location: [draft.city, draft.state, draft.country].filter(Boolean).join(", ")||draft.location||null,
       }).eq('id', user.id);
       setDiscMsg(next ? "✓ Your profile is now visible to employers" : "Your profile is now private");
       setTimeout(()=>setDiscMsg(""), 2500);
@@ -3810,6 +3826,14 @@ function AccountSettings({ user, onLogout }) {
         contact_email: contactEmail.trim()||user.email,
         contact_phone: contactPhone.trim()||null,
         show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        role: draft.role||null,
+        sector: draft.sector||null,
+        country: draft.country||null,
+        state: draft.state||null,
+        city: draft.city||null,
+        years_exp: draft.yearsExp||draft.experience||null,
+        experience: draft.yearsExp||draft.experience||null,
+        location: [draft.city, draft.state, draft.country].filter(Boolean).join(", ")||draft.location||null,
       }).eq('id', user.id);
       setDiscMsg("Privacy settings saved");
       setTimeout(()=>setDiscMsg(""), 2000);
@@ -3895,6 +3919,66 @@ function AccountSettings({ user, onLogout }) {
 
             {/* Privacy settings — always shown so they can configure before sharing */}
             <div style={{ borderTop:`1px solid ${isPublic?C.sage+"30":C.border}`, padding:"14px 16px", background:"rgba(255,255,255,0.6)", display:"flex", flexDirection:"column", gap:12 }}>
+
+              {/* ── Your profile details ── */}
+              <div style={{ fontWeight:600, fontSize:12, color:C.textSoft, textTransform:"uppercase", letterSpacing:1 }}>Your profile for talent search</div>
+
+              {/* Role */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Role / Job Title</div>
+                <select value={draft.role||""} onChange={e=>setDraft(d=>({...d,role:e.target.value}))}
+                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                  <option value="">Select your role…</option>
+                  {["Head Chef","Sous Chef","Chef de Partie","Commis Chef","Pastry Chef","Executive Chef","Kitchen Hand","Bar Manager","Bartender","Sommelier","Front of House Manager","Floor Manager","Barista","Waiter / Waitress","Venue Manager","Events Coordinator","Catering Manager","Food & Beverage Manager","Restaurant Manager","Hospitality Professional"].map(r=><option key={r}>{r}</option>)}
+                </select>
+              </div>
+
+              {/* Sector */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Industry / Sector</div>
+                <select value={draft.sector||""} onChange={e=>setDraft(d=>({...d,sector:e.target.value}))}
+                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                  <option value="">Select sector…</option>
+                  {["Fine Dining","Casual Dining","Café","Bakery","Pub / Bar","Hotel & Resort","Events & Catering","Fast Casual","Bistro","Club","Winery / Cellar Door","Food Truck","Corporate Catering","Healthcare Catering","Education Catering","Aged Care"].map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+
+              {/* Years experience */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Years of Experience</div>
+                <select value={draft.yearsExp||draft.experience||""} onChange={e=>setDraft(d=>({...d,yearsExp:e.target.value,experience:e.target.value}))}
+                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                  <option value="">Select experience…</option>
+                  {["Less than 1 year","1–2 years","2–5 years","5–10 years","10–15 years","15+ years"].map(y=><option key={y}>{y}</option>)}
+                </select>
+              </div>
+
+              {/* Location — country, state, city */}
+              <div>
+                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Location</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
+                  <select value={draft.country||"Australia"} onChange={e=>setDraft(d=>({...d,country:e.target.value,state:"",city:""}))}
+                    style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                    {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
+                  </select>
+                  {draft.country && Object.keys(LOCATIONS[draft.country]||{}).length>0 && (
+                    <select value={draft.state||""} onChange={e=>setDraft(d=>({...d,state:e.target.value,city:""}))}
+                      style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                      <option value="">Select region / state…</option>
+                      {Object.keys(LOCATIONS[draft.country]||{}).map(s=><option key={s}>{s}</option>)}
+                    </select>
+                  )}
+                  {draft.state && (LOCATIONS[draft.country]?.[draft.state]||[]).length>0 && (
+                    <select value={draft.city||""} onChange={e=>setDraft(d=>({...d,city:e.target.value}))}
+                      style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
+                      <option value="">Select city / suburb…</option>
+                      {(LOCATIONS[draft.country]?.[draft.state]||[]).map(c=><option key={c}>{c}</option>)}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ height:1, background:C.border, margin:"4px 0" }}/>
               <div style={{ fontWeight:600, fontSize:12, color:C.textSoft, textTransform:"uppercase", letterSpacing:1 }}>What employers can see</div>
 
               {/* Email */}
