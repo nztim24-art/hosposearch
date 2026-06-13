@@ -2636,6 +2636,42 @@ function MineJobCard({ job, onEdit, onApps, onExpand }) {
 }
 
 // ─── Job Card ─────────────────────────────────────────────────────────────────
+// Wraps Carousel inside a JobCard — intercepts horizontal swipes so they scroll
+// photos without triggering the card's onClick (which would open the listing).
+function CarouselWrapper({ children }) {
+  const ref = useRef(null);
+  const swipedRef = useRef(false);
+  const startX = useRef(0);
+  const startY = useRef(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onStart = (e) => {
+      swipedRef.current = false;
+      startX.current = e.touches[0].clientX;
+      startY.current = e.touches[0].clientY;
+    };
+    const onMove = (e) => {
+      const dx = Math.abs(e.touches[0].clientX - startX.current);
+      const dy = Math.abs(e.touches[0].clientY - startY.current);
+      if (dx > 8 && dx > dy) swipedRef.current = true;
+    };
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove',  onMove,  { passive: true });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove',  onMove);
+    };
+  }, []);
+
+  return (
+    <div ref={ref} onClick={e => { if (swipedRef.current) { e.stopPropagation(); swipedRef.current = false; } }}>
+      {children}
+    </div>
+  );
+}
+
 function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, onToggleFollow, onToggleBookmark, onVenueClick }) {
   const emp = getEmp(job);
   const appliedApp = job.apps?.find(a=>a.uid===currentUser?.id);
@@ -2682,7 +2718,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
       </div>
       <div onClick={()=>onExpand(job)} onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}
         style={{ cursor:"pointer", position:"relative" }}>
-        <Carousel photos={job.photos} video={job.video}/>
+        <CarouselWrapper><Carousel photos={job.photos} video={job.video}/></CarouselWrapper>
         {/* New listing badge — top right, 3 days */}
         {isNew && (
           <div style={{ position:"absolute", top:10, right:10, background:C.terracotta, color:"#fff", fontSize:11, fontWeight:700, letterSpacing:0.5, padding:"4px 10px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:2 }}>
