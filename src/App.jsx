@@ -708,11 +708,18 @@ function BlurFillImage({ src, alt="", ratio="4/5", radius=0 }) {
 function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=14 }) {
   const ref = useRef(null);
 
-  // Set initial content ONCE on mount — never on subsequent renders
+  // Set initial content on mount — deferred to ensure the ref is attached
   useEffect(() => {
-    if (ref.current && value && ref.current.innerHTML !== value) {
-      ref.current.innerHTML = value;
-    }
+    const setContent = () => {
+      if (ref.current && value) {
+        ref.current.innerHTML = value;
+      }
+    };
+    // Immediate attempt
+    setContent();
+    // Deferred fallback — covers cases where the DOM isn't ready yet
+    const t = setTimeout(setContent, 0);
+    return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -4736,6 +4743,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [showPreview, setShowPreview] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
   const [editId, setEditId] = useState(null); // when set, the Post form is editing this job id
+  const [formKey, setFormKey] = useState(0); // increments on every load/reset so RichTextEditor remounts
   const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
   const [myJobs, setMyJobs] = useState(null); // all of employer's jobs incl. expired; null until loaded
   // Load full list (including expired/inactive) for the Mine tab
@@ -4781,6 +4789,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     setPhotos(ph);
     setVideoFile(j.video||null);
     setEditId(j.id);
+    setFormKey(k=>k+1);
     setTab("post");
     setPosted(false);
   };
@@ -4796,6 +4805,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
   const resetForm = () => {
     setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false});
+    setFormKey(k=>k+1);
     setPhotos([null,null,null,null,null]);
     setVideoFile(null);
     setEditId(null);
@@ -5215,11 +5225,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             )}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Short Description</div>
-              <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
+              <textarea value={stripTags(nj.short)} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
-              <RichTextEditor key={nj.title+"-emp"} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full details, requirements, benefits…" />
+              <RichTextEditor key={`emp-rte-${formKey}`} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full details, requirements, benefits…" />
             </div>
 
             {/* Key selling points */}
@@ -6129,6 +6139,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   // Post job state
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TfwBfGkG9EGtGJgBv341e2n" });
+  const [adminFormKey, setAdminFormKey] = useState(0);
   const [njPhotos, setNjPhotos] = useState([]);
   const [cropState, setCropState] = useState(null);
   const pickAndCropAdmin = () => {
@@ -6397,7 +6408,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Full description — rich text */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on detail page)</span></div>
-                <RichTextEditor key={nj.title+"-admin"} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full job description, responsibilities, requirements…" fontSize={13} />
+                <RichTextEditor key={`admin-rte-${adminFormKey}`} value={nj.full} onChange={html=>setNj(j=>({...j,full:html}))} placeholder="Full job description, responsibilities, requirements…" fontSize={13} />
               </div>
 
               {/* Tags */}
@@ -6776,12 +6787,14 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               </div>
 
               {/* Short + Full description */}
-              {[["Short Description (shown in feed)","short",3],["Full Description (detail page)","full",6]].map(([l,k,rows])=>(
-                <div key={k}>
-                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>{l}</div>
-                  <textarea value={editJob[k]||""} onChange={e=>setEditJob(j=>({...j,[k]:e.target.value}))} rows={rows} style={{...IS,resize:"none"}}/>
-                </div>
-              ))}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Short Description (shown in feed)</div>
+                <textarea value={stripTags(editJob.short||"")} onChange={e=>setEditJob(j=>({...j,short:e.target.value}))} rows={3} style={{...IS,resize:"none"}}/>
+              </div>
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description (detail page)</div>
+                <RichTextEditor key={`admin-edit-rte-${editJob.id}`} value={editJob.full||""} onChange={html=>setEditJob(j=>({...j,full:html}))} placeholder="Full job description…" fontSize={13}/>
+              </div>
 
               {/* Apply link */}
               <div>
