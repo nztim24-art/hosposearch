@@ -2127,7 +2127,7 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
             </button>
         )}
 
-        <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
+        <TalentShareCard user={user}/>
 
         <PortfolioSection user={user} profile={profile} setProfile={setProfile}/>
 
@@ -3580,6 +3580,49 @@ function SubscribePlans({ user, onSubscribe }) {
 
 
 // ─── Account Settings ─────────────────────────────────────────────────────────
+// ─── Talent Share Card ────────────────────────────────────────────────────────
+function TalentShareCard({ user }) {
+  const [isPublic, setIsPublic] = useState(user?.is_public===true);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  const toggle = async () => {
+    const next = !isPublic;
+    setIsPublic(next);
+    setSaving(true);
+    try {
+      await supabase.from("profiles").update({ is_public: next }).eq("id", user.id);
+      setMsg(next ? "✓ Visible to employers" : "Profile is now private");
+      setTimeout(() => setMsg(""), 2500);
+    } catch(e) { setIsPublic(!next); setMsg("Couldn't update — try again"); }
+    setSaving(false);
+  };
+
+  return (
+    <div style={{ margin:"0 0 16px", borderRadius:14, border:`2px solid ${isPublic ? C.sage : C.border}`, background:isPublic ? C.sageL : "#fff", overflow:"hidden" }}>
+      <div style={{ padding:"16px", display:"flex", alignItems:"center", gap:12 }}>
+        <div style={{ width:44, height:44, borderRadius:12, background:isPublic ? C.sage : C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>
+          {isPublic ? "👁️" : "🔒"}
+        </div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontWeight:700, fontSize:15, color:C.textDark, marginBottom:2 }}>
+            {isPublic ? "Visible to Employers" : "Share Profile to Talent Search"}
+          </div>
+          <div style={{ color:C.textSoft, fontSize:12 }}>
+            {isPublic ? "Employers can find and contact you" : "Let employers discover your profile — set details in Account Settings"}
+          </div>
+          {msg && <div style={{ color:isPublic ? C.sage : C.terracotta, fontSize:12, fontWeight:600, marginTop:4 }}>{msg}</div>}
+        </div>
+        <button className="tap" onClick={toggle} disabled={saving}
+          style={{ flexShrink:0, padding:"10px 18px", borderRadius:22, border:"none", background:isPublic ? `linear-gradient(135deg,${C.sage},#4A7A52)` : `linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:`0 3px 10px ${isPublic ? C.sage + "40" : "rgba(196,98,58,0.3)"}` }}>
+          {saving ? "…" : isPublic ? "Go Private" : "Share Profile"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+
 function AccountSettings({ user, onLogout }) {
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState(user?.handle||"");
@@ -3589,94 +3632,7 @@ function AccountSettings({ user, onLogout }) {
   const [passMsg, setPassMsg] = useState("");
   const [handleMsg, setHandleMsg] = useState("");
   const [saving, setSaving] = useState(false);
-  const [isPublic, setIsPublic] = useState(user?.is_public===true);
-  const [contactEmail, setContactEmail] = useState(user?.contact_email||user?.email||"");
-  const [contactPhone, setContactPhone] = useState(user?.contact_phone||"");
-  const [showEmail, setShowEmail]   = useState(user?.show_email !== false);
-  const [showPhone, setShowPhone]   = useState(user?.show_phone === true);
-  const [showResume, setShowResume] = useState(user?.show_resume !== false);
-  const [discMsg, setDiscMsg] = useState("");
-  const [showInfoPopup, setShowInfoPopup] = useState(false);
-  // Local draft for structured talent profile fields
-  const [draft, setDraft] = useState({
-    role:     user?.role||"",
-    sector:   user?.sector||"",
-    country:  user?.country||"Australia",
-    state:    user?.state||"",
-    city:     user?.city||"",
-    yearsExp: user?.yearsExp||user?.years_exp||user?.experience||"",
-    location: user?.location||"",
-  });
   const IS = { width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:10, padding:"10px 13px", color:C.textDark, fontSize:14 };
-
-  const toggleDiscoverable = async () => {
-    if (!isPublic && !showEmail && !showPhone) {
-      setDiscMsg("You must share at least your email or phone so employers can contact you.");
-      setTimeout(()=>setDiscMsg(""), 3500); return;
-    }
-    if (!isPublic && showEmail && !contactEmail.trim()) {
-      setDiscMsg("Add a contact email before sharing your profile.");
-      setTimeout(()=>setDiscMsg(""), 3000); return;
-    }
-    const next = !isPublic;
-    setIsPublic(next);
-    setSaving(true);
-    try {
-      await supabase.from('profiles').update({
-        is_public: next,
-        contact_email: contactEmail.trim()||user.email,
-        contact_phone: contactPhone.trim()||null,
-        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
-        role: draft.role||null,
-        sector: draft.sector||null,
-        country: draft.country||null,
-        state: draft.state||null,
-        city: draft.city||null,
-        years_exp: draft.yearsExp||draft.experience||null,
-        experience: draft.yearsExp||draft.experience||null,
-        location: [draft.city, draft.state, draft.country].filter(Boolean).join(", ")||draft.location||null,
-      }).eq('id', user.id);
-      setDiscMsg(next ? "✓ Your profile is now visible to employers" : "Your profile is now private");
-      setTimeout(()=>setDiscMsg(""), 2500);
-    } catch(e) { setDiscMsg("Couldn't update — try again"); setIsPublic(!next); }
-    setSaving(false);
-  };
-
-  const savePrivacy = async () => {
-    if (!showEmail && !showPhone) {
-      setDiscMsg("You must share at least your email or phone so employers can contact you.");
-      setTimeout(()=>setDiscMsg(""), 3500); return;
-    }
-    setSaving(true);
-    try {
-      await supabase.from('profiles').update({
-        contact_email: contactEmail.trim()||user.email,
-        contact_phone: contactPhone.trim()||null,
-        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
-        role: draft.role||null,
-        sector: draft.sector||null,
-        country: draft.country||null,
-        state: draft.state||null,
-        city: draft.city||null,
-        years_exp: draft.yearsExp||draft.experience||null,
-        experience: draft.yearsExp||draft.experience||null,
-        location: [draft.city, draft.state, draft.country].filter(Boolean).join(", ")||draft.location||null,
-      }).eq('id', user.id);
-      setDiscMsg("Privacy settings saved");
-      setTimeout(()=>setDiscMsg(""), 2000);
-    } catch(e) { setDiscMsg("Couldn't save — try again"); }
-    setSaving(false);
-  };
-
-  const saveContactEmail = async () => {
-    setSaving(true);
-    try {
-      await supabase.from('profiles').update({ contact_email: contactEmail.trim() }).eq('id', user.id);
-      setDiscMsg("Contact email saved");
-      setTimeout(()=>setDiscMsg(""), 2000);
-    } catch(e) { setDiscMsg("Couldn't save email"); }
-    setSaving(false);
-  };
 
   const saveHandle = async () => {
     if (!handle.trim()) return;
@@ -3715,184 +3671,7 @@ function AccountSettings({ user, onLogout }) {
       {open && (
         <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:14 }}>
 
-          {/* ── Share Profile to Talent Search ─────────────────────── */}
-          <div style={{ borderRadius:14, border:`2px solid ${isPublic?C.sage:C.border}`, background:isPublic?C.sageL:"#fff", overflow:"hidden" }}>
-
-            {/* Header button row */}
-            <div style={{ padding:"16px 16px 14px", display:"flex", alignItems:"center", gap:12 }}>
-              <div style={{ width:44, height:44, borderRadius:12, background:isPublic?C.sage:C.bgSoft, display:"flex", alignItems:"center", justifyContent:"center", fontSize:22, flexShrink:0 }}>
-                {isPublic ? "👁️" : "🔒"}
-              </div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <div style={{ fontWeight:700, fontSize:15, color:C.textDark }}>
-                    {isPublic ? "Visible to Employers" : "Share Profile to Talent Search"}
-                  </div>
-                  {/* Info button */}
-                  <button className="tap" onClick={()=>setShowInfoPopup(true)}
-                    style={{ width:20, height:20, borderRadius:"50%", background:C.bgSoft, border:`1px solid ${C.border}`, fontSize:11, fontWeight:700, color:C.textSoft, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, lineHeight:1 }}>
-                    ?
-                  </button>
-                </div>
-                <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>
-                  {isPublic ? "Employers can find and contact you" : "Let employers discover your profile"}
-                </div>
-              </div>
-              <button className="tap" onClick={toggleDiscoverable} disabled={saving}
-                style={{ flexShrink:0, padding:"9px 18px", borderRadius:22, border:"none", background:isPublic?`linear-gradient(135deg,${C.sage},#4A7A52)`:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:`0 3px 10px ${isPublic?C.sage+"40":"rgba(196,98,58,0.3)"}` }}>
-                {saving ? "…" : isPublic ? "Go Private" : "Share Profile"}
-              </button>
-            </div>
-
-            {/* Privacy settings — always shown so they can configure before sharing */}
-            <div style={{ borderTop:`1px solid ${isPublic?C.sage+"30":C.border}`, padding:"14px 16px", background:"rgba(255,255,255,0.6)", display:"flex", flexDirection:"column", gap:12 }}>
-
-              {/* ── Your profile details ── */}
-              <div style={{ fontWeight:600, fontSize:12, color:C.textSoft, textTransform:"uppercase", letterSpacing:1 }}>Your profile for talent search</div>
-
-              {/* Role */}
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Role / Job Title</div>
-                <select value={draft.role||""} onChange={e=>setDraft(d=>({...d,role:e.target.value}))}
-                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                  <option value="">Select your role…</option>
-                  {["Head Chef","Sous Chef","Chef de Partie","Commis Chef","Pastry Chef","Executive Chef","Kitchen Hand","Bar Manager","Bartender","Sommelier","Front of House Manager","Floor Manager","Barista","Waiter / Waitress","Venue Manager","Events Coordinator","Catering Manager","Food & Beverage Manager","Restaurant Manager","Hospitality Professional"].map(r=><option key={r}>{r}</option>)}
-                </select>
-              </div>
-
-              {/* Sector */}
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Industry / Sector</div>
-                <select value={draft.sector||""} onChange={e=>setDraft(d=>({...d,sector:e.target.value}))}
-                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                  <option value="">Select sector…</option>
-                  {["Fine Dining","Casual Dining","Café","Bakery","Pub / Bar","Hotel & Resort","Events & Catering","Fast Casual","Bistro","Club","Winery / Cellar Door","Food Truck","Corporate Catering","Healthcare Catering","Education Catering","Aged Care"].map(s=><option key={s}>{s}</option>)}
-                </select>
-              </div>
-
-              {/* Years experience */}
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Years of Experience</div>
-                <select value={draft.yearsExp||draft.experience||""} onChange={e=>setDraft(d=>({...d,yearsExp:e.target.value,experience:e.target.value}))}
-                  style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                  <option value="">Select experience…</option>
-                  {["Less than 1 year","1–2 years","2–5 years","5–10 years","10–15 years","15+ years"].map(y=><option key={y}>{y}</option>)}
-                </select>
-              </div>
-
-              {/* Location — country, state, city */}
-              <div>
-                <div style={{ fontSize:12, fontWeight:600, color:C.textDark, marginBottom:5 }}>Location</div>
-                <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
-                  <select value={draft.country||"Australia"} onChange={e=>setDraft(d=>({...d,country:e.target.value,state:"",city:""}))}
-                    style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                    {Object.keys(LOCATIONS).map(c=><option key={c}>{c}</option>)}
-                  </select>
-                  {draft.country && Object.keys(LOCATIONS[draft.country]||{}).length>0 && (
-                    <select value={draft.state||""} onChange={e=>setDraft(d=>({...d,state:e.target.value,city:""}))}
-                      style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                      <option value="">Select region / state…</option>
-                      {Object.keys(LOCATIONS[draft.country]||{}).map(s=><option key={s}>{s}</option>)}
-                    </select>
-                  )}
-                  {draft.state && (LOCATIONS[draft.country]?.[draft.state]||[]).length>0 && (
-                    <select value={draft.city||""} onChange={e=>setDraft(d=>({...d,city:e.target.value}))}
-                      style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"9px 11px", color:C.textDark, fontSize:13 }}>
-                      <option value="">Select city / suburb…</option>
-                      {(LOCATIONS[draft.country]?.[draft.state]||[]).map(c=><option key={c}>{c}</option>)}
-                    </select>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ height:1, background:C.border, margin:"4px 0" }}/>
-              <div style={{ fontWeight:600, fontSize:12, color:C.textSoft, textTransform:"uppercase", letterSpacing:1 }}>What employers can see</div>
-
-              {/* Email */}
-              <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-                <button className="tap" onClick={()=>setShowEmail(v=>!v)}
-                  style={{ width:22, height:22, borderRadius:6, border:`2px solid ${showEmail?C.sage:C.border}`, background:showEmail?C.sage:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", marginTop:2 }}>
-                  {showEmail && <Icon name="check" size={12} color="#fff"/>}
-                </button>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:C.textDark, display:"flex", alignItems:"center", gap:5 }}>
-                    Email address
-                    <span style={{ fontSize:10, color:C.terracotta, fontWeight:700, background:C.terracottaL, padding:"1px 6px", borderRadius:10 }}>Required to contact you</span>
-                  </div>
-                  <input value={contactEmail} onChange={e=>setContactEmail(e.target.value)} placeholder="you@email.com" type="email"
-                    style={{ marginTop:6, width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", color:C.textDark, fontSize:13 }}/>
-                </div>
-              </div>
-
-              {/* Phone */}
-              <div style={{ display:"flex", alignItems:"flex-start", gap:10 }}>
-                <button className="tap" onClick={()=>setShowPhone(v=>!v)}
-                  style={{ width:22, height:22, borderRadius:6, border:`2px solid ${showPhone?C.sage:C.border}`, background:showPhone?C.sage:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", marginTop:2 }}>
-                  {showPhone && <Icon name="check" size={12} color="#fff"/>}
-                </button>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:C.textDark }}>Phone number</div>
-                  <input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} placeholder="04xx xxx xxx" type="tel"
-                    style={{ marginTop:6, width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"8px 11px", color:C.textDark, fontSize:13 }}/>
-                </div>
-              </div>
-
-              {/* Resume */}
-              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                <button className="tap" onClick={()=>setShowResume(v=>!v)}
-                  style={{ width:22, height:22, borderRadius:6, border:`2px solid ${showResume?C.sage:C.border}`, background:showResume?C.sage:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer" }}>
-                  {showResume && <Icon name="check" size={12} color="#fff"/>}
-                </button>
-                <div style={{ flex:1 }}>
-                  <div style={{ fontSize:13, fontWeight:600, color:C.textDark }}>Résumé / CV</div>
-                  <div style={{ fontSize:11, color:C.textFaint, marginTop:1 }}>Let employers download your résumé</div>
-                </div>
-              </div>
-
-              {/* Note — profile name, role, bio, skills always shown */}
-              <div style={{ fontSize:11, color:C.textFaint, background:C.bgSoft, borderRadius:8, padding:"8px 10px", lineHeight:1.5 }}>
-                ℹ️ Your name, role, bio, skills and work photos are always shown when your profile is public. Only the items ticked above are shared.
-              </div>
-
-              {discMsg && <div style={{ color:discMsg.startsWith("✓")||discMsg.includes("saved")?C.sage:C.terracotta, fontSize:12, fontWeight:600 }}>{discMsg}</div>}
-
-              <button className="tap" onClick={savePrivacy} disabled={saving}
-                style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"10px 0", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", boxShadow:"0 2px 8px rgba(196,98,58,0.2)" }}>
-                {saving ? "Saving…" : "Save Privacy Settings"}
-              </button>
-            </div>
-          </div>
-
-          {/* Info popup */}
-          {showInfoPopup && (
-            <div onClick={()=>setShowInfoPopup(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:9000, display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
-              <div onClick={e=>e.stopPropagation()} style={{ background:"#fff", borderRadius:18, padding:"24px 20px", maxWidth:360, width:"100%", position:"relative" }}>
-                <button onClick={()=>setShowInfoPopup(false)} style={{ position:"absolute", top:14, right:14, width:28, height:28, borderRadius:"50%", background:C.bgSoft, border:`1px solid ${C.border}`, fontSize:16, color:C.textMid, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
-                <div style={{ fontSize:32, marginBottom:10 }}>👁️</div>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:10 }}>Talent Search</div>
-                <div style={{ color:C.textMid, fontSize:14, lineHeight:1.6, marginBottom:14 }}>
-                  When you share your profile, employers hiring on HospoSearch can discover you in their <strong>Talent Search</strong> tab — even if you haven't applied to their listing.
-                </div>
-                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:16 }}>
-                  {[
-                    ["✓","Your name, role and bio are always visible"],
-                    ["✓","You choose whether to show your email, phone or résumé"],
-                    ["✓","Email or phone is required so employers can actually reach you"],
-                    ["✓","Turn it off any time to go private instantly"],
-                  ].map(([icon, text])=>(
-                    <div key={text} style={{ display:"flex", gap:8, alignItems:"flex-start" }}>
-                      <span style={{ color:C.sage, fontWeight:700, flexShrink:0 }}>{icon}</span>
-                      <span style={{ color:C.textMid, fontSize:13 }}>{text}</span>
-                    </div>
-                  ))}
-                </div>
-                <button className="tap" onClick={()=>setShowInfoPopup(false)}
-                  style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, cursor:"pointer" }}>
-                  Got it
-                </button>
-              </div>
-            </div>
-          )}
+)}
 
           <div>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Username</div>
