@@ -283,13 +283,15 @@ export async function uploadDocument(file, applicantId, type) {
       return null
     }
     
+    // Use the public job-photos bucket so download URLs work
+    // (documents bucket is private — getPublicUrl returns a 404 for private buckets)
     const { error } = await supabase.storage
-      .from('documents')
+      .from('job-photos')
       .upload(path, blob, { upsert: true, contentType: blob.type || 'application/pdf' })
     
     if (error) { console.warn('Document upload error:', error); return null; }
     
-    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path)
+    const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path)
     return { url: urlData.publicUrl, name: file.name, size: file.size, path }
   } catch(e) {
     console.warn('uploadDocument error:', e)
