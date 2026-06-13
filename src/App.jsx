@@ -1045,17 +1045,17 @@ function Carousel({ photos, video, height=null }) {
           ))}
         </div>
       )}
-      {/* Arrow buttons — desktop only */}
+      {/* Arrow buttons — desktop + mobile tap targets */}
       {slides.length > 1 && cur > 0 && (
         <button onClick={e=>{e.stopPropagation();goTo(cur-1);}} className="tap"
-          style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3 }}>
-          <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginRight:1 }}>‹</span>
+          style={{ position:"absolute", left:8, top:"50%", transform:"translateY(-50%)", background:"linear-gradient(135deg,rgba(40,30,20,0.65),rgba(20,15,10,0.45))", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", border:"1px solid rgba(255,255,255,0.18)", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, boxShadow:"0 2px 8px rgba(0,0,0,0.35)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       )}
       {slides.length > 1 && cur < slides.length - 1 && (
         <button onClick={e=>{e.stopPropagation();goTo(cur+1);}} className="tap"
-          style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"rgba(255,255,255,0.28)", backdropFilter:"blur(4px)", border:"none", borderRadius:"50%", width:34, height:34, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3 }}>
-          <span style={{ color:"#fff", fontSize:18, lineHeight:1, marginLeft:1 }}>›</span>
+          style={{ position:"absolute", right:8, top:"50%", transform:"translateY(-50%)", background:"linear-gradient(135deg,rgba(40,30,20,0.65),rgba(20,15,10,0.45))", backdropFilter:"blur(6px)", WebkitBackdropFilter:"blur(6px)", border:"1px solid rgba(255,255,255,0.18)", borderRadius:"50%", width:36, height:36, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", zIndex:3, boxShadow:"0 2px 8px rgba(0,0,0,0.35)" }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </button>
       )}
     </div>
@@ -2972,7 +2972,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 </div>
 
                 {/* Screening questions from employer */}
-                {job.screeningQ && Object.keys(job.screeningQ).filter(k=>job.screeningQ[k]).length > 0 && (() => {
+                {job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
                   const SCREENING_LABELS = {
                     rightToWork:        'Right to work in this country?',
                     yearsExperience:    'Years of hospitality experience?',
@@ -2982,8 +2982,11 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     availablePublicHols:'Available to work public holidays?',
                     driverLicence:      'Do you hold a current driver\'s licence?',
                     willingToRelocate:  'Willing to relocate?',
+                    relocate:           'Willing to relocate?',
+                    availablePublicHolidays: 'Available to work public holidays?',
                   };
-                  const activeQ = Object.keys(job.screeningQ).filter(k=>job.screeningQ[k]);
+                  const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]);
+                  const customQ = job.screeningQ.custom||[];
                   return (
                     <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                       <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📋 Screening Questions</div>
@@ -2995,6 +2998,17 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                             <input
                               value={(fd.screeningAnswers||{})[key]||""}
                               onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [key]:e.target.value}}))}
+                              placeholder="Your answer…"
+                              style={IS}
+                            />
+                          </div>
+                        ))}
+                        {customQ.map((q,i)=>(
+                          <div key={`custom_${i}`}>
+                            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>✏️ {q}</div>
+                            <input
+                              value={(fd.screeningAnswers||{})[`custom_${i}`]||""}
+                              onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [`custom_${i}`]:e.target.value}}))}
                               placeholder="Your answer…"
                               style={IS}
                             />
@@ -5002,6 +5016,35 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, refs, endors
                     <span style={{ color:(nj.screeningQ||{})[key]?C.sage:C.textMid, fontSize:13 }}>{label}</span>
                   </div>
                 ))}
+
+                {/* Custom questions */}
+                {((nj.screeningQ||{}).custom||[]).map((q,i)=>(
+                  <div key={`custom_${i}`} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"9px 12px", background:C.sageL, border:`1px solid ${C.sage}50`, borderRadius:9 }}>
+                      <div style={{ width:18, height:18, borderRadius:4, background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                        <Icon name="check" size={11} color="#fff"/>
+                      </div>
+                      <span style={{ color:C.sage, fontSize:13, fontWeight:500, flex:1 }}>✏️ {q}</span>
+                    </div>
+                    <button className="tap" onClick={()=>setNj(j=>{ const custom=[...(j.screeningQ?.custom||[])]; custom.splice(i,1); return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; })}
+                      style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, padding:"0 4px", cursor:"pointer", flexShrink:0 }}>×</button>
+                  </div>
+                ))}
+
+                {/* Add custom question input */}
+                <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                  <input
+                    id="customQInput"
+                    placeholder="✏️ Add a custom question…"
+                    style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 12px", color:C.textDark, fontSize:13 }}
+                    onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); e.target.value=""; }}}
+                  />
+                  <button className="tap" onClick={()=>{ const el=document.getElementById("customQInput"); const v=el?.value?.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); if(el) el.value=""; }}
+                    style={{ background:C.sage, border:"none", borderRadius:9, padding:"9px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", flexShrink:0 }}>
+                    Add
+                  </button>
+                </div>
+                <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>Type a question and press Enter or Add — candidates will be asked to answer it when applying</div>
               </div>
             </div>
 
@@ -6188,6 +6231,33 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       <span style={{ color:(nj.screeningQ||{})[key]?C.sage:C.textMid, fontSize:13, fontWeight:(nj.screeningQ||{})[key]?600:400 }}>{label}</span>
                     </div>
                   ))}
+
+                  {/* Custom questions */}
+                  {((nj.screeningQ||{}).custom||[]).map((q,i)=>(
+                    <div key={`custom_${i}`} style={{ display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, flex:1, padding:"9px 12px", background:C.sageL, border:`1px solid ${C.sage}50`, borderRadius:9 }}>
+                        <div style={{ width:18, height:18, borderRadius:4, background:C.sage, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          <Icon name="check" size={11} color="#fff"/>
+                        </div>
+                        <span style={{ color:C.sage, fontSize:13, fontWeight:500, flex:1 }}>✏️ {q}</span>
+                      </div>
+                      <button className="tap" onClick={()=>setNj(j=>{ const custom=[...(j.screeningQ?.custom||[])]; custom.splice(i,1); return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; })}
+                        style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, padding:"0 4px", cursor:"pointer" }}>×</button>
+                    </div>
+                  ))}
+
+                  {/* Add custom question */}
+                  <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                    <input id="adminCustomQInput"
+                      placeholder="✏️ Add a custom question…"
+                      style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 12px", color:C.textDark, fontSize:13 }}
+                      onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j,screeningQ:{...(j.screeningQ||{}),custom}}; }); e.target.value=""; }}}
+                    />
+                    <button className="tap" onClick={()=>{ const el=document.getElementById("adminCustomQInput"); const v=el?.value?.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j,screeningQ:{...(j.screeningQ||{}),custom}}; }); if(el) el.value=""; }}
+                      style={{ background:C.sage, border:"none", borderRadius:9, padding:"9px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", flexShrink:0 }}>
+                      Add
+                    </button>
+                  </div>
                 </div>
                 <div style={{ color:C.textFaint, fontSize:11, marginTop:7 }}>Selected questions appear on the application form for this role</div>
               </div>
