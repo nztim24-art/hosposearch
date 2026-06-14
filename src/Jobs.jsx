@@ -178,13 +178,13 @@ function JobsList({ jobs, loading }) {
   useSEO({
     title: "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
     description: "Browse chef, sommelier, venue manager and front-of-house roles across Australia, New Zealand and the world's best restaurants. Updated daily on HospoSearch.",
-    canonical: "https://www.hosposearch.com.au/jobs",
+    canonical: "https://www.hosposearch.com/jobs",
     jsonLd: {
       "@context":"https://schema.org",
       "@type":"ItemList",
       "itemListElement": filtered.slice(0,20).map((j,i)=>({
         "@type":"ListItem","position":i+1,
-        "url":`https://www.hosposearch.com.au/jobs/${j.id}`,
+        "url":`https://www.hosposearch.com/jobs/${j.id}`,
         "name":`${j.title} — ${j.venue}`,
       })),
     },
@@ -235,7 +235,7 @@ function JobDetail({ jobs, loading }) {
   useSEO({
     title: job ? `${job.title} — ${job.venue} | HospoSearch` : "Hospitality Role | HospoSearch",
     description: job ? `${job.title} at ${job.venue}, ${job.loc}. ${stripTags(job.short||"").slice(0,140)}` : "View this hospitality role on HospoSearch.",
-    canonical: job ? `https://www.hosposearch.com.au/jobs/${job.id}` : undefined,
+    canonical: job ? `https://www.hosposearch.com/jobs/${job.id}` : undefined,
     jsonLd: job ? {
       "@context":"https://schema.org",
       "@type":"JobPosting",

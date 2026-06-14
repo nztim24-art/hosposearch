@@ -3,7 +3,7 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const BASE = 'https://www.hosposearch.com.au';
+const BASE = 'https://www.hosposearch.com';
 
 export default async function handler(req, res) {
   // Fetch all active, paid job IDs and their updated_at dates

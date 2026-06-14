@@ -7,4 +7,4 @@ Allow: /jobs/
 Disallow: /app
 Disallow: /app/
 
-Sitemap: https://www.hosposearch.com.au/sitemap.xml
+Sitemap: https://www.hosposearch.com/sitemap.xml
