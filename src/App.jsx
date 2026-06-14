@@ -4695,9 +4695,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const _jobIdParam = _urlParams.get('jobId');
 
   const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : (_viewParam==="apps" ? "apps" : "feed"));
-  const [prevTab, setPrevTab] = useState("feed");
-  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
-  const goBack = () => setTabRaw(prevTab);
+  const empTabHistory = useRef([]);
+  const setTab = (next) => { setTabRaw(prev => { if(prev!==next) empTabHistory.current=[...empTabHistory.current.slice(-9),prev]; return next; }); };
+  const goBack = () => { if(empTabHistory.current.length>0){ const p=empTabHistory.current[empTabHistory.current.length-1]; empTabHistory.current=empTabHistory.current.slice(0,-1); setTabRaw(p); } else setTabRaw("feed"); };
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
 
@@ -5637,9 +5637,22 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, notifs, setNotifs, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
   const isDesktop = useIsDesktop();
   const [tab, setTabRaw] = useState("home");
-  const [prevTab, setPrevTab] = useState("home");
-  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
-  const goBack = () => setTabRaw(prevTab);
+  const tabHistory = useRef(["home"]);
+  const setTab = (next) => {
+    setTabRaw(prev => {
+      if (prev !== next) tabHistory.current = [...tabHistory.current.slice(-9), prev];
+      return next;
+    });
+  };
+  const goBack = () => {
+    if (tabHistory.current.length > 0) {
+      const prev = tabHistory.current[tabHistory.current.length - 1];
+      tabHistory.current = tabHistory.current.slice(0, -1);
+      setTabRaw(prev);
+    } else {
+      setTabRaw("home");
+    }
+  };
   const [expandedJob, setExpandedJob] = useState(null);
   const [openToApply, setOpenToApply] = useState(false);
   const openJob  = (j) => { setOpenToApply(false); setExpandedJob(j); };
@@ -5648,7 +5661,12 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
   const homeFiltered = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
-  const appliedCount = jobs.filter(j=>j.apps?.some(a=>a.uid===user.id)).length;
+  const [appliedCount, setAppliedCount] = useState(0);
+  useEffect(() => {
+    supabase.from('applications').select('id', { count:'exact', head:true }).eq('applicant_id', user.id)
+      .then(({ count }) => { if (count !== null) setAppliedCount(count); })
+      .catch(()=>{});
+  }, [user.id]);
   // Keep avatar_url in sync
   const [liveAvatarUrl, setLiveAvatarUrl] = useState(user?.avatar_url||null);
   const pullStartY = useRef(null);
@@ -5940,13 +5958,13 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
-      {/* Bottom Nav */}
-      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
-        <NavBtn t="home"     ic="home"      l="Home"/>
-        <NavBtn t="explore"  ic="search"    l="Explore"/>
-        <NavBtn t="activity" ic="briefcase" l="Applied" badge={appliedCount}/>
-        <NavBtn t="following" ic="heart"    l="Following" badge={following.length}/>
-        <NavBtn t="profile"  ic="person"    l="Profile"/>
+      {/* Bottom Nav — padded for Android gesture bar / iPhone home indicator */}
+      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0, paddingBottom:"env(safe-area-inset-bottom, 8px)", position:"relative", zIndex:100 }}>
+        <NavBtn t="home"      ic="home"      l="Home"/>
+        <NavBtn t="explore"   ic="search"    l="Explore"/>
+        <NavBtn t="activity"  ic="briefcase" l="Applied" badge={appliedCount}/>
+        <NavBtn t="following" ic="heart"     l="Following" badge={following.length}/>
+        <NavBtn t="profile"   ic="person"    l="Profile"/>
       </div>
 
       {notifOpen && (
@@ -6122,9 +6140,9 @@ function AdminUploads({ supabase }) {
 
 function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [tab, setTabRaw] = useState("listings");
-  const [prevTab, setPrevTab] = useState("listings");
-  const setTab = (next) => { setTabRaw(prev => { setPrevTab(prev); return next; }); };
-  const goBack = () => setTabRaw(prevTab);
+  const adminTabHistory = useRef([]);
+  const setTab = (next) => { setTabRaw(prev => { if(prev!==next) adminTabHistory.current=[...adminTabHistory.current.slice(-9),prev]; return next; }); };
+  const goBack = () => { if(adminTabHistory.current.length>0){ const p=adminTabHistory.current[adminTabHistory.current.length-1]; adminTabHistory.current=adminTabHistory.current.slice(0,-1); setTabRaw(p); } else setTabRaw("listings"); };
   const [editJob, setEditJob] = useState(null);
   const [viewJob, setViewJob] = useState(null);
   const [editUser, setEditUser] = useState(null);
