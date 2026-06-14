@@ -2219,9 +2219,27 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
 // ─── My Applications Screen ───────────────────────────────────────────────────
 function MyApplications({ userId, jobs, bookmarks, onExpand }) {
   const [tab, setTab] = useState("applied");
-  const applied = jobs.filter(j=>j.apps?.some(a=>a.uid===userId)).map(j=>({ job:j, app:j.apps.find(a=>a.uid===userId) }));
+  const [myApps, setMyApps] = useState(null); // null = loading
   const saved = jobs.filter(j=>bookmarks.includes(j.id));
   const statusColor = { "Sent":C.textSoft, "Viewed":C.blue, "Shortlisted":C.sage, "No thanks":C.error };
+
+  // Load directly from Supabase — don't rely on jobs being merged yet
+  useEffect(() => {
+    let cancelled = false;
+    supabase.from('applications').select('*').eq('applicant_id', userId).order('created_at', { ascending:false })
+      .then(({ data }) => {
+        if (!cancelled) setMyApps(data || []);
+      })
+      .catch(() => { if (!cancelled) setMyApps([]); });
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  // Match each application to its job object
+  const applied = (myApps||[]).map(a => {
+    const job = jobs.find(j=>j.id===a.job_id) || { id:a.job_id, title:a.job_title||"Role", venue:a.venue||"Venue", type:"", photos:[0], apps:[] };
+    return { job, app:{ id:a.id, uid:a.applicant_id, name:a.name, email:a.email, status:a.status||"Sent", ts:new Date(a.created_at).getTime() } };
+  });
+
   return (
     <div style={{ height:"100%", display:"flex", flexDirection:"column", overflow:"hidden" }}>
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
@@ -2231,31 +2249,33 @@ function MyApplications({ userId, jobs, bookmarks, onExpand }) {
       </div>
       <div style={{ flex:1, overflowY:"auto", padding:"12px" }}>
         {tab==="applied" && (
-          applied.length===0
-            ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No applications yet</div><div style={{ fontSize:13 }}>Apply for a role to track it here</div></div>
-            : applied.map(({ job, app })=>{ const emp=getEmp(job); const status=app.status||"Sent"; const sc=statusColor[status]||C.textSoft; const first=job.photos[0]; const isd=isData(first); return (
-              <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
-                <div style={{ display:"flex", height:70 }}>
-                  <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
-                    {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.4 }}>{emp?.avatar}</span></div>}
-                  </div>
-                  <div style={{ flex:1, padding:"10px 12px" }}>
-                    <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1 }}>{job.title}</div>
-                    <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{job.venue} · {job.type}</div>
-                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ width:7, height:7, borderRadius:"50%", background:sc, display:"inline-block" }}/>
-                      <span style={{ color:sc, fontSize:11, fontWeight:600 }}>{status}</span>
-                      <span style={{ color:C.textFaint, fontSize:11 }}>· Applied {ago(app.ts)} ago</span>
-                    </div>
+          myApps === null ? (
+            <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:28, marginBottom:8 }}>⏳</div><div style={{ fontSize:13 }}>Loading applications…</div></div>
+          ) : applied.length===0 ? (
+            <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No applications yet</div><div style={{ fontSize:13 }}>Apply for a role to track it here</div></div>
+          ) : applied.map(({ job, app })=>{ const emp=getEmp(job); const status=app.status||"Sent"; const sc=statusColor[status]||C.textSoft; const first=job.photos?.[0]; const isd=isData(first); return (
+            <div key={app.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
+              <div style={{ display:"flex", height:70 }}>
+                <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
+                  {isd?<img src={first} alt="" style={{ width:"100%", height:"100%", objectFit:"cover" }}/>:<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:22, opacity:0.4 }}>{emp?.avatar}</span></div>}
+                </div>
+                <div style={{ flex:1, padding:"10px 12px" }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1 }}>{job.title}</div>
+                  <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{job.venue} · {job.type}</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ width:7, height:7, borderRadius:"50%", background:sc, display:"inline-block" }}/>
+                    <span style={{ color:sc, fontSize:11, fontWeight:600 }}>{status}</span>
+                    <span style={{ color:C.textFaint, fontSize:11 }}>· Applied {ago(app.ts)} ago</span>
                   </div>
                 </div>
               </div>
-            ); })
+            </div>
+          ); })
         )}
         {tab==="saved" && (
           saved.length===0
             ? <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>🔖</div><div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No saved jobs yet</div><div style={{ fontSize:13 }}>Tap the bookmark icon on any listing</div></div>
-            : saved.map(job=>{ const emp=getEmp(job); const first=job.photos[0]; const isd=isData(first); return (
+            : saved.map(job=>{ const emp=getEmp(job); const first=job.photos?.[0]; const isd=isData(first); return (
               <div key={job.id} className="tap" onClick={()=>onExpand(job)} style={{ background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:10, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)", cursor:"pointer" }}>
                 <div style={{ display:"flex", height:70 }}>
                   <div style={{ width:70, flexShrink:0, overflow:"hidden", background:PBG[(typeof first==="number"?first:0)%PBG.length] }}>
