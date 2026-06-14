@@ -2751,11 +2751,15 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 
 // ─── Job Detail ───────────────────────────────────────────────────────────────
 function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick, openToApply=false }) {
+  if (!job) return null; // safety guard
   const emp = getEmp(job);
-  const applied = job.apps?.some(a=>a.uid===currentUser?.id);
+  const safePhotos = job.photos || [];
+  const safeApps = job.apps || [];
+  const applied = safeApps.some(a=>a.uid===currentUser?.id);
+  const appliedApp = safeApps.find(a=>a.uid===currentUser?.id);
   const isOwnListing = currentUser?.id && job.empId === currentUser.id;
-  const isFollowed = following.includes(job.empId);
-  const isBookmarked = bookmarks?.includes(job.id);
+  const isFollowed = (following||[]).includes(job.empId);
+  const isBookmarked = (bookmarks||[])?.includes(job.id);
   const [showForm, setShowForm] = useState(openToApply && !isOwnListing);
   const [fd, setFd] = useState({ name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
   const [resume, setResume] = useState(profile?.resume||null);
@@ -2809,7 +2813,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           <button className="tap" onClick={guardedClose} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, marginLeft:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0 }}>×</button>
         </div>
         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-        <Carousel photos={job.photos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
+        <Carousel photos={safePhotos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={56} fontSize={26}/></div>
@@ -2845,7 +2849,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"8px 12px", background:C.bgSoft, borderRadius:10, marginBottom:18, border:`1px solid ${C.border}` }}>
               <Icon name="eye" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.views||0} views</span>
               <span style={{ color:C.textFaint }}>·</span>
-              <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{job.apps?.length||0} applications</span>
+              <Icon name="briefcase" size={15} color={C.textSoft}/><span style={{ color:C.textSoft, fontSize:12 }}>{safeApps.length||0} applications</span>
             </div>
           )}
           <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }} dangerouslySetInnerHTML={{ __html: descToHtml(job.full) }}/>
