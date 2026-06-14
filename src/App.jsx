@@ -3668,7 +3668,7 @@ function SubscribePlans({ user, onSubscribe }) {
         "All Growth features",
         "Instagram & Facebook promotion",
         "Custom screening questions",
-        "Applicant auto-ranking",
+        "Priority application inbox",
         "Bulk application management",
         "Analytics dashboard",
         "Custom venue landing page",
@@ -5316,7 +5316,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 )}
                 {nj.tier==="silver" && (
                   <div style={{ marginTop:8, padding:"10px 13px", background:C.terracottaL, borderRadius:10, border:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"space-between", gap:8 }}>
-                    <div style={{ fontSize:12, color:C.textMid }}>🥇 <strong>Gold</strong> gets you shared on our Instagram & Facebook + applicant auto-ranking.</div>
+                    <div style={{ fontSize:12, color:C.textMid }}>🥇 <strong>Gold</strong> gets you shared on our Instagram & Facebook + priority placement.</div>
                     <button className="tap" onClick={()=>setNj(j=>({...j,tier:"gold",featured:true,tierPrice:100,tierPriceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu"}))} style={{ flexShrink:0, background:C.terracotta, border:"none", borderRadius:20, padding:"4px 12px", color:"#fff", fontSize:11, fontWeight:700, cursor:"pointer" }}>Upgrade $100 →</button>
                   </div>
                 )}

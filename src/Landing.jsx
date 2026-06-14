@@ -386,7 +386,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Applicant auto-ranking','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge']
+      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Priority application inbox','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge']
     },
   ]
   const subTiers = [
@@ -800,7 +800,7 @@ export default function Landing() {
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
                 feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Applicant auto-ranking by answers','Priority application inbox','Listing reviewed & copy improved by our team','Gold "Premium Venue" verified badge'] },
+                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Priority application inbox','Priority application inbox','Listing reviewed & copy improved by our team','Gold "Premium Venue" verified badge'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
@@ -808,7 +808,7 @@ export default function Landing() {
               { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
                 feats:['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'] },
               { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
-                feats:['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Applicant auto-ranking','Bulk application management','Analytics dashboard','Custom venue landing page'] },
+                feats:['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Priority application inbox','Bulk application management','Analytics dashboard','Custom venue landing page'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
@@ -880,7 +880,7 @@ export default function Landing() {
                     ['Pinned to top of feed','Extra cost','—','✓ 30 days','✓ 30 days'],
                     ['Social media promotion','✗','✗','✗','✓ Instagram + Facebook'],
                     ['Screening questions','Extra cost','✗','✗','✓ Up to 5'],
-                    ['Applicant auto-ranking','✗','✗','✗','✓'],
+                    ['Priority application inbox','✗','✗','✗','✓'],
                     ['Listing copy review','✗','✗','✗','✓'],
                     ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
                   ].map(([feat,...vals])=>(
