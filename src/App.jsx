@@ -2792,6 +2792,18 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
   const submit = () => {
     if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
+    // Validate all screening questions are answered
+    if (job.screeningQ) {
+      const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]);
+      const customQ = job.screeningQ.custom||[];
+      const answers = fd.screeningAnswers||{};
+      const unanswered = activeQ.filter(k=>!(answers[k]||"").trim());
+      const unansweredCustom = customQ.map((_,i)=>`custom_${i}`).filter(k=>!(answers[k]||"").trim());
+      if (unanswered.length > 0 || unansweredCustom.length > 0) {
+        alert("Please answer all screening questions before applying.");
+        return;
+      }
+    }
     onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}}); setDone(true);
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
@@ -4587,10 +4599,17 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
       {/* Contact + actions */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
         {a.email && (
+          <>
           <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Re: Your application — ${job?.title||"Role"}`)}&body=${encodeURIComponent(`Hi ${a.name},\n\nThank you for applying for the ${job?.title||"role"} position.\n\n`)}`}
             style={{ display:"flex", alignItems:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 14px", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"none", boxShadow:"0 2px 8px rgba(196,98,58,0.25)" }}>
             ✉️ {a.email}
           </a>
+          <button className="tap" onClick={()=>{ navigator.clipboard?.writeText(a.email).then(()=>alert("Email copied to clipboard")).catch(()=>{}); }}
+            style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textSoft, fontSize:12, fontWeight:600, cursor:"pointer" }}
+            title="Copy email address">
+            📋 Copy
+          </button>
+          </>
         )}
         {a.phone && (
           <a href={`tel:${a.phone}`}
@@ -4902,7 +4921,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null, screeningQ:nj.screeningQ||{} };
   };
 
   const resetForm = () => {

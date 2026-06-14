@@ -158,6 +158,7 @@ export async function createJob(empId, jobData) {
     photos:      safePhotos,
     avatar_url:  jobData.avatar_url || null,
     address:     jobData.address || '',
+    screening_q: jobData.screeningQ || {},
     verified:    jobData.verified || false,
     featured:    jobData.featured || false,
     tier:        jobData.tier || 'bronze',
@@ -239,6 +240,7 @@ export async function updateJobFull(jobId, jobData) {
     photos:      safePhotos,
     featured:    jobData.featured || false,
     tier:        jobData.tier || 'bronze',
+    screening_q: jobData.screeningQ || {},
   }
 
   let { data, error } = await supabase
@@ -495,6 +497,7 @@ function normaliseJob(row) {
     apps:       [],
     avatar_url: row.avatar_url || null,
     address:    row.address || '',
+    screeningQ: row.screening_q || {},
     ts:         row.created_at ? new Date(row.created_at).getTime() : Date.now(),
     tier:       row.tier || 'bronze',
     paid:       row.paid || false,
@@ -597,6 +600,7 @@ export async function adminCreateJob(adminSecret, jobData) {
     photos:      safePhotos,
     avatar_url:  jobData.avatar_url || null,
     address:     jobData.address || '',
+    screening_q: jobData.screeningQ || {},
     verified:    jobData.verified !== undefined ? jobData.verified : true,
     featured:    jobData.featured || false,
     tier:        jobData.tier || 'bronze',
