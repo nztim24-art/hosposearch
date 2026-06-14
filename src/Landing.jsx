@@ -5,7 +5,7 @@ import { supabase } from './supabase.js'
 // ─── Multi-currency ───────────────────────────────────────────────────────────
 // Rates are AUD → target. Update periodically, or wire to a live FX feed later.
 // NOTE: Not GST-registered yet (under $75k threshold) — so NO tax is charged or shown.
-// When registered, set taxRate:0.10 on AUD below and the +GST line will return.
+// When registered, set taxRate:0.10 on AUD below and the  line will return.
 const CURRENCIES = {
   AUD: { symbol:'$',  code:'AUD', rate:1,     tax:null, taxRate:0, isAU:true,  estimate:false },
   NZD: { symbol:'$',  code:'NZD', rate:1.09,  tax:null, taxRate:0, isAU:false, estimate:true },
@@ -374,34 +374,34 @@ function PricingModal({ onClose, defaultTab='listing' }) {
 
   const listingTiers = [
     {
-      key:'bronze', icon:'🥉', name:'Bronze', price:50, gst:5, period:'one-time',
+      key:'bronze', icon:'🥉', name:'Bronze', price:50, period:'one-time',
       color:'#C9A96E', colorD:'#8B6914',
-      features:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
+      features:['30-day listing visibility','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
     },
     {
-      key:'silver', icon:'🥈', name:'Silver', price:70, gst:7, period:'one-time',
+      key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
       features:['Everything in Bronze','Pinned to top of feed 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts']
     },
     {
-      key:'gold', icon:'🥇', name:'Gold', price:100, gst:10, period:'one-time',
+      key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
       features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Applicant auto-ranking','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge']
     },
   ]
   const subTiers = [
     {
-      key:'starter', icon:'🥉', name:'Starter', price:99, gst:9.90, period:'mo',
+      key:'starter', icon:'🥉', name:'Starter', price:99, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
       features:['3 active listings at any time','All Bronze features on every listing','Cancel anytime']
     },
     {
-      key:'growth', icon:'🥈', name:'Growth', price:199, gst:19.90, period:'mo',
+      key:'growth', icon:'🥈', name:'Growth', price:199, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
       features:['6 active listings at any time','All Silver features on every listing','Candidate search & messaging','Cancel anytime']
     },
     {
-      key:'pro', icon:'🥇', name:'Pro', price:399, gst:39.90, period:'mo',
+      key:'pro', icon:'🥇', name:'Pro', price:399, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
       features:['10 active listings at any time','All Gold features on every listing','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime']
     },
@@ -796,7 +796,7 @@ export default function Landing() {
             const DOT = '#C4623A';
             const listingTiers = [
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
-                feats:['30-day listing visibility','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
+                feats:['30-day listing visibility','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
                 feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
@@ -804,7 +804,7 @@ export default function Landing() {
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
-                feats:['3 active listings at any time','30-day visibility per listing','Up to 5 photos + video reel','Unlimited applications','Application management dashboard','Verified venue profile'] },
+                feats:['3 active listings at any time','30-day visibility per listing','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile'] },
               { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
                 feats:['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'] },
               { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
@@ -1022,7 +1022,7 @@ export default function Landing() {
               <h3 className="hs-split-title">Hire exceptional hospitality talent</h3>
               <p className="hs-split-desc">Post your role in minutes. Reach thousands of qualified candidates across Australia, New Zealand, and beyond.</p>
               <ul className="hs-feat-list">
-                {['Instagram-style listings with photos & video reels','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and message candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','Affordable per-listing pricing'].map(f=><li key={f}>{f}</li>)}
+                {['Instagram-style listings with up to 5 photos','Applicants attach résumé and cover letter directly','Manage applications with status tracking','Browse and contact candidates proactively','Verified venue profile with awards & analytics','Featured listings for maximum visibility','Affordable per-listing pricing'].map(f=><li key={f}>{f}</li>)}
               </ul>
               <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-emp" style={{background:'var(--terra)',color:'white',padding:'13px 26px',borderRadius:100,fontSize:14,fontWeight:700,border:'none',cursor:'pointer',display:'inline-flex',alignItems:'center',gap:7,boxShadow:'0 3px 12px rgba(196,98,58,0.25)'}}>Post a Job →</button>
             </div>

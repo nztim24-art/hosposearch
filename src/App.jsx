@@ -761,6 +761,7 @@ function RichTextEditor({ value, onChange, placeholder, minHeight=120, fontSize=
         onInput={pushChange}
         onBlur={pushChange}
         onPaste={handlePaste}
+        onMouseLeave={()=>{ if(ref.current) ref.current.blur(); }}
         data-placeholder={placeholder}
         style={{ width:"100%", minHeight, maxHeight:260, overflowY:"auto", background:C.bgSoft, border:"none", padding:"12px 13px", color:C.textDark, fontSize, lineHeight:1.6, outline:"none", boxSizing:"border-box", WebkitOverflowScrolling:"touch" }}
       />
@@ -1210,7 +1211,7 @@ function StoryBar({ jobs, following, currentUser, onOpen }) {
           <div style={{ position:"relative", width:62, height:62, margin:"0 auto" }}>
             <div className={!hasNew?"story-seen":isFollowed?"story-fol":"story-new"} style={{ position:"absolute", inset:0, borderRadius:"50%", padding:2.5 }}>
               <div style={{ width:"100%", height:"100%", borderRadius:"50%", background:"#fff", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                <Avatar emp={emp} size={50} fontSize={22}/>
+                <Avatar emp={emp} size={62} fontSize={28}/>
               </div>
             </div>
             {isFollowed && <div style={{ position:"absolute", bottom:0, right:0, width:18, height:18, borderRadius:"50%", background:C.sage, border:"2px solid #fff", display:"flex", alignItems:"center", justifyContent:"center" }}><Icon name="check" size={10} color="#fff"/></div>}
@@ -2646,7 +2647,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
       )}
       <div style={{ display:"flex", alignItems:"center", padding:"11px 14px", gap:10 }}>
         <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}>
-          <Avatar emp={emp} size={36} fontSize={18}/>
+          <Avatar emp={emp} size={46} fontSize={22}/>
         </div>
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ display:"flex", alignItems:"center", gap:4 }}>
@@ -2790,7 +2791,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
         <Carousel photos={job.photos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
-            <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={44} fontSize={20}/></div>
+            <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={56} fontSize={26}/></div>
             <div style={{ cursor:"pointer", flex:1 }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
               <div style={{ color:C.textDark, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:5 }}>{job.venue||emp?.name} {job.verified&&<span style={{ color:C.blue, fontSize:12 }}>●</span>}</div>
               <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, marginTop:2 }}>{job.title}</div>
@@ -3454,8 +3455,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
 
   const discount   = appliedCode ? Math.round(basePrice * (appliedCode.pct/100)) : 0;
   const subtotal   = basePrice - discount;
-  const gst        = Math.round(subtotal * 0.1);
-  const total      = subtotal + gst;
+  const total      = subtotal;
 
   const applyCode = () => {
     const code = codeInput.trim().toUpperCase();
@@ -3523,8 +3523,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
           </div>
         )}
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
-          <span style={{ color:C.textSoft, fontSize:13 }}>GST (10%)</span>
-          <span style={{ color:C.textDark, fontSize:13 }}>${gst}.00 AUD</span>
+
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
           <span style={{ color:C.textDark, fontSize:15, fontWeight:700 }}>Total</span>
@@ -3565,7 +3564,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
           {loading ? "Redirecting to Stripe…" : `Pay $${total}.00 AUD →`}
         </button>
       </div>
-      <div style={{ textAlign:"center", marginTop:10, color:C.textFaint, fontSize:11 }}>Secured by Stripe · GST receipt provided</div>
+      <div style={{ textAlign:"center", marginTop:10, color:C.textFaint, fontSize:11 }}>Secured by Stripe · No GST charged</div>
     </div>
   );
 }
@@ -3590,7 +3589,7 @@ function SubscribePlans({ user, onSubscribe }) {
       features: [
         "3 active listings at any time",
         "30-day listing visibility",
-        "Up to 5 photos + video reel",
+        "Up to 5 photos",
         "Unlimited applications",
         "Application management dashboard",
         "Verified venue profile",
@@ -3666,8 +3665,7 @@ function SubscribePlans({ user, onSubscribe }) {
       {/* Plan cards */}
       {plans.map(plan => {
         const isCurrent = active && sub === plan.key;
-        const gst = Math.round(plan.price * 0.1);
-        const total = plan.price + gst;
+        const total = plan.price;
         return (
           <div key={plan.key} style={{ background:isCurrent?"#ECFDF5":"#fff", borderRadius:16, border:`1.5px solid ${isCurrent?C.sage:plan.popular?plan.border:C.border}`, padding:"18px 16px", position:"relative", boxShadow:plan.popular?"0 4px 20px rgba(0,0,0,0.08)":"none" }}>
             {plan.popular && !isCurrent && (
@@ -3685,7 +3683,7 @@ function SubscribePlans({ user, onSubscribe }) {
               </div>
               <div style={{ marginLeft:"auto", textAlign:"right" }}>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color:plan.color, lineHeight:1 }}>${plan.price}</div>
-                <div style={{ color:C.textFaint, fontSize:10 }}>+${gst} GST/mo</div>
+                
               </div>
             </div>
 
@@ -3704,7 +3702,7 @@ function SubscribePlans({ user, onSubscribe }) {
                 setLoading(null);
               }}
               style={{ width:"100%", background:isCurrent?C.sage:loading===plan.key?"#ccc":`linear-gradient(135deg,${plan.color},${plan.border})`, border:"none", borderRadius:10, padding:"13px 0", color:plan.key==="starter"?"#1A1000":"#fff", fontWeight:700, fontSize:14, opacity:isCurrent?0.7:1 }}>
-              {isCurrent ? "Current Plan" : loading===plan.key ? "Redirecting…" : `Subscribe — $${total}/mo incl. GST`}
+              {isCurrent ? "Current Plan" : loading===plan.key ? "Redirecting…" : `Subscribe — $${total}/mo`}
             </button>
           </div>
         );
@@ -3714,14 +3712,14 @@ function SubscribePlans({ user, onSubscribe }) {
       <div style={{ background:C.bgSoft, borderRadius:12, padding:"13px 15px", border:`1px solid ${C.border}` }}>
         <div style={{ color:C.textMid, fontSize:12, fontWeight:600, marginBottom:6 }}>💡 Compare to pay-per-listing</div>
         <div style={{ color:C.textSoft, fontSize:12, lineHeight:1.6 }}>
-          Posting 3 Bronze listings individually = $165 AUD (incl. GST).<br/>
+          Posting 3 Bronze listings individually = $165 AUD.<br/>
           Starter plan = $108.90/mo for the same 3 slots, every month.<br/>
           <span style={{ color:C.terracotta, fontWeight:600 }}>Save over 30% with a subscription.</span>
         </div>
       </div>
 
       <div style={{ textAlign:"center", color:C.textFaint, fontSize:11 }}>
-        Billed monthly · Cancel anytime in Stripe · GST receipt provided
+        Billed monthly · Cancel anytime in Stripe
       </div>
     </div>
   );
@@ -4730,7 +4728,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   }, [jobs.length]);
   const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState([null,null,null,null,null]);
-  const [videoFile, setVideoFile] = useState(null);
+  const [njPosting, setNjPosting] = useState(false);
   // Image cropper: stash raw src + a callback that receives the cropped result
   const [cropState, setCropState] = useState(null); // { src, onDone }
   const pickAndCrop = (onDone) => {
@@ -4787,7 +4785,6 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     const ph = [null,null,null,null,null];
     (j.photos||[]).slice(0,5).forEach((p,i)=>{ ph[i] = p; });
     setPhotos(ph);
-    setVideoFile(j.video||null);
     setEditId(j.id);
     setFormKey(k=>k+1);
     setTab("post");
@@ -4800,14 +4797,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:videoFile||null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null };
   };
 
   const resetForm = () => {
     setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false});
     setFormKey(k=>k+1);
     setPhotos([null,null,null,null,null]);
-    setVideoFile(null);
     setEditId(null);
   };
 
@@ -4890,7 +4886,6 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     setPosted(true);
     setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
   };
-  const uploadVideo = () => { const r=document.createElement("input"); r.type="file"; r.accept="video/*"; r.onchange=e=>{ const f=e.target.files[0]; if(!f) return; if(f.size>50*1048576){alert("Keep reel under 50MB.");return;} const rd=new FileReader(); rd.onload=ev=>setVideoFile(ev.target.result); rd.readAsDataURL(f); }; r.click(); };
   const fmtS = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
 
   const NavBtn = ({ t, ic, l, badge }) => {
@@ -4924,7 +4919,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <span style={{ fontSize:20 }}>🎉</span>
           <div style={{ flex:1 }}>
             <div style={{ color:"#166534", fontWeight:700, fontSize:14 }}>Payment successful — listing is live!</div>
-            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>A GST receipt has been sent to your email by Stripe.</div>
+            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>A payment receipt has been sent to your email by Stripe.</div>
           </div>
           <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
         </div>
@@ -5082,22 +5077,6 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 maxPhotos={5}
               />
             </div>
-            <div style={{ background:"#fff", borderRadius:13, padding:14, border:`1px solid ${C.border}`, marginBottom:14 }}>
-              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.5, fontWeight:600, marginBottom:9 }}>Reel <span style={{ color:C.textFaint, fontWeight:400, letterSpacing:0, textTransform:"none", fontSize:11 }}>(optional · max 50MB)</span></div>
-              {!videoFile ? (
-                <div className="file-zone tap" onClick={uploadVideo} style={{ border:`1.5px dashed ${C.borderMid}`, borderRadius:11, padding:"16px 14px", textAlign:"center", cursor:"pointer", background:C.bgSoft }}>
-                  <div style={{ fontSize:26, marginBottom:5 }}>🎬</div>
-                  <div style={{ color:C.textMid, fontSize:13, fontWeight:500 }}>Upload a short reel</div>
-                  <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>MP4, MOV or WebM</div>
-                </div>
-              ) : (
-                <div style={{ borderRadius:11, overflow:"hidden", border:`1.5px solid ${C.sage}`, position:"relative" }}>
-                  <video src={videoFile} autoPlay muted loop playsInline style={{ width:"100%", maxHeight:160, objectFit:"cover", display:"block" }}/>
-                  <button className="tap" onClick={()=>setVideoFile(null)} style={{ position:"absolute", top:7, right:7, width:24, height:24, borderRadius:"50%", background:"rgba(0,0,0,0.65)", border:"none", color:"#fff", fontSize:13, display:"flex", alignItems:"center", justifyContent:"center" }}>×</button>
-                  <div style={{ position:"absolute", bottom:0, left:0, right:0, padding:"6px 10px", background:"linear-gradient(to top,rgba(0,0,0,0.5),transparent)" }}><span style={{ color:"#fff", fontSize:11, fontWeight:600 }}>▶ Reel ready</span></div>
-                </div>
-              )}
-            </div>
             {/* Venue Name — above job title */}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Name <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — defaults to your profile name)</span></div>
@@ -5192,7 +5171,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                         </div>
                         <div style={{ textAlign:"right" }}>
                           <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:700, color:nj.tier===tier.key?C.terracotta:C.textDark }}>${tier.price}</div>
-                          <div style={{ color:C.textFaint, fontSize:10 }}>+ GST one-time</div>
+                          
                         </div>
                       </div>
                       <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
@@ -5225,7 +5204,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             )}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Short Description</div>
-              <textarea value={stripTags(nj.short)} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
+              <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
             </div>
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Full Description</div>
@@ -5303,7 +5282,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   <div style={{ color:C.clay, fontSize:13, fontWeight:600 }}>
                     {nj.tier==="gold"?"🥇 Gold Premium":nj.tier==="silver"?"🥈 Silver Featured":"🥉 Bronze Standard"} — ${nj.tierPrice||50}.00 AUD
                   </div>
-                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>One-time · GST added at checkout · Powered by Stripe</div>
+                  <div style={{ color:C.textSoft, fontSize:11, marginTop:1 }}>One-time payment · Powered by Stripe</div>
                 </div>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>${nj.tierPrice||50}</div>
               </div>
@@ -5450,15 +5429,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         const previewJob = { ...buildJobData(), id:"preview", ts:Date.now(), views:0, apps:[], avatar_url:user.avatar_url };
         return (
           <div onClick={()=>setShowPreview(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:3500, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(3px)" }}>
-            <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:440, maxHeight:"88vh", overflowY:"auto", borderRadius:16 }}>
-              <div style={{ textAlign:"center", marginBottom:12 }}>
+            <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:560, maxHeight:"92vh", display:"flex", flexDirection:"column", borderRadius:16, overflow:"hidden" }}>
+              <div style={{ textAlign:"center", marginBottom:8 }}>
                 <span style={{ background:"#fff", color:C.textMid, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:100 }}>Preview — this is how candidates see it</span>
               </div>
-              <JobCard job={previewJob} currentUser={{id:"preview-viewer"}} following={[]} bookmarks={[]} onApply={()=>{}} onExpand={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={()=>{}}/>
-              <button className="tap" onClick={()=>setShowPreview(false)}
-                style={{ width:"100%", background:"#fff", border:"none", borderRadius:12, padding:"13px 0", color:C.textDark, fontWeight:700, fontSize:14, marginTop:6 }}>
-                Close preview
-              </button>
+              <div style={{ flex:1, overflow:"hidden", borderRadius:16 }}>
+                <JobDetail job={previewJob} currentUser={{id:"preview-viewer"}} profile={{}} following={[]} bookmarks={[]} onClose={()=>setShowPreview(false)} onApply={()=>{}} onToggleFollow={()=>{}} onToggleBookmark={()=>{}} onVenueClick={()=>{}}/>
+              </div>
             </div>
           </div>
         );
@@ -5486,7 +5463,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   <div style={{ fontWeight:700, fontSize:15, color:C.textDark, marginBottom:3 }}>{t.name}</div>
                   <div style={{ color:C.textSoft, fontSize:11 }}>{t.feats}</div>
                 </div>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.terracotta, whiteSpace:"nowrap" }}>${t.price}<span style={{ fontSize:10, color:C.textFaint, fontWeight:400 }}> +GST</span></div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.terracotta, whiteSpace:"nowrap" }}>${t.price}</div>
               </button>
             ))}
             <button className="tap" onClick={()=>setReactivateJob(null)} style={{ width:"100%", background:"none", border:"none", color:C.textSoft, fontSize:13, padding:"10px 0", marginTop:4, cursor:"pointer" }}>Cancel</button>
@@ -6789,7 +6766,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               {/* Short + Full description */}
               <div>
                 <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Short Description (shown in feed)</div>
-                <textarea value={stripTags(editJob.short||"")} onChange={e=>setEditJob(j=>({...j,short:e.target.value}))} rows={3} style={{...IS,resize:"none"}}/>
+                <textarea value={editJob.short||""} onChange={e=>setEditJob(j=>({...j,short:e.target.value}))} rows={3} style={{...IS,resize:"none"}}/>
               </div>
               <div>
                 <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Full Description (detail page)</div>
