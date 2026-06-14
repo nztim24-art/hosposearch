@@ -4589,7 +4589,7 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
         {a.email && (
           <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Re: Your application — ${job?.title||"Role"}`)}&body=${encodeURIComponent(`Hi ${a.name},\n\nThank you for applying for the ${job?.title||"role"} position.\n\n`)}`}
             style={{ display:"flex", alignItems:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 14px", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"none", boxShadow:"0 2px 8px rgba(196,98,58,0.25)" }}>
-            ✉️ Email {a.name?.split(" ")[0]||"Applicant"}
+            ✉️ {a.email}
           </a>
         )}
         {a.phone && (
@@ -5075,8 +5075,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         {tab==="feed" && (
           <div style={{ height:"100%", overflowY:"auto" }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, background:C.border, flexShrink:0 }}>
-              {[["My Listings",mine.length,"mine"],["Applications",apps,"apps"],["Followers",null,"followers"]].map(([l,v,t])=>(
-                <div key={l} className="tap" onClick={()=>setTab(t)} style={{ background:"#fff", padding:"14px 10px", textAlign:"center", cursor:"pointer" }}>
+              {[["My Listings",mine.length,"feed"],["Applications",apps,"apps"],["Followers",null,"followers"]].map(([l,v,t])=>(
+                <div key={l} className="tap" onClick={()=>{ setTab(t); if(t==="feed") setTimeout(()=>document.getElementById("employer-listings-anchor")?.scrollIntoView({behavior:"smooth"}),100); }} style={{ background:"#fff", padding:"14px 10px", textAlign:"center", cursor:"pointer" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>
                     {t==="followers" ? <FollowerCount empId={user.id}/> : v}
                   </div>
@@ -5091,7 +5091,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               </button>
             </div>
             <div style={{ padding:"0 12px 12px" }}>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark, marginBottom:12 }}>My Listings</div>
+              <div id="employer-listings-anchor" style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark, marginBottom:12 }}>My Listings</div>
               {mine.map(j=>(
                 <MineJobCard
                   key={j.id}
