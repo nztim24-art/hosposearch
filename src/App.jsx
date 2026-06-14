@@ -533,6 +533,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     close:    <><path d="M18 6L6 18M6 6l12 12" stroke={color} strokeWidth="1.8" strokeLinecap="round"/></>,
     logout:   <><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
     link:     <><path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/></>,
+    lock:     <><rect x="3" y="11" width="18" height="11" rx="2" stroke={color} strokeWidth="1.6"/><path d="M7 11V7a5 5 0 0110 0v4" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
     grid:     <><rect x="3" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="3" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="3" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/><rect x="14" y="14" width="7" height="7" rx="1" stroke={color} strokeWidth="1.5"/></>,
     video:    <><polygon points="23,7 16,12 23,17" stroke={color} strokeWidth="1.6" fill={fill}/><rect x="1" y="5" width="15" height="14" rx="2" stroke={color} strokeWidth="1.6"/></>,
     camera:   <><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="13" r="4" stroke={color} strokeWidth="1.6"/></>,
@@ -4102,6 +4103,76 @@ function AccountSettings({ user, onLogout }) {
 }
 
 // ─── Employer Profile Tab ────────────────────────────────────────────────────
+// Shows live follower count for an employer
+function FollowerCount({ empId }) {
+  const [count, setCount] = useState("—");
+  useEffect(() => {
+    supabase.from("following").select("id", { count:"exact", head:true }).eq("employer_id", empId)
+      .then(({ count:c }) => { if (c !== null) setCount(c); }).catch(()=>{});
+  }, [empId]);
+  return <>{count}</>;
+}
+
+// Followers list screen for employers
+function FollowersScreen({ empId, onBack }) {
+  const [followers, setFollowers] = useState(null);
+
+  useEffect(() => {
+    supabase.from("following").select("follower_id, created_at").eq("employer_id", empId).order("created_at", { ascending:false })
+      .then(async ({ data }) => {
+        if (!data) { setFollowers([]); return; }
+        // Fetch profiles for each follower
+        const ids = data.map(f => f.follower_id);
+        if (ids.length === 0) { setFollowers([]); return; }
+        const { data: profiles } = await supabase.from("profiles").select("id, name, avatar, avatar_url, is_public, role").in("id", ids);
+        const profileMap = Object.fromEntries((profiles||[]).map(p => [p.id, p]));
+        setFollowers(data.map(f => ({ ...f, profile: profileMap[f.follower_id] || null })));
+      }).catch(()=>setFollowers([]));
+  }, [empId]);
+
+  return (
+    <div style={{ height:"100%", display:"flex", flexDirection:"column" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <button className="tap" onClick={onBack} style={{ background:"none", border:"none", padding:0, display:"flex", alignItems:"center" }}>
+          <Icon name="back" size={22} color={C.textDark}/>
+        </button>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>Followers</div>
+      </div>
+      <div style={{ flex:1, overflowY:"auto", padding:"12px" }}>
+        {followers === null ? (
+          <div style={{ textAlign:"center", padding:"40px 20px", color:C.textFaint }}><div style={{ fontSize:24, marginBottom:8 }}>⏳</div>Loading…</div>
+        ) : followers.length === 0 ? (
+          <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}>
+            <div style={{ fontSize:36, marginBottom:10 }}>👥</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:16, color:C.textMid, marginBottom:5 }}>No followers yet</div>
+            <div style={{ fontSize:13 }}>Candidates who follow your venue will appear here</div>
+          </div>
+        ) : followers.map(({ follower_id, created_at, profile }) => {
+          const isPublic = profile?.is_public;
+          const name = profile?.name || "HospoSearch User";
+          const avatar = profile?.avatar_url
+            ? <img src={profile.avatar_url} alt={name} style={{ width:"100%", height:"100%", objectFit:"cover" }} onError={e=>{e.target.style.display="none";}}/>
+            : <span style={{ fontSize:22 }}>{profile?.avatar||"👤"}</span>;
+          return (
+            <div key={follower_id} style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 14px", background:"#fff", borderRadius:14, border:`1px solid ${C.border}`, marginBottom:8, boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+              <div style={{ width:48, height:48, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, overflow:"hidden", border:`2px solid ${C.border}` }}>
+                {avatar}
+              </div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>{name}</div>
+                {isPublic && profile?.role && <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>{profile.role}</div>}
+                {!isPublic && <div style={{ color:C.textFaint, fontSize:11, marginTop:1 }}>Private profile</div>}
+                <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>Followed {ago(new Date(created_at).getTime())} ago</div>
+              </div>
+              {!isPublic && <Icon name="lock" size={16} color={C.textFaint}/>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, onLogout, altAccount, onSwitchAccount, onAvatarChange }) {
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
 
@@ -4511,8 +4582,18 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
 
       {/* Contact + actions */}
       <div style={{ display:"flex", flexWrap:"wrap", gap:8, marginBottom:16 }}>
-        {a.email && <a href={`mailto:${a.email}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>✉️ {a.email}</a>}
-        {a.phone && <a href={`tel:${a.phone}`} style={{ display:"flex", alignItems:"center", gap:5, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 12px", color:C.terracotta, fontSize:13, fontWeight:600, textDecoration:"none" }}>📞 {a.phone}</a>}
+        {a.email && (
+          <a href={`mailto:${a.email}?subject=${encodeURIComponent(`Re: Your application — ${job?.title||"Role"}`)}&body=${encodeURIComponent(`Hi ${a.name},\n\nThank you for applying for the ${job?.title||"role"} position.\n\n`)}`}
+            style={{ display:"flex", alignItems:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 14px", color:"#fff", fontSize:13, fontWeight:700, textDecoration:"none", boxShadow:"0 2px 8px rgba(196,98,58,0.25)" }}>
+            ✉️ Email {a.name?.split(" ")[0]||"Applicant"}
+          </a>
+        )}
+        {a.phone && (
+          <a href={`tel:${a.phone}`}
+            style={{ display:"flex", alignItems:"center", gap:7, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 14px", color:C.textDark, fontSize:13, fontWeight:600, textDecoration:"none" }}>
+            📞 {a.phone}
+          </a>
+        )}
       </div>
 
       {/* Documents */}
@@ -4990,9 +5071,11 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         {tab==="feed" && (
           <div style={{ height:"100%", overflowY:"auto" }}>
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, background:C.border, flexShrink:0 }}>
-              {[["My Listings",mine.length],["Applications",apps],["Followers","—"]].map(([l,v])=>(
-                <div key={l} style={{ background:"#fff", padding:"14px 10px", textAlign:"center" }}>
-                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>{v}</div>
+              {[["My Listings",mine.length,"mine"],["Applications",apps,"apps"],["Followers",null,"followers"]].map(([l,v,t])=>(
+                <div key={l} className="tap" onClick={()=>setTab(t)} style={{ background:"#fff", padding:"14px 10px", textAlign:"center", cursor:"pointer" }}>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, color:C.terracotta, fontWeight:700 }}>
+                    {t==="followers" ? <FollowerCount empId={user.id}/> : v}
+                  </div>
                   <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>{l}</div>
                 </div>
               ))}
@@ -5377,6 +5460,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <div style={{ color:"#166534", fontSize:13, opacity:0.6 }}>Redirecting to your listings…</div>
           </div>
         )}
+
+        {/* Followers */}
+        {tab==="followers" && <FollowersScreen empId={user.id} onBack={goBack}/>}
 
         {/* Applications */}
         {tab==="apps" && (
