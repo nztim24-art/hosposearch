@@ -7281,6 +7281,27 @@ export default function App() {
   if ((showLogin||showSignup) && !user) return <Login defaultScreen={showSignup?"signup":"login"} onLogin={(u,t)=>{ setShowLogin(false); setShowSignup(false); handleLogin(u,t); }} onClose={()=>{ setShowLogin(false); setShowSignup(false); }}/>;
   // Arriving from landing "Get Started" — show employer signup with Employer tab pre-selected
   const _tierParam = new URLSearchParams(window.location.search).get('tier');
+  // Employee trying to post a job — show employer account required screen
+  if (user && _tierParam && type !== "employer" && type !== "admin") return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <div style={{ maxWidth:420, width:"100%", textAlign:"center" }}>
+        <div style={{ fontSize:56, marginBottom:16 }}>🍽️</div>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark, marginBottom:8 }}>Employer account required</div>
+        <div style={{ color:C.textSoft, fontSize:15, lineHeight:1.6, marginBottom:28 }}>You're currently logged in as a job seeker. To post a job listing you'll need a separate employer account.</div>
+        <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+          <button className="btn-cta tap" onClick={()=>{ logout(); setTimeout(()=>window.location.href="/app?tier="+_tierParam,300); }}
+            style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:13, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", boxShadow:"0 4px 14px rgba(196,98,58,0.25)" }}>
+            Sign out &amp; create employer account
+          </button>
+          <button className="tap" onClick={()=>{ window.history.replaceState({},'','/app'); window.location.reload(); }}
+            style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:13, padding:"14px 0", color:C.textMid, fontWeight:600, fontSize:14, cursor:"pointer" }}>
+            Back to job search
+          </button>
+        </div>
+        <div style={{ color:C.textFaint, fontSize:12, marginTop:20 }}>Already have an employer account? Sign out first, then log in with your employer credentials.</div>
+      </div>
+    </div>
+  );
   if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
   if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
