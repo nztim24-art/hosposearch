@@ -5536,10 +5536,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           </div>
         )}
 
-        {/* Profile */}
-        {tab==="profile" && (
+        {/* Profile — always mounted to preserve scroll position when typing */}
+        <div style={{ display: tab==="profile" ? "block" : "none", height:"100%", overflow:"hidden" }}>
           <EmployerProfileTab user={user} mine={mine} apps={apps} emailNotifs={emailNotifs} toggleEmailNotifs={toggleEmailNotifs} onLogout={onLogout} altAccount={altAccount} onSwitchAccount={onSwitchAccount} onAvatarChange={(url)=>{ user.avatar_url = url; setJobs(prev=>prev.map(j=>j.empId===user.id?{...j, avatar_url:url}:j)); }}/>
-        )}
+        </div>
       </div>
 
       {/* Bottom nav */}
