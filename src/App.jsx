@@ -4929,8 +4929,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       if (target) setSel(target);
     }
   }, [jobs.length]);
-  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
-  const [photos, setPhotos] = useState([null,null,null,null,null]);
+  const _restoredDraft = window._draftJob;
+  if (_restoredDraft) { delete window._draftJob; }
+  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
+  const [photos, setPhotos] = useState(_restoredDraft?.photos || [null,null,null,null,null]);
   const [njPosting, setNjPosting] = useState(false);
   // Image cropper: stash raw src + a callback that receives the cropped result
   const [cropState, setCropState] = useState(null); // { src, onDone }
@@ -5134,8 +5136,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <div style={{ color:"#166534", fontWeight:700, fontSize:14 }}>
               Welcome to {paymentStatus.replace('subscription_success_','').charAt(0).toUpperCase()+paymentStatus.replace('subscription_success_','').slice(1)} Plan!
             </div>
-            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>Your subscription is active. You can now post jobs up to your plan limit.</div>
+            <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>{nj.title ? `Your draft listing "${nj.title}" has been restored — ` : ""}You can now post listings included in your plan.</div>
           </div>
+          {nj.title && <button className="tap" onClick={()=>{ setPaymentStatus(null); setTab("post"); }}
+            style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:9, padding:"8px 14px", color:"#fff", fontWeight:700, fontSize:12, cursor:"pointer", flexShrink:0 }}>
+            Continue Draft →
+          </button>}
           <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
         </div>
       )}
@@ -5172,6 +5178,25 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         {/* Mine */}
         {tab==="feed" && (
           <div style={{ height:"100%", overflowY:"auto" }}>
+            {/* Subscription listing count bar */}
+            {user.subscription_active && (user.subscription_limit||0) > 0 && (() => {
+              const used = mine.filter(j=>j.active!==false).length;
+              const limit = user.subscription_limit;
+              const remaining = Math.max(0, limit - used);
+              const pct = Math.min(100, (used/limit)*100);
+              const planName = user.subscription_tier ? user.subscription_tier.charAt(0).toUpperCase()+user.subscription_tier.slice(1) : "Subscription";
+              return (
+                <div style={{ background:C.bgSoft, borderBottom:`1px solid ${C.border}`, padding:"10px 14px" }}>
+                  <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                    <div style={{ fontSize:12, fontWeight:600, color:C.textDark }}>{planName} Plan — {remaining} listing{remaining!==1?"s":""} remaining</div>
+                    <div style={{ fontSize:11, color:C.textFaint }}>{used}/{limit} used</div>
+                  </div>
+                  <div style={{ background:C.border, borderRadius:4, height:5, overflow:"hidden" }}>
+                    <div style={{ width:`${pct}%`, height:"100%", background:remaining===0?C.error:pct>70?C.featured:C.sage, borderRadius:4, transition:"width 0.4s" }}/>
+                  </div>
+                </div>
+              );
+            })()}
             <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:1, background:C.border, flexShrink:0 }}>
               {[["My Listings",mine.length,"feed"],["Applications",apps,"apps"],["Followers",null,"followers"]].map(([l,v,t])=>(
                 <div key={l} className="tap" onClick={()=>{ setTab(t); if(t==="feed") setTimeout(()=>document.getElementById("employer-listings-anchor")?.scrollIntoView({behavior:"smooth"}),100); }} style={{ background:"#fff", padding:"14px 10px", textAlign:"center", cursor:"pointer" }}>
@@ -5578,6 +5603,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         {tab==="subscribe" && (
           <SubscribePlans user={user} onSubscribe={async(plan)=>{
             try {
+              // Save current post form draft so it survives the redirect
+              if (nj.title.trim()) {
+                localStorage.setItem('hs_draft_job', JSON.stringify({ nj, photos }));
+              }
               const url = await createSubscriptionSession(plan, user.email, user.id);
               window.location.href = url;
             } catch(e) { alert("Could not start subscription. Please try again."); }
@@ -7232,6 +7261,18 @@ export default function App() {
       const plan = params.get('plan') || '';
       setPaymentStatus('subscription_success_' + plan);
       window.history.replaceState({}, '', window.location.pathname);
+      // Restore draft job form if one was saved before redirecting to Stripe
+      try {
+        const saved = localStorage.getItem('hs_draft_job');
+        if (saved) {
+          const { nj: savedNj, photos: savedPhotos } = JSON.parse(saved);
+          if (savedNj?.title) {
+            // Will be picked up by EmployerDash via _draftJob
+            window._draftJob = { nj: savedNj, photos: savedPhotos };
+          }
+          localStorage.removeItem('hs_draft_job');
+        }
+      } catch(e) {}
     } else if (params.get('subscription') === 'cancelled') {
       setPaymentStatus('subscription_cancelled');
       window.history.replaceState({}, '', window.location.pathname);
