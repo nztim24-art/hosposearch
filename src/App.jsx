@@ -103,7 +103,16 @@ async function adminJobAction(action, jobId, fields) {
   return res.json();
 }
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
-const ROLE_TAGS = ["Chef Hat Venue","Fine Dining","Rooftop Bar","Resort","Group Venue","Michelin-Calibre","Hatted Restaurant","Waterfront","CBD","Regional","Award-Winning","Seasonal Menu"];
+const ROLE_TAGS = [
+  // Venue type
+  "Fine Dining","Café","Pub / Bar","Bistro","Casual Dining","Hatted Restaurant","Michelin Star","Rooftop Bar","Waterfront","Hotel & Resort",
+  // Setting
+  "CBD","Regional","Remote / Rural","Beachside","Winery / Cellar Door",
+  // Vibe / offer
+  "Award-Winning","Group Venue","Events & Functions","Seasonal Menu","Farm to Table",
+  // Role type
+  "Full-time","Part-time","Casual","Live-in",
+];
 const SALARY_BANDS = ["Under $50k","$50–70k","$70–90k","$90–110k","$110k+","Hourly Rate"];
 
 // ─── Visa options by country ─────────────────────────────────────────────────
@@ -5839,7 +5848,12 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
-  const homeFiltered = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
+  const [activeTag, setActiveTag] = useState("");
+  const homeFiltered = (() => {
+    let results = homeSearch.trim() ? smartSearch(jobs, homeSearch) : jobs;
+    if (activeTag) results = results.filter(j=>(j.tags||[]).includes(activeTag));
+    return results;
+  })();
   const [appliedCount, setAppliedCount] = useState(0);
   useEffect(() => {
     supabase.from('applications').select('id', { count:'exact', head:true }).eq('applicant_id', user.id)
@@ -6094,8 +6108,18 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               <div style={{ color:C.textSoft, fontSize:14, marginBottom:14 }}>{jobs.length} role{jobs.length!==1?"s":""} across Australia, New Zealand & beyond</div>
               <div style={{ maxWidth:520, margin:"0 auto", display:"flex", alignItems:"center", background:"#fff", border:`2px solid ${homeSearch?C.terracotta:C.border}`, borderRadius:100, padding:"10px 16px", gap:10, boxShadow:"0 2px 12px rgba(0,0,0,0.08)", transition:"border-color 0.2s" }}>
                 <Icon name="search" size={16} color={C.textSoft}/>
-                <input value={homeSearch} onChange={e=>setHomeSearch(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
+                <input value={homeSearch} onChange={e=>{ setHomeSearch(e.target.value); if(e.target.value) setActiveTag(""); }} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
                 {homeSearch && <button className="tap" onClick={()=>setHomeSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, cursor:"pointer" }}>×</button>}
+              </div>
+              {/* Tag filter chips */}
+              <div style={{ display:"flex", gap:7, overflowX:"auto", paddingBottom:2, marginTop:12, WebkitOverflowScrolling:"touch", scrollbarWidth:"none" }}>
+                {ROLE_TAGS.filter(t=>jobs.some(j=>(j.tags||[]).includes(t))).map(t=>(
+                  <button key={t} className="tap" onClick={()=>setActiveTag(activeTag===t?"":t)}
+                    style={{ flexShrink:0, background:activeTag===t?C.terracotta:"#fff", border:`1.5px solid ${activeTag===t?C.terracotta:C.border}`, borderRadius:20, padding:"6px 13px", color:activeTag===t?"#fff":C.textSoft, fontSize:12, fontWeight:activeTag===t?700:400, cursor:"pointer", transition:"all 0.15s", whiteSpace:"nowrap" }}>
+                    {t}
+                  </button>
+                ))}
+                {activeTag && <button className="tap" onClick={()=>setActiveTag("")} style={{ flexShrink:0, background:C.bgSoft, border:`1.5px solid ${C.border}`, borderRadius:20, padding:"6px 13px", color:C.textFaint, fontSize:12, cursor:"pointer", whiteSpace:"nowrap" }}>✕ Clear</button>}
               </div>
               {homeSearch.trim() && (
                 <button className="tap" onClick={async ()=>{
@@ -6172,6 +6196,16 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
               <Icon name="search" size={16} color={C.textSoft}/>
               <input value={homeSearch} onChange={e=>setHomeSearch(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" style={{ flex:1, background:"none", border:"none", color:C.textDark, fontSize:14 }}/>
               {homeSearch && <button className="tap" onClick={()=>setHomeSearch("")} style={{ background:"none", border:"none", color:C.textFaint, fontSize:18, lineHeight:1, cursor:"pointer" }}>×</button>}
+            </div>
+            {/* Tag chips */}
+            <div style={{ display:"flex", gap:7, flexWrap:"wrap", justifyContent:"center", marginTop:14 }}>
+              {ROLE_TAGS.filter(t=>jobs.some(j=>(j.tags||[]).includes(t))).map(t=>(
+                <button key={t} className="tap" onClick={()=>setActiveTag(activeTag===t?"":t)}
+                  style={{ background:activeTag===t?C.terracotta:"#fff", border:`1.5px solid ${activeTag===t?C.terracotta:C.border}`, borderRadius:20, padding:"6px 14px", color:activeTag===t?"#fff":C.textSoft, fontSize:13, fontWeight:activeTag===t?700:400, cursor:"pointer", transition:"all 0.15s" }}>
+                  {t}
+                </button>
+              ))}
+              {activeTag && <button className="tap" onClick={()=>setActiveTag("")} style={{ background:C.bgSoft, border:`1.5px solid ${C.border}`, borderRadius:20, padding:"6px 14px", color:C.textFaint, fontSize:13, cursor:"pointer" }}>✕ Clear filter</button>}
             </div>
           </div>
           <div style={{ padding:"20px", maxWidth:1100, margin:"0 auto" }}>
@@ -6616,8 +6650,14 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     </span>
                   ))}
                 </div>
+                <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
+                  {ROLE_TAGS.filter(t=>!nj.tags.includes(t)).map(t=>(
+                    <button key={t} className="tap" onClick={()=>setNj(j=>({...j,tags:[...j.tags,t]}))}
+                      style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:20, padding:"3px 10px", color:C.textFaint, fontSize:11, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
                 <div style={{ display:"flex", gap:8 }}>
-                  <input value={njTagInput} onChange={e=>setNjTagInput(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter"&&njTagInput.trim()){ setNj(j=>({...j,tags:[...j.tags,njTagInput.trim()]})); setNjTagInput(""); }}} placeholder="Type a tag and press Enter…" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
+                  <input value={njTagInput} onChange={e=>setNjTagInput(e.target.value)} onKeyDown={e=>{ if(e.key==="Enter"&&njTagInput.trim()){ setNj(j=>({...j,tags:[...j.tags,njTagInput.trim()]})); setNjTagInput(""); }}} placeholder="Or type a custom tag and press Enter…" style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 11px", color:C.textDark, fontSize:13 }}/>
                   <button className="tap" onClick={()=>{ if(njTagInput.trim()){ setNj(j=>({...j,tags:[...j.tags,njTagInput.trim()]})); setNjTagInput(""); }}} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 13px", color:C.textMid, fontSize:13 }}>Add</button>
                 </div>
               </div>
