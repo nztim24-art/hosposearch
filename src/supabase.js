@@ -452,6 +452,8 @@ function normaliseProfile(row) {
     showEmail:   row.show_email !== false,
     showPhone:   row.show_phone === true,
     showResume:  row.show_resume !== false,
+    workLink:    row.work_link || '',
+    showLink:    row.show_link !== false,
     role:        row.role || row.headline || 'Hospitality Professional',
     sector:      row.sector || '',
     country:     row.country || '',

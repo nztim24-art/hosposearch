@@ -1600,6 +1600,7 @@ function CandidateDiscovery({ jobs, currentUser }) {
                   {cand.location && <div style={{ color:C.textFaint, fontSize:12, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}>📍 {cand.location}</div>}
                   {cand.bio && <div style={{ color:C.textMid, fontSize:12, lineHeight:1.5, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{cand.bio}</div>}
                   {cand.sector && <span style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{cand.sector}</span>}
+                  {cand.showLink !== false && cand.workLink && <span style={{ background:"#EEF2FF", border:"1px solid #C7D2FE", color:"#4338CA", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>🔗 Work link</span>}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
                   <button className="btn-cta tap" onClick={e=>{ e.stopPropagation(); setSelected(cand); }} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:8, padding:"7px 13px", color:"#fff", fontSize:12, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.2)" }}>View</button>
@@ -1693,6 +1694,14 @@ function CandidateDiscovery({ jobs, currentUser }) {
                   </a>
                 )}
                 {selected.instagram && <a href={`https://instagram.com/${selected.instagram.replace(/^@/,"")}`} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.sage, fontSize:12, fontWeight:600 }}>@{selected.instagram.replace(/^@/,"")} on Instagram ↗</a>}
+                {selected.showLink !== false && selected.workLink && (
+                  <a href={selected.workLink.startsWith("http") ? selected.workLink : `https://${selected.workLink}`}
+                    target="_blank" rel="noreferrer"
+                    style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", marginTop:8 }}>
+                    🔗 {selected.workLink.replace(/^https?:\/\/(www\.)?/,"").split("/")[0]}
+                    <span style={{ fontSize:11, color:C.textFaint }}>↗</span>
+                  </a>
+                )}
               </div>
             ) : (
               <div style={{ marginTop:16, padding:"12px 14px", background:C.bgSoft, borderRadius:10, color:C.textFaint, fontSize:13, textAlign:"center" }}>
@@ -3784,6 +3793,8 @@ function TalentShareCard({ user }) {
   const [showEmail, setShowEmail]   = useState(user?.show_email !== false);
   const [showPhone, setShowPhone]   = useState(user?.show_phone === true);
   const [showResume, setShowResume] = useState(user?.show_resume !== false);
+  const [workLink, setWorkLink]     = useState(user?.work_link||"");
+  const [showLink, setShowLink]     = useState(user?.show_link !== false);
 
   // Structured discovery fields
   const [role,     setRole]     = useState(user?.role||"");
@@ -3811,7 +3822,7 @@ function TalentShareCard({ user }) {
         is_public: true,
         contact_email: contactEmail.trim()||user.email,
         contact_phone: contactPhone.trim()||null,
-        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        show_email: showEmail, show_phone: showPhone, show_resume: showResume, work_link: workLink.trim()||null, show_link: showLink,
         role: role||null, sector: sector||null,
         country: country||null, state: state||null, city: city||null,
         years_exp: yearsExp||null, experience: yearsExp||null,
@@ -3848,7 +3859,7 @@ function TalentShareCard({ user }) {
       await supabase.from("profiles").update({
         contact_email: contactEmail.trim()||user.email,
         contact_phone: contactPhone.trim()||null,
-        show_email: showEmail, show_phone: showPhone, show_resume: showResume,
+        show_email: showEmail, show_phone: showPhone, show_resume: showResume, work_link: workLink.trim()||null, show_link: showLink,
         role: role||null, sector: sector||null,
         country: country||null, state: state||null, city: city||null,
         years_exp: yearsExp||null, experience: yearsExp||null,
@@ -3976,6 +3987,15 @@ function TalentShareCard({ user }) {
                   {showPhone && <input value={contactPhone} onChange={e=>setContactPhone(e.target.value)} placeholder="04xx xxx xxx" type="tel" style={{ ...IS, marginTop:7 }}/>}
                 </div>
                 <PrivacyCheck label="Résumé / CV" sub="Let employers download your résumé" checked={showResume} onChange={()=>setShowResume(v=>!v)}/>
+
+                {/* Work / portfolio link */}
+                <div>
+                  <PrivacyCheck label="Work link" sub="Instagram, portfolio, LinkedIn or any URL" checked={showLink} onChange={()=>setShowLink(v=>!v)}/>
+                  {showLink && (
+                    <input value={workLink} onChange={e=>setWorkLink(e.target.value)} placeholder="https://instagram.com/yourhandle" type="url"
+                      style={{ ...IS, marginTop:7 }}/>
+                  )}
+                </div>
               </div>
               <div style={{ fontSize:11, color:C.textFaint, marginTop:10, lineHeight:1.5, background:C.bgSoft, borderRadius:8, padding:"8px 10px" }}>
                 ℹ️ Your name, role, bio and work photos are always shown when your profile is public.
