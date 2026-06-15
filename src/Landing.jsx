@@ -386,7 +386,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Priority application inbox','Priority application inbox','Listing copy reviewed by our team','Gold Premium Venue badge']
+      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Priority application inbox','Gold "Premium Venue" verified badge']
     },
   ]
   const subTiers = [
@@ -663,13 +663,13 @@ export default function Landing() {
           <li><a href="https://instagram.com/hosposearch" target="_blank" rel="noreferrer" aria-label="Follow HospoSearch on Instagram" style={{display:'flex',alignItems:'center'}}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
           </a></li>
+          {!isLoggedIn && (
           <li style={{position:'relative'}} className="hs-login-dd"
             onMouseEnter={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='block'}
             onMouseLeave={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='none'}>
             <a href="#" onClick={e=>e.preventDefault()} style={{display:'flex',alignItems:'center',gap:5}}>
               Log in <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6,9 12,15 18,9"/></svg>
             </a>
-            {/* paddingTop bridges the gap so mouse doesn't leave the hover zone */}
             <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,paddingTop:6,zIndex:200,minWidth:180}}>
               <div style={{background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',overflow:'hidden'}}>
                 <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
@@ -685,9 +685,31 @@ export default function Landing() {
               </div>
             </div>
           </li>
+          )}
           <li><button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="hs-nav-cta" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,border:'none',cursor:'pointer'}}>Post a Job →</button></li>
           {isLoggedIn && (
-            <li><Link to="/app" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,textDecoration:'none',display:'inline-block'}}>My Dashboard →</Link></li>
+            <li style={{position:'relative'}} className="hs-login-dd"
+              onMouseEnter={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='block'}
+              onMouseLeave={e=>e.currentTarget.querySelector('.hs-dd-menu').style.display='none'}>
+              <Link to="/app" style={{background:'var(--terra)',color:'white',padding:'9px 22px',borderRadius:100,fontWeight:600,fontSize:14,textDecoration:'none',display:'inline-flex',alignItems:'center',gap:5}}>
+                My Dashboard <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="6,9 12,15 18,9"/></svg>
+              </Link>
+              <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,paddingTop:6,zIndex:200,minWidth:180}}>
+                <div style={{background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',overflow:'hidden'}}>
+                  <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='white'}>
+                    <span style={{fontSize:18}}>🏠</span><div style={{fontWeight:600,fontSize:13}}>Open Dashboard</div>
+                  </Link>
+                  <button onClick={()=>supabase.auth.signOut().then(()=>setIsLoggedIn(false))}
+                    style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'#DC2626',fontSize:14,fontWeight:500,background:'none',border:'none',cursor:'pointer',width:'100%',transition:'background 0.15s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                    <span style={{fontSize:18}}>🚪</span><div style={{fontWeight:600,fontSize:13}}>Log out</div>
+                  </button>
+                </div>
+              </div>
+            </li>
           )}
         </ul>
       </nav>
@@ -800,7 +822,7 @@ export default function Landing() {
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
                 feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Priority application inbox','Priority application inbox','Listing reviewed & copy improved by our team','Gold "Premium Venue" verified badge'] },
+                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Priority application inbox','Gold "Premium Venue" verified badge'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
@@ -881,8 +903,7 @@ export default function Landing() {
                     ['Social media promotion','✗','✗','✗','✓ Instagram + Facebook'],
                     ['Screening questions','Extra cost','✗','✗','✓ Up to 5'],
                     ['Priority application inbox','✗','✗','✗','✓'],
-                    ['Listing copy review','✗','✗','✗','✓'],
-                    ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
+                                        ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
                   ].map(([feat,...vals])=>(
                     <tr key={feat} style={{borderBottom:'1px solid var(--border)'}}>
                       <td style={{padding:'11px 20px',color:'var(--ink)',fontWeight:500}}>{feat}</td>

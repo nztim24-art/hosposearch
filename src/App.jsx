@@ -1674,11 +1674,17 @@ function CandidateDiscovery({ jobs, currentUser }) {
               <div style={{ marginTop:16 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, fontWeight:600, marginBottom:7 }}>Contact</div>
                 {selected.showEmail !== false && selected.contactEmail && (
-                  <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`Opportunity via HospoSearch`)}&body=${encodeURIComponent(`Hi ${selected.name},\n\nI found your profile on HospoSearch and would love to discuss an opportunity with you.\n\n`)}`}
-                    className="btn-cta tap"
-                    style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, textDecoration:"none", boxShadow:"0 3px 10px rgba(196,98,58,0.22)", marginBottom:8 }}>
-                    ✉️ Email {selected.name.split(" ")[0]}
-                  </a>
+                  <div style={{ display:"flex", gap:6 }}>
+                    <a href={`mailto:${selected.contactEmail}?subject=${encodeURIComponent(`Opportunity via HospoSearch`)}&body=${encodeURIComponent(`Hi ${selected.name},\n\nI found your profile on HospoSearch and would love to discuss an opportunity with you.\n\n`)}`}
+                      className="btn-cta tap"
+                      style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, flex:1, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 14px", color:"#fff", fontWeight:700, fontSize:13, textDecoration:"none", boxShadow:"0 3px 10px rgba(196,98,58,0.22)" }}>
+                      ✉️ {selected.contactEmail}
+                    </a>
+                    <button className="tap" onClick={()=>navigator.clipboard?.writeText(selected.contactEmail).then(()=>alert("Email copied!")).catch(()=>{})}
+                      style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textSoft, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+                      📋
+                    </button>
+                  </div>
                 )}
                 {selected.showPhone && selected.contactPhone && (
                   <a href={`tel:${selected.contactPhone}`}
@@ -4825,7 +4831,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [lastSeenApps, setLastSeenApps] = useState(() => parseInt(localStorage.getItem('hs_last_seen_apps')||'0'));
   const [newAppsCount, setNewAppsCount] = useState(0);
 
-  // Load applications from Supabase on mount (and refresh when switching tabs)
+  // Load applications from Supabase on mount only (tab change causes revert bug)
   useEffect(()=>{
     const loadApps = async () => {
       try {
@@ -4841,7 +4847,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       } catch(e) { console.warn('Load applications error:', e); }
     };
     loadApps();
-  }, [tab, user.id]);
+  }, [user.id]); // removed [tab] — tab change was causing status revert
 
   // If arriving from email "View all applicants", select that job once loaded
   useEffect(()=>{
@@ -5746,7 +5752,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
 function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, notifs, setNotifs, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
   const isDesktop = useIsDesktop();
   const [tab, setTabRaw] = useState("home");
-  const tabHistory = useRef(["home"]);
+  const tabHistory = useRef([]);
   const setTab = (next) => {
     setTabRaw(prev => {
       if (prev !== next) tabHistory.current = [...tabHistory.current.slice(-9), prev];
