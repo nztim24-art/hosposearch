@@ -454,6 +454,7 @@ function normaliseProfile(row) {
     showResume:  row.show_resume !== false,
     workLink:    row.work_link || '',
     showLink:    row.show_link !== false,
+    portfolioLinks: Array.isArray(row.portfolio_links) ? row.portfolio_links : [],
     role:        row.role || row.headline || 'Hospitality Professional',
     sector:      row.sector || '',
     country:     row.country || '',

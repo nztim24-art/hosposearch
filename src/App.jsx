@@ -1600,7 +1600,7 @@ function CandidateDiscovery({ jobs, currentUser }) {
                   {cand.location && <div style={{ color:C.textFaint, fontSize:12, marginBottom:6, display:"flex", alignItems:"center", gap:4 }}>📍 {cand.location}</div>}
                   {cand.bio && <div style={{ color:C.textMid, fontSize:12, lineHeight:1.5, marginBottom:8, overflow:"hidden", display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical" }}>{cand.bio}</div>}
                   {cand.sector && <span style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>{cand.sector}</span>}
-                  {cand.showLink !== false && cand.workLink && <span style={{ background:"#EEF2FF", border:"1px solid #C7D2FE", color:"#4338CA", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>🔗 Work link</span>}
+                  {(cand.portfolioLinks||[]).some(l=>l.showOnTalent!==false) && <span style={{ background:"#EEF2FF", border:"1px solid #C7D2FE", color:"#4338CA", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>🔗 {(cand.portfolioLinks||[]).filter(l=>l.showOnTalent!==false).length} link{(cand.portfolioLinks||[]).filter(l=>l.showOnTalent!==false).length!==1?"s":""}</span>}
                 </div>
                 <div style={{ display:"flex", flexDirection:"column", gap:6, flexShrink:0 }}>
                   <button className="btn-cta tap" onClick={e=>{ e.stopPropagation(); setSelected(cand); }} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:8, padding:"7px 13px", color:"#fff", fontSize:12, fontWeight:700, boxShadow:"0 2px 8px rgba(196,98,58,0.2)" }}>View</button>
@@ -1694,14 +1694,18 @@ function CandidateDiscovery({ jobs, currentUser }) {
                   </a>
                 )}
                 {selected.instagram && <a href={`https://instagram.com/${selected.instagram.replace(/^@/,"")}`} target="_blank" rel="noreferrer" style={{ display:"block", textAlign:"center", color:C.sage, fontSize:12, fontWeight:600 }}>@{selected.instagram.replace(/^@/,"")} on Instagram ↗</a>}
-                {selected.showLink !== false && selected.workLink && (
-                  <a href={selected.workLink.startsWith("http") ? selected.workLink : `https://${selected.workLink}`}
+                {(selected.portfolioLinks||[]).filter(l=>l.showOnTalent!==false).map((l,i)=>(
+                  <a key={i} href={l.url.startsWith("http")?l.url:`https://${l.url}`}
                     target="_blank" rel="noreferrer"
-                    style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", marginTop:8 }}>
-                    🔗 {selected.workLink.replace(/^https?:\/\/(www\.)?/,"").split("/")[0]}
-                    <span style={{ fontSize:11, color:C.textFaint }}>↗</span>
+                    style={{ display:"flex", alignItems:"center", gap:8, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 14px", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", marginTop:8 }}>
+                    <Icon name="link" size={14} color={C.textSoft}/>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:12, color:C.textDark }}>{l.label||"Link"}</div>
+                      <div style={{ fontSize:11, color:C.textFaint, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.url.replace(/^https?:\/\/(www\.)?/,"")}</div>
+                    </div>
+                    <span style={{ color:C.textFaint, fontSize:12 }}>↗</span>
                   </a>
-                )}
+                ))}
               </div>
             ) : (
               <div style={{ marginTop:16, padding:"12px 14px", background:C.bgSoft, borderRadius:10, color:C.textFaint, fontSize:13, textAlign:"center" }}>
@@ -1741,10 +1745,25 @@ function PortfolioSection({ user, profile, setProfile }) {
     setTimeout(()=>setWorkSaved(false), 2000);
   };
 
-  const saveLink = () => {
+  const saveLink = async () => {
     if (!newLink.url.trim()) return;
-    setProfile(p=>({ ...p, portfolioLinks:[...(p?.portfolioLinks||[]), { ...newLink, id:"lk"+Date.now() }] }));
+    const url = newLink.url.trim().startsWith("http") ? newLink.url.trim() : `https://${newLink.url.trim()}`;
+    const updated = [...(profile?.portfolioLinks||[]), { ...newLink, url, showOnTalent:true, id:"lk"+Date.now() }];
+    setProfile(p=>({ ...p, portfolioLinks:updated }));
     setNewLink({ label:"", url:"" }); setAddingLink(false);
+    try { await supabase.from("profiles").update({ portfolio_links: updated }).eq("id", user.id); } catch(e) {}
+  };
+
+  const removeLink = async (i) => {
+    const updated = (profile?.portfolioLinks||[]).filter((_,j)=>j!==i);
+    setProfile(p=>({ ...p, portfolioLinks:updated }));
+    try { await supabase.from("profiles").update({ portfolio_links: updated }).eq("id", user.id); } catch(e) {}
+  };
+
+  const toggleLinkVisibility = async (i) => {
+    const updated = (profile?.portfolioLinks||[]).map((l,j)=> j===i ? {...l, showOnTalent:!l.showOnTalent} : l);
+    setProfile(p=>({ ...p, portfolioLinks:updated }));
+    try { await supabase.from("profiles").update({ portfolio_links: updated }).eq("id", user.id); } catch(e) {}
   };
 
   const addPhoto = () => {
@@ -1868,9 +1887,15 @@ function PortfolioSection({ user, profile, setProfile }) {
             <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{l.label||"Link"}</div>
             <div style={{ color:C.textSoft, fontSize:11, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.url}</div>
           </div>
-          <button className="tap" onClick={()=>setProfile(p=>({ ...p, portfolioLinks:(p?.portfolioLinks||[]).filter((_,j)=>j!==i) }))} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>
+          {/* Show on talent board toggle */}
+          <button className="tap" onClick={()=>toggleLinkVisibility(i)} title={l.showOnTalent!==false?"Visible on talent board":"Hidden from talent board"}
+            style={{ fontSize:14, background:"none", border:"none", cursor:"pointer", opacity:l.showOnTalent!==false?1:0.4, padding:"2px 4px" }}>
+            {l.showOnTalent!==false ? "👁️" : "🚫"}
+          </button>
+          <button className="tap" onClick={()=>removeLink(i)} style={{ background:"none", border:"none", color:C.textFaint, fontSize:16, lineHeight:1 }}>×</button>
         </div>
       ))}
+      {portfolioLinks.length > 0 && <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>👁️ = visible on talent board · 🚫 = hidden from talent board</div>}
     </div>
   );
 }
@@ -3988,14 +4013,33 @@ function TalentShareCard({ user }) {
                 </div>
                 <PrivacyCheck label="Résumé / CV" sub="Let employers download your résumé" checked={showResume} onChange={()=>setShowResume(v=>!v)}/>
 
-                {/* Work / portfolio link */}
-                <div>
-                  <PrivacyCheck label="Work link" sub="Instagram, portfolio, LinkedIn or any URL" checked={showLink} onChange={()=>setShowLink(v=>!v)}/>
-                  {showLink && (
-                    <input value={workLink} onChange={e=>setWorkLink(e.target.value)} placeholder="https://instagram.com/yourhandle" type="url"
-                      style={{ ...IS, marginTop:7 }}/>
-                  )}
-                </div>
+                {/* Links from portfolio — toggle each one */}
+                {(user?.portfolioLinks||[]).length > 0 && (
+                  <div>
+                    <div style={{ fontSize:13, fontWeight:600, color:C.textDark, marginBottom:8 }}>Links visible on talent board</div>
+                    {(user?.portfolioLinks||[]).map((l,i)=>(
+                      <div key={l.id||i} style={{ display:"flex", alignItems:"center", gap:10, marginBottom:6 }}>
+                        <button className="tap" onClick={async()=>{
+                          const updated = (user.portfolioLinks||[]).map((lk,j)=> j===i ? {...lk, showOnTalent:!lk.showOnTalent} : lk);
+                          try { await supabase.from("profiles").update({ portfolio_links: updated }).eq("id", user.id); } catch(e) {}
+                        }}
+                          style={{ width:22, height:22, borderRadius:6, border:`2px solid ${l.showOnTalent!==false?C.sage:C.border}`, background:l.showOnTalent!==false?C.sage:"#fff", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer" }}>
+                          {l.showOnTalent!==false && <Icon name="check" size={12} color="#fff"/>}
+                        </button>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:13, fontWeight:600, color:C.textDark }}>{l.label||"Link"}</div>
+                          <div style={{ fontSize:11, color:C.textFaint, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{l.url}</div>
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ fontSize:11, color:C.textFaint, marginTop:4 }}>Add more links in your Profile section</div>
+                  </div>
+                )}
+                {(user?.portfolioLinks||[]).length === 0 && (
+                  <div style={{ fontSize:12, color:C.textFaint, background:C.bgSoft, borderRadius:8, padding:"9px 11px" }}>
+                    Add links (Instagram, LinkedIn, portfolio) in your <strong>Profile → Links</strong> section — they'll appear here to show on your talent profile.
+                  </div>
+                )}
               </div>
               <div style={{ fontSize:11, color:C.textFaint, marginTop:10, lineHeight:1.5, background:C.bgSoft, borderRadius:8, padding:"8px 10px" }}>
                 ℹ️ Your name, role, bio and work photos are always shown when your profile is public.
