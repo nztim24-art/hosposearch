@@ -5381,8 +5381,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 {ROLE_TAGS.map(t=><button key={t} className="tap" onClick={()=>setNj(j=>({ ...j, tags:j.tags.includes(t)?j.tags.filter(x=>x!==t):[...j.tags,t] }))} style={{ background:nj.tags.includes(t)?C.terracottaL:C.bgSoft, border:`1px solid ${nj.tags.includes(t)?C.terracottaM:C.border}`, borderRadius:20, padding:"5px 12px", color:nj.tags.includes(t)?C.terracotta:C.textSoft, fontSize:12, fontWeight:nj.tags.includes(t)?600:400, transition:"all 0.15s" }}>{t}</button>)}
               </div>
             </div>
-            {!user.isTrial && !editId && (
-              <div style={{ marginBottom:16 }}>
+            {!user.isTrial && !editId && (()=>{
+              const _activeCnt = mine.filter(j=>j.active!==false).length;
+              const _subLim = user.subscription_limit || 0;
+              const _hasSub = user.subscription_active && _subLim > 0;
+              const _rem = Math.max(0, _subLim - _activeCnt);
+              if (_hasSub && _rem > 0) return (
+                <div style={{ background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:12, padding:"12px 14px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ fontSize:18 }}>✅</span>
+                  <div style={{ flex:1 }}>
+                    <div style={{ fontWeight:700, fontSize:13, color:C.sage }}>Covered by your {(user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1)} plan</div>
+                    <div style={{ color:C.textSoft, fontSize:12, marginTop:1 }}>{_rem} listing{_rem!==1?"s":""} remaining — no payment needed</div>
+                  </div>
+                </div>
+              );
+              return (<div style={{ marginBottom:16 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Choose Your Listing Type</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {[
@@ -5431,7 +5444,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   <button className="tap" onClick={()=>setShowSubModal(true)} style={{ marginTop:6, background:"none", border:`1px solid ${C.sage}`, borderRadius:20, padding:"4px 12px", color:C.sage, fontSize:11, fontWeight:600, cursor:"pointer" }}>View Plans →</button>
                 </div>
               </div>
-            )}
+            ); })()}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Short Description</div>
               <textarea value={nj.short} onChange={e=>setNj(j=>({...j,short:e.target.value}))} placeholder="Brief intro on the feed…" rows={3} style={{...IS,resize:"none"}}/>
@@ -5571,7 +5584,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   )}
                   <button className="btn-cta tap" onClick={post} disabled={posting}
                     style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
-                    {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : user.isTrial ? "🚀 Publish Free Listing" : "Continue to Payment →"}
+                    {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : (() => {
+                      const _ac = mine.filter(j=>j.active!==false).length;
+                      const _sl = user.subscription_limit||0;
+                      const _hs = user.subscription_active && _sl > 0;
+                      if (user.isTrial || (_hs && _ac < _sl) || editId) return "🚀 Post Listing";
+                      return "Continue to Payment →";
+                    })()}
                   </button>
                 </>
               );
