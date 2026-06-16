@@ -5033,7 +5033,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const post = async () => {
     if(!nj.title.trim()) return;
     const jobData = buildJobData();
-    if(user.isTrial) {
+    const _activeCount = mine.filter(j=>j.active!==false).length;
+    const _subLimit = user.subscription_limit || 0;
+    const _hasSub = user.subscription_active && _subLimit > 0;
+    const _subCovers = _hasSub && _activeCount < _subLimit;
+    // Post directly (no payment) for trial accounts or active subscriptions with remaining listings
+    if(user.isTrial || _subCovers) {
       setPosting(true);
       try {
         const saved = await sbCreateJob(user.id, jobData);
@@ -5224,15 +5229,44 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   onExpand={()=>setExpandedJob(j)}
                 />
               ))}
-              {/* Add new listing card */}
-              <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }}
-                style={{ width:"100%", background:"#fff", border:`2px dashed ${C.borderMid}`, borderRadius:14, padding:"24px 0", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, cursor:"pointer", marginBottom:16 }}>
-                <div style={{ width:44, height:44, borderRadius:"50%", background:C.terracottaL, border:`2px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                  <Icon name="plus" size={22} color={C.terracotta}/>
-                </div>
-                <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Add new listing</div>
-                <div style={{ fontSize:12, color:C.textSoft }}>Bronze $50 · Silver $70 · Gold $100</div>
-              </button>
+              {/* Add new listing — prominent CTA */}
+              {(() => {
+                const _ac = mine.filter(j=>j.active!==false).length;
+                const _sl = user.subscription_limit || 0;
+                const _hs = user.subscription_active && _sl > 0;
+                const _rem = Math.max(0, _sl - _ac);
+                const _atLimit = _hs && _ac >= _sl;
+                return (
+                  <button className="tap" onClick={()=>{ if(_atLimit) return; resetForm(); setTab("post"); }}
+                    style={{ width:"100%", background:_atLimit?"#FEF2F0":`linear-gradient(135deg,${C.terracottaL},${C.sandL})`, border:`2px dashed ${_atLimit?C.error:C.terracottaM}`, borderRadius:16, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, cursor:_atLimit?"default":"pointer", marginBottom:20, transition:"all 0.2s" }}>
+                    <div style={{ width:56, height:56, borderRadius:"50%", background:_atLimit?"#FEF2F0":C.terracottaL, border:`2px solid ${_atLimit?C.error:C.terracotta}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <Icon name="plus" size={28} color={_atLimit?C.error:C.terracotta}/>
+                    </div>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:_atLimit?C.error:C.textDark }}>
+                      {_atLimit ? "Listing limit reached" : mine.length===0 ? "Post your first listing" : "Add new listing"}
+                    </div>
+                    <div style={{ fontSize:13, color:_atLimit?C.error:C.textSoft, textAlign:"center", lineHeight:1.5 }}>
+                      {_atLimit
+                        ? `You've used all ${_sl} listings on your ${user.subscription_tier||"subscription"} plan — upgrade to post more`
+                        : _hs
+                          ? `${_rem} of ${_sl} listing${_sl!==1?"s":""} remaining on your ${(user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1)} plan`
+                          : "Bronze $50 · Silver $70 · Gold $100"
+                      }
+                    </div>
+                    {!_atLimit && (
+                      <div style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"10px 28px", marginTop:4, boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
+                        {_hs ? "Post a Listing →" : "Post a Job →"}
+                      </div>
+                    )}
+                    {_atLimit && (
+                      <button className="tap" onClick={e=>{ e.stopPropagation(); setTab("subscribe"); }}
+                        style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"10px 28px", marginTop:4, border:"none", cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
+                        Upgrade Plan →
+                      </button>
+                    )}
+                  </button>
+                );
+              })()}
 
               {/* Completed / expired listings */}
               {expiredMine.length>0 && (
