@@ -2539,7 +2539,7 @@ function CountdownBadge({ expiresAt, style }) {
 }
 
 // ─── Mine Job Card (employer view — compact card with thumbnail + management actions) ──
-function MineJobCard({ job, onEdit, onApps, onExpand }) {
+function MineJobCard({ job, onEdit, onApps, onExpand, onDelete }) {
   const first = job.photos?.[0];
   const isd = isData(first);
   const appsCount = job.apps?.length || 0;
@@ -2577,8 +2577,13 @@ function MineJobCard({ job, onEdit, onApps, onExpand }) {
           <Icon name="edit" size={13} color={C.textMid}/> Edit
         </button>
         <button className="tap" onClick={onApps}
-          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:appsCount>0?C.terracottaL:"#fff", border:"none", padding:"10px 0", color:appsCount>0?C.terracotta:C.textSoft, fontSize:13, fontWeight:appsCount>0?700:500, cursor:"pointer" }}>
-          <Icon name="briefcase" size={13} color={appsCount>0?C.terracotta:C.textSoft}/> {appsCount} application{appsCount!==1?"s":""}
+          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:appsCount>0?C.terracottaL:"#fff", border:"none", borderRight:`1px solid ${C.border}`, padding:"10px 0", color:appsCount>0?C.terracotta:C.textSoft, fontSize:13, fontWeight:appsCount>0?700:500, cursor:"pointer" }}>
+          <Icon name="briefcase" size={13} color={appsCount>0?C.terracotta:C.textSoft}/> {appsCount} app{appsCount!==1?"s":""}
+        </button>
+        <button className="tap" onClick={()=>onDelete&&onDelete(job)}
+          style={{ width:44, display:"flex", alignItems:"center", justifyContent:"center", background:"#fff", border:"none", padding:"10px 0", color:"#DC2626", fontSize:18, cursor:"pointer" }}
+          title="Delete listing">
+          🗑
         </button>
       </div>
     </div>
@@ -5014,7 +5019,28 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [posting, setPosting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
-  const [editId, setEditId] = useState(null); // when set, the Post form is editing this job id
+  const [editId, setEditId] = useState(null);
+  const [deleteConfirmJob, setDeleteConfirmJob] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteJob = async () => {
+    if (!deleteConfirmJob) return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.from('jobs').delete()
+        .eq('id', deleteConfirmJob.id)
+        .eq('emp_id', user.id); // safety: can only delete own jobs
+      if (error) throw error;
+      // Remove from local state
+      setJobs(prev => prev.filter(j => j.id !== deleteConfirmJob.id));
+      if (typeof setMyJobs === 'function') setMyJobs(prev => prev.filter(j => j.id !== deleteConfirmJob.id));
+      setDeleteConfirmJob(null);
+    } catch(e) {
+      console.error('Delete listing error:', e);
+      alert('Failed to delete listing. Please try again.');
+    }
+    setDeleting(false);
+  }; // when set, the Post form is editing this job id
   const [formKey, setFormKey] = useState(0); // increments on every load/reset so RichTextEditor remounts
   const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
   const [myJobs, setMyJobs] = useState(null); // all of employer's jobs incl. expired; null until loaded
@@ -5296,6 +5322,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   onEdit={()=>startEdit(j)}
                   onApps={()=>{ setSel(j); setTab("apps"); }}
                   onExpand={()=>setExpandedJob(j)}
+                  onDelete={setDeleteConfirmJob}
                 />
               ))}
               {/* Add new listing — prominent CTA */}
@@ -5824,6 +5851,36 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <NavBtn t="post"    ic="plus"      l="Post"/>
           <NavBtn t="apps"    ic="briefcase" l="Apply" badge={newAppsCount||apps}/>
           <NavBtn t="profile" ic="person"    l="Profile"/>
+        </div>
+      )}
+
+      {/* Delete listing confirmation modal */}
+      {deleteConfirmJob && (
+        <div onClick={()=>{ if(!deleting) setDeleteConfirmJob(null); }} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.55)", zIndex:9000, display:"flex", alignItems:"flex-end", justifyContent:"center", backdropFilter:"blur(3px)" }}>
+          <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 20px 36px" }}>
+            <div style={{ width:40, height:4, background:C.border, borderRadius:2, margin:"0 auto 20px" }}/>
+            <div style={{ textAlign:"center", marginBottom:20 }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>🗑️</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:"#DC2626", marginBottom:8 }}>Delete this listing?</div>
+              <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"12px 16px", marginBottom:12, textAlign:"left" }}>
+                <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:4 }}>{deleteConfirmJob.title}</div>
+                <div style={{ fontSize:12, color:C.textSoft }}>{deleteConfirmJob.loc} · {deleteConfirmJob.type}</div>
+              </div>
+              <div style={{ fontSize:13, color:C.textSoft, lineHeight:1.6 }}>
+                This listing will be <strong>permanently removed</strong> from the jobs page. Any applications already received will still be accessible in your dashboard, but the listing itself <strong>cannot be restored</strong>.
+              </div>
+            </div>
+            <div style={{ display:"flex", gap:10 }}>
+              <button className="tap" onClick={()=>setDeleteConfirmJob(null)} disabled={deleting}
+                style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:600, cursor:"pointer" }}>
+                Keep listing
+              </button>
+              <button className="tap" onClick={handleDeleteJob} disabled={deleting}
+                style={{ flex:1, background:deleting?"#ccc":"#DC2626", border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontSize:14, fontWeight:700, cursor:deleting?"default":"pointer", boxShadow:deleting?"none":"0 4px 12px rgba(220,38,38,0.3)" }}>
+                {deleting ? "Deleting…" : "Yes, delete it"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
