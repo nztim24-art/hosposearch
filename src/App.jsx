@@ -2882,7 +2882,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           <button className="tap" onClick={guardedClose} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, marginLeft:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0 }}>×</button>
         </div>
         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-        <Carousel photos={safePhotos} video={job.video} height={isDesktopDetail ? 420 : 255}/>
+        <Carousel photos={safePhotos} video={job.video}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={56} fontSize={26}/></div>
@@ -3351,7 +3351,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
               {/* Photo */}
               {(expandedJob.photos?.length > 0 || expandedJob.video) && (
-                <Carousel photos={expandedJob.photos||[]} video={expandedJob.video} height={isDesktop ? 320 : 240}/>
+                <Carousel photos={expandedJob.photos||[]} video={expandedJob.video}/>
               )}
 
               <div style={{ padding:"16px 18px 24px" }}>
