@@ -395,17 +395,17 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'starter', icon:'🥉', name:'Starter', price:99, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
-      features:['3 active listings at any time','All Bronze features on every listing','Cancel anytime']
+      features:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Cancel anytime — no lock-in']
     },
     {
       key:'growth', icon:'🥈', name:'Growth', price:199, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
-      features:['6 active listings at any time','All Silver features on every listing','Candidate search & messaging','Cancel anytime']
+      features:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Cancel anytime — no lock-in']
     },
     {
       key:'pro', icon:'🥇', name:'Pro', price:399, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
-      features:['10 active listings at any time','All Gold features on every listing','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime']
+      features:['10 active listings at any time','Bronze level listing on every post','Instagram & Facebook promotion','Bulk application management','Analytics dashboard','Custom venue landing page','Cancel anytime — no lock-in']
     },
   ]
   const tiers = tab === 'listing' ? listingTiers : subTiers
@@ -502,6 +502,11 @@ function PricingModal({ onClose, defaultTab='listing' }) {
             Already have an account?{' '}
             <a href="/app" style={{color:'#C4623A',textDecoration:'none',fontWeight:600}}>Log in here →</a>
           </div>
+          {tab==='subscription' && (
+            <div style={{marginTop:16,padding:'12px 16px',background:'#F5F0E8',borderRadius:10,fontSize:11,color:'#7A7570',lineHeight:1.6,textAlign:'left',maxWidth:480,margin:'16px auto 0'}}>
+              <strong style={{color:'#3A3733'}}>Subscription terms:</strong> Cancel anytime from your account dashboard. No refunds are issued on the current billing period. To avoid being charged for the next period, cancel before your renewal date. All subscription listings are Bronze level — upgrade individual listings anytime with a one-off payment.
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -520,8 +525,13 @@ export default function Landing() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
+    // Check Supabase session (real accounts)
     supabase.auth.getSession().then(({ data }) => {
-      setIsLoggedIn(!!data?.session);
+      if (data?.session) { setIsLoggedIn(true); return; }
+      // Fallback: check stay-logged-in flags for hardcoded admin/demo accounts
+      const stayLoggedIn = localStorage.getItem('hs_stay_logged_in') === '1';
+      const tempSession  = sessionStorage.getItem('hs_temp_session') === '1';
+      setIsLoggedIn(stayLoggedIn || tempSession);
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_e, session) => {
       setIsLoggedIn(!!session);
@@ -838,11 +848,11 @@ export default function Landing() {
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
-                feats:['3 active listings at any time','30-day visibility per listing','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile'] },
+                feats:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Cancel anytime — no lock-in'] },
               { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
-                feats:['6 active listings at any time','All Starter features','Pinned to top of feed','Featured badge on every listing','Priority in search results','Highlighted in job alert emails','Candidate search & messaging'] },
+                feats:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Cancel anytime — no lock-in'] },
               { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
-                feats:['10 active listings at any time','All Growth features','Instagram & Facebook promotion','Custom screening questions','Priority application inbox','Bulk application management','Analytics dashboard','Custom venue landing page'] },
+                feats:['10 active listings at any time','Bronze level listing on every post','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime — no lock-in'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
@@ -889,6 +899,13 @@ export default function Landing() {
               </div>
             );
           })()}
+
+          {/* Subscription fine print */}
+          {pricingTab==='subscription' && (
+            <div style={{maxWidth:660,margin:'-32px auto 40px',textAlign:'center',fontSize:11,color:'#A8A29A',lineHeight:1.7,padding:'0 16px'}}>
+              Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. All subscription listings are Bronze level. Individual listings can be upgraded to Silver or Gold anytime with a one-off payment.
+            </div>
+          )}
 
           {/* Seek comparison table */}
           <div className="reveal hs-compare-table" style={{maxWidth:900,margin:'0 auto',background:'#fff',borderRadius:20,border:'1px solid var(--border)',overflow:'hidden',marginBottom:28,boxShadow:'0 2px 10px rgba(0,0,0,0.04)'}}>
@@ -1326,7 +1343,7 @@ export default function Landing() {
               {[
                 ['Acceptance','By using HospoSearch you agree to these terms. If you do not agree, please do not use the platform.'],
                 ['Job Listings','Employers are responsible for the accuracy of their job listings. HospoSearch reserves the right to remove listings that are misleading, offensive, or violate our community guidelines.'],
-                ['Payments','Listing fees are charged per posting. Subscriptions are billed monthly and may be cancelled at any time. All prices are in AUD unless otherwise stated. Refunds are issued at our discretion.'],
+                ['Payments','Listing fees are charged per posting. Subscriptions are billed monthly and may be cancelled at any time from your account dashboard. Cancellations must be made before the next renewal date to avoid being charged for the following period. No refunds are issued on the current billing period. All prices are in AUD unless otherwise stated.'],
                 ['Candidate Data','Job seekers grant employers permission to view their profile and application information for the purpose of recruitment only. This data may not be used for any other purpose.'],
                 ['Prohibited Use','You may not use HospoSearch to post fraudulent listings, scrape data, spam users, or engage in any activity that harms the platform or its users.'],
                 ['Liability','HospoSearch is a platform connecting employers and job seekers. We are not responsible for the outcomes of hiring decisions or the conduct of users.'],
