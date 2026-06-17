@@ -5023,15 +5023,16 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [lastSeenApps, setLastSeenApps] = useState(() => parseInt(localStorage.getItem('hs_last_seen_apps')||'0'));
   const [newAppsCount, setNewAppsCount] = useState(0);
 
-  // Load applications from Supabase on mount only (tab change causes revert bug)
+  // Load applications from Supabase on mount + subscribe to real-time new applications
   useEffect(()=>{
+    let alive = true;
     const loadApps = async () => {
       try {
         const { data } = await supabase
           .from('applications')
           .select('*')
           .order('created_at', { ascending:false });
-        if (data) {
+        if (data && alive) {
           const newCount = data.filter(a => new Date(a.created_at).getTime() > lastSeenApps).length;
           setNewAppsCount(newCount);
           setSupabaseApps(data);
@@ -5039,6 +5040,24 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       } catch(e) { console.warn('Load applications error:', e); }
     };
     loadApps();
+
+    // Real-time: when a new application comes in, update counter immediately
+    const channel = supabase
+      .channel(`employer-apps-${user.id}`)
+      .on('postgres_changes', { event:'INSERT', schema:'public', table:'applications' }, payload => {
+        if (!alive) return;
+        const newApp = payload.new;
+        setSupabaseApps(prev => {
+          if (prev.some(a => a.id === newApp.id)) return prev;
+          return [newApp, ...prev];
+        });
+        if (new Date(newApp.created_at).getTime() > lastSeenApps) {
+          setNewAppsCount(c => c + 1);
+        }
+      })
+      .subscribe();
+
+    return () => { alive = false; supabase.removeChannel(channel); };
   }, [user.id]); // removed [tab] — tab change was causing status revert
 
   // If arriving from email "View all applicants", select that job once loaded
