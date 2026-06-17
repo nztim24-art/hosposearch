@@ -6766,6 +6766,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
         if (data && !error) setAllUsers(data.map(u=>({
           id: u.id,
+          authId: u.auth_id,
           name: u.name || u.email,
           email: u.email,
           handle: u.handle || u.email?.split('@')[0],
@@ -7268,7 +7269,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                         const r = await fetch('/api/admin-delete-user', {
                           method:'POST',
                           headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ adminSecret, userId: u.id }),
+                          body: JSON.stringify({ adminSecret, userId: u.id, authUserId: u.authId }),
                         });
                         const data = await r.json();
                         if (!r.ok) { alert('Delete failed: ' + (data.error||r.status)); return; }
