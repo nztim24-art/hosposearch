@@ -103,6 +103,24 @@ async function adminJobAction(action, jobId, fields) {
   return res.json();
 }
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
+
+function VenuePlaceholder({ venue, loc }) {
+  const city = (loc||'').split(',')[0].trim();
+  return (
+    <div style={{ width:'100%', height:'100%', background:'#fff', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:10, position:'relative', overflow:'hidden' }}>
+      <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(circle, #C9A96E 1px, transparent 1px)', backgroundSize:'22px 22px', opacity:0.1, pointerEvents:'none' }}/>
+      <div style={{ width:44, height:1, background:'#0F0E0C', position:'relative' }}/>
+      <div style={{ fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:700, color:'#0F0E0C', textAlign:'center', padding:'0 18px', lineHeight:1.25, position:'relative', letterSpacing:'-0.3px', maxWidth:'90%' }}>{venue||'HospoSearch'}</div>
+      <div style={{ display:'flex', alignItems:'center', gap:7, position:'relative' }}>
+        <div style={{ width:24, height:'0.5px', background:'#0F0E0C' }}/>
+        <div style={{ width:4, height:4, background:'#0F0E0C', transform:'rotate(45deg)' }}/>
+        <div style={{ width:24, height:'0.5px', background:'#0F0E0C' }}/>
+      </div>
+      {city && <div style={{ fontSize:9, color:'#3A3733', letterSpacing:'2.5px', textTransform:'uppercase', fontWeight:500, position:'relative' }}>{city}</div>}
+      <div style={{ width:44, height:1, background:'#0F0E0C', position:'relative' }}/>
+    </div>
+  );
+}
 const ROLE_TAGS = [
   // Venue type
   "Fine Dining","Café","Pub / Bar","Bistro","Casual Dining","Hatted Restaurant","Michelin Star","Rooftop Bar","Waterfront","Hotel & Resort",
@@ -901,7 +919,7 @@ function getEmp(job) {
   };
 }
 
-function Carousel({ photos, video, height=null }) {
+function Carousel({ photos, video, height=null, venue=null, loc=null }) {
   const [cur, setCur] = useState(0);
   const [offset, setOffset] = useState(0);
   const [sliding, setSliding] = useState(false);
@@ -1013,10 +1031,7 @@ function Carousel({ photos, video, height=null }) {
             ) : slide.src && isData(slide.src) ? (
               <img src={slide.src} alt="" style={{ width:"100%", height:"100%", objectFit:"cover", display:"block" }}/>
             ) : (
-              <div style={{ width:"100%", height:"100%", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, background:pbg }}>
-                <Icon name="camera" size={38} color="rgba(120,95,75,0.2)"/>
-                <span style={{ fontFamily:"'Fraunces',serif", fontSize:11, color:"rgba(100,80,60,0.3)", letterSpacing:3, textTransform:"uppercase" }}>Photo {i+1}</span>
-              </div>
+              <VenuePlaceholder venue={venue} loc={loc}/>
             )}
           </div>
         );
@@ -2487,7 +2502,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
               <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
                 {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                   :hm?<BlurFillImage src={first} alt={j.title} ratio="4/5"/>
-                  :<div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>}
+                  :<VenuePlaceholder venue={j.venue} loc={j.loc}/>}
                 {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                 {j.video && <div style={{ position:"absolute", top:8, right:8, zIndex:2 }}><Icon name="video" size={13} color="#fff"/></div>}
                 {bk && <div style={{ position:"absolute", top:j.video?28:8, right:8, zIndex:2 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
@@ -2742,7 +2757,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
       </div>
       <div onClick={()=>onExpand(job)}
         style={{ cursor:"pointer", position:"relative" }}>
-        <CarouselWrapper><Carousel photos={job.photos} video={job.video}/></CarouselWrapper>
+        <CarouselWrapper><Carousel photos={job.photos} video={job.video} venue={job.venue} loc={job.loc}/></CarouselWrapper>
         {/* New listing badge — top right, 3 days */}
         {isNew && (
           <div style={{ position:"absolute", top:10, right:10, background:C.terracotta, color:"#fff", fontSize:11, fontWeight:700, letterSpacing:0.5, padding:"4px 10px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:2 }}>
@@ -2882,7 +2897,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           <button className="tap" onClick={guardedClose} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, marginLeft:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0 }}>×</button>
         </div>
         <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
-        <Carousel photos={safePhotos} video={job.video}/>
+        <Carousel photos={safePhotos} video={job.video} venue={job.venue} loc={job.loc}/>
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={56} fontSize={26}/></div>
@@ -3312,7 +3327,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
                   {/* Swipeable photo carousel — no login needed */}
                   <div className="tap" onClick={()=>handleExpand(j)} style={{ display:"block", cursor:"pointer" }}>
                     <CarouselWrapper onSwipe={()=>{ try { incrementViews(j.id); } catch(e){} }}>
-                      <Carousel photos={j.photos} video={j.video}/>
+                      <Carousel photos={j.photos} video={j.video} venue={j.venue} loc={j.loc}/>
                     </CarouselWrapper>
                   </div>
                   {/* Text — tap to open */}
@@ -3351,7 +3366,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
             <div style={{ flex:1, overflowY:"auto", WebkitOverflowScrolling:"touch" }}>
               {/* Photo */}
               {(expandedJob.photos?.length > 0 || expandedJob.video) && (
-                <Carousel photos={expandedJob.photos||[]} video={expandedJob.video}/>
+                <Carousel photos={expandedJob.photos||[]} video={expandedJob.video} venue={expandedJob.venue} loc={expandedJob.loc}/>
               )}
 
               <div style={{ padding:"16px 18px 24px" }}>
