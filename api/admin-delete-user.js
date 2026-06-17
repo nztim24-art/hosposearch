@@ -1,32 +1,41 @@
 // /api/admin-delete-user.js
 // Fully deletes a user: auth account + profile + jobs.
-// Protected by verifying the caller is the admin email via their JWT.
+// Accepts either a Supabase JWT (real admin account) OR ADMIN_SECRET (hardcoded admin).
 
 const SUPABASE_URL         = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
+const ADMIN_SECRET         = process.env.ADMIN_SECRET;
 const ADMIN_EMAIL          = 'admin@hosposearch.com.au';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { token, userId } = req.body || {};
+  const { token, adminSecret, userId } = req.body || {};
 
-  if (!token)    return res.status(401).json({ error: 'No token provided' });
-  if (!userId)   return res.status(400).json({ error: 'Missing userId' });
+  if (!userId) return res.status(400).json({ error: 'Missing userId' });
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY)
     return res.status(500).json({ error: 'Service not configured' });
 
-  // Verify the JWT and check caller is admin
-  const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-    headers: {
-      apikey:        SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!userRes.ok) return res.status(401).json({ error: 'Invalid token' });
-  const caller = await userRes.json();
-  if (caller.email !== ADMIN_EMAIL)
-    return res.status(403).json({ error: 'Forbidden — admin only' });
+  // Auth: accept either a valid Supabase JWT OR the ADMIN_SECRET
+  let authorised = false;
+
+  if (adminSecret && ADMIN_SECRET && adminSecret === ADMIN_SECRET) {
+    // Hardcoded admin path — secret matches
+    authorised = true;
+  } else if (token) {
+    // Real Supabase session path — verify JWT belongs to admin email
+    try {
+      const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+        headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` },
+      });
+      if (r.ok) {
+        const caller = await r.json();
+        if (caller.email === ADMIN_EMAIL) authorised = true;
+      }
+    } catch(e) { /* fall through to 401 */ }
+  }
+
+  if (!authorised) return res.status(401).json({ error: 'Unauthorized' });
 
   const sbHeaders = {
     apikey:         SUPABASE_SERVICE_KEY,
@@ -64,7 +73,7 @@ export default async function handler(req, res) {
   // 5. Delete the Supabase Auth user — prevents re-login
   try {
     const r = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${userId}`, {
-      method: 'DELETE',
+      method:  'DELETE',
       headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${SUPABASE_SERVICE_KEY}` },
     });
     if (!r.ok) {
