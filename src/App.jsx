@@ -3087,17 +3087,55 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                       <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📋 Screening Questions</div>
                       <div style={{ color:C.textSoft, fontSize:12, marginBottom:12 }}>{job.venue} would like to know:</div>
                       <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                        {activeQ.map(key=>(
-                          <div key={key}>
-                            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>{SCREENING_LABELS[key]||key}</div>
-                            <input
-                              value={(fd.screeningAnswers||{})[key]||""}
-                              onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [key]:e.target.value}}))}
-                              placeholder="Your answer…"
-                              style={IS}
-                            />
-                          </div>
-                        ))}
+                        {(()=>{
+                          const country = job.country || "Australia";
+                          const licenceLabel = country === "New Zealand"
+                            ? "Do you have a current New Zealand driver's licence?"
+                            : country === "United Kingdom"
+                            ? "Do you have a current UK driver's licence?"
+                            : "Do you have a current Australian driver's licence?";
+
+                          const SCREENING_OPTIONS = {
+                            rightToWork: [
+                              "I have permanent work rights with no restrictions",
+                              "I have temporary work rights with no restrictions",
+                              "I have temporary work rights with restrictions",
+                              "I require sponsorship or a current job offer",
+                            ],
+                            yearsExperience: [
+                              "Less than 1 year","1–2 years","3–5 years","6–10 years","10+ years",
+                            ],
+                            noticePeriod: [
+                              "None, I'm ready to go now","1 week","2 weeks","3 weeks",
+                              "4 weeks","5 weeks","6 or more weeks",
+                            ],
+                            policeCheck:        ["Yes","No"],
+                            availableWeekends:  ["Yes","No"],
+                            availablePublicHols:["Yes","No"],
+                            driverLicence:      ["Yes","No"],
+                            willingToRelocate:  ["Yes","I already live in the region","No"],
+                          };
+
+                          // Override the driver licence label to be country-aware
+                          const _labels = {
+                            ...SCREENING_LABELS,
+                            driverLicence: licenceLabel,
+                          };
+
+                          return activeQ.map(key=>(
+                            <div key={key}>
+                              <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>{_labels[key]||key}</div>
+                              <select
+                                value={(fd.screeningAnswers||{})[key]||""}
+                                onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [key]:e.target.value}}))}
+                                style={IS}
+                              >
+                                <option value="">Select…</option>
+                                {(SCREENING_OPTIONS[key]||[]).map(opt=><option key={opt} value={opt}>{opt}</option>)}
+                              </select>
+                            </div>
+                          ));
+                        })()}
                         {customQ.map((q,i)=>(
                           <div key={`custom_${i}`}>
                             <div style={{ color:C.textSoft, fontSize:13, fontWeight:600, marginBottom:5 }}>✏️ {q}</div>
