@@ -3465,7 +3465,12 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
   const go = async () => {
     setErr("");
     // Check hardcoded admin first
-    if (email===ADMIN.email&&pass===ADMIN.password) { _saveStayLoggedInImmediate(stayLoggedIn); onLogin(ADMIN,"admin"); return; }
+    if (email===ADMIN.email&&pass===ADMIN.password) {
+      _saveStayLoggedInImmediate(stayLoggedIn);
+      if (stayLoggedIn) localStorage.setItem('hs_admin_session', '1');
+      else sessionStorage.setItem('hs_admin_session', '1');
+      onLogin(ADMIN,"admin"); return;
+    }
     // Check hardcoded trial account
     const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
     if (trial) { _saveStayLoggedInImmediate(stayLoggedIn); onLogin(trial,"employer"); return; }
@@ -7694,11 +7699,19 @@ export default function App() {
           // User chose not to stay logged in and browser was closed — clear session
           try { await signOut(); } catch(e) {}
         } else {
-          // Try to restore session from Supabase
-          const profile = await getSession();
-          if (profile) {
-            setUser(profile);
-            setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+          // Check for hardcoded admin session first
+          const _adminSaved = localStorage.getItem('hs_admin_session') === '1'
+            || sessionStorage.getItem('hs_admin_session') === '1';
+          if (_adminSaved) {
+            setUser(ADMIN);
+            setType('admin');
+          } else {
+            // Try to restore session from Supabase
+            const profile = await getSession();
+            if (profile) {
+              setUser(profile);
+              setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+            }
           }
         }
       } catch(e) { /* no session — show login */ }
@@ -7737,7 +7750,9 @@ export default function App() {
   const logout = async () => {
     try { await signOut(); } catch(e) {}
     localStorage.removeItem('hs_stay_logged_in');
+    localStorage.removeItem('hs_admin_session');
     sessionStorage.removeItem('hs_temp_session');
+    sessionStorage.removeItem('hs_admin_session');
     setUser(null); setType(null);
   };
 
