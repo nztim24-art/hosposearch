@@ -3080,7 +3080,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     relocate:           'Willing to relocate?',
                     availablePublicHolidays: 'Available to work public holidays?',
                   };
-                  const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]);
+                  // rightToWork and noticePeriod are always shown as dedicated form sections
+                  // below — exclude them here so candidates don't answer them twice
+                  const ALWAYS_SHOWN = ["rightToWork","noticePeriod"];
+                  const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!ALWAYS_SHOWN.includes(k));
                   const customQ = job.screeningQ.custom||[];
                   return (
                     <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
@@ -5614,9 +5617,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>{_sqPre+_sqCust}/5 questions selected</div>
                   {_sqAtMax && <div style={{ color:C.terracotta, fontSize:12, fontWeight:600, marginBottom:2 }}>Maximum reached — deselect one to add another</div>}
                   {[
-                    ["rightToWork",        "🛂 Right to work in this country?"],
                     ["yearsExperience",    "📅 Years of hospitality experience?"],
-                    ["noticePeriod",       "⏱ Notice period / when can you start?"],
                     ["policeCheck",        "🔒 Current police check?"],
                     ["availableWeekends",  "📆 Available to work weekends?"],
                     ["availablePublicHols","🎉 Available to work public holidays?"],
@@ -5815,20 +5816,16 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         </div>
       </div>
 
-      {/* Bottom nav */}
-      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
-        <button className="tap" onClick={()=>window.location.href='/'}
-          style={{ flex:1, padding:"10px 0 8px", border:"none", background:"transparent", display:"flex", flexDirection:"column", alignItems:"center", gap:3 }}>
-          <Icon name="home" size={24} color={C.textSoft}/>
-          <span style={{ fontSize:10, color:C.textSoft, fontWeight:400 }}>Home</span>
-        </button>
-        <NavBtn t="browse" ic="search" l="Browse"/>
-        <NavBtn t="feed" ic="grid" l="My Listings"/>
-        <NavBtn t="post" ic="plus" l="Post"/>
-        <NavBtn t="talent" ic="users" l="Talent"/>
-        <NavBtn t="apps" ic="briefcase" l="Applications" badge={newAppsCount||apps}/>
-        <NavBtn t="profile" ic="person" l="Profile"/>
-      </div>
+      {/* Bottom nav — mobile only */}
+      {!isDesktop && (
+        <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+          <NavBtn t="feed"    ic="grid"      l="Listings"/>
+          <NavBtn t="browse"  ic="search"    l="Browse"/>
+          <NavBtn t="post"    ic="plus"      l="Post"/>
+          <NavBtn t="apps"    ic="briefcase" l="Apply" badge={newAppsCount||apps}/>
+          <NavBtn t="profile" ic="person"    l="Profile"/>
+        </div>
+      )}
 
       {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
 
@@ -6361,14 +6358,16 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         {tab==="profile" && <CandidateProfile user={user} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} altAccount={altAccount} onSwitchAccount={onSwitchAccount} jobs={jobs} applications={jobs.filter(j=>j.apps?.some(a=>a.uid===user.id))} bookmarks={bookmarks} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={onLogout}/>}
       </div>
 
-      {/* Bottom Nav — padded for Android gesture bar / iPhone home indicator */}
-      <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0, paddingBottom:"env(safe-area-inset-bottom, 8px)", position:"relative", zIndex:100 }}>
-        <NavBtn t="home"      ic="home"      l="Home"/>
-        <NavBtn t="explore"   ic="search"    l="Explore"/>
-        <NavBtn t="activity"  ic="briefcase" l="Applied" badge={appliedCount}/>
-        <NavBtn t="following" ic="heart"     l="Following" badge={following.length}/>
-        <NavBtn t="profile"   ic="person"    l="Profile"/>
-      </div>
+      {/* Bottom Nav — mobile only, padded for Android gesture bar / iPhone home indicator */}
+      {!isDesktop && (
+        <div style={{ display:"flex", borderTop:`1px solid ${C.border}`, background:"#fff", flexShrink:0, paddingBottom:"env(safe-area-inset-bottom, 8px)", position:"relative", zIndex:100 }}>
+          <NavBtn t="home"      ic="home"      l="Home"/>
+          <NavBtn t="explore"   ic="search"    l="Explore"/>
+          <NavBtn t="activity"  ic="briefcase" l="Applied" badge={appliedCount}/>
+          <NavBtn t="following" ic="heart"     l="Following" badge={following.length}/>
+          <NavBtn t="profile"   ic="person"    l="Profile"/>
+        </div>
+      )}
 
       {notifOpen && (
         <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.4)", zIndex:4000, display:"flex", flexDirection:"column", backdropFilter:"blur(2px)" }} onClick={()=>setNotifOpen(false)}>
@@ -6929,7 +6928,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(candidates must answer when applying)</span></div>
                 <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
                   {[
-                    ["rightToWork", "🛂 Right to work in this country?"],
+                    
                     ["yearsExperience", "Years of hospitality experience?"],
                     ["noticePeriod", "Notice period required?"],
                     ["policeCheck", "Do you have a current police check?"],
