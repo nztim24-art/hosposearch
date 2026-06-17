@@ -6835,7 +6835,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       }} style={{ background:j.featured?C.featuredL:C.bgSoft, border:`1px solid ${j.featured?C.featured+"40":C.border}`, borderRadius:7, padding:"4px 10px", color:j.featured?C.featured:C.textSoft, fontSize:11, fontWeight:600 }}>
                         {j.featured ? "📌 Unpin" : "📌 Pin to top"}
                       </button>
-                      <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>{j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
+                      <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>👁 {j.views||0} view{j.views!==1?"s":""}</span>
+                      <span style={{ background:(j.apps?.length||0)>0?C.terracottaL:C.bgSoft, borderRadius:7, padding:"4px 9px", color:(j.apps?.length||0)>0?C.terracotta:C.textSoft, fontSize:11, fontWeight:(j.apps?.length||0)>0?700:400 }}>📋 {j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
                     </div>
                   </div>
@@ -6843,6 +6844,13 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
               </div>
             ); })}
             {jobs.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div>No listings yet</div>}
+            <div style={{ textAlign:"center", padding:"12px 0 4px" }}>
+              <button className="tap" onClick={async ()=>{
+                try { const j = await fetchJobs(); if(Array.isArray(j)) setJobs(j); } catch(e) {}
+              }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 16px", color:C.textMid, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                ↻ Refresh stats
+              </button>
+            </div>
           </div>
         )}
         {/* Post a Job — as HospoSearch */}
