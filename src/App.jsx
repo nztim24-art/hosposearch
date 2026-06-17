@@ -1195,7 +1195,7 @@ function StoryViewer({ stories, startIndex=0, currentUser, onClose, onApply }) {
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:5 }}>{job.title}</div>
         <div style={{ color:"rgba(255,255,255,0.75)", fontSize:13, marginBottom:12 }}>{job.venue} · {job.loc}</div>
         <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
-          {[job.salary, job.type, ...(job.tags||[]).slice(0,2)].map(t=>(
+          {[job.salary, job.type, job.workplace&&job.workplace!=="On-site"?job.workplace:null, job.payType&&job.payType!=="Annually"?job.payType:null, ...(job.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
             <span key={t} style={{ background:"rgba(255,255,255,0.18)", backdropFilter:"blur(6px)", color:"#fff", fontSize:11, fontWeight:600, padding:"4px 11px", borderRadius:20, border:"1px solid rgba(255,255,255,0.25)" }}>{t}</span>
           ))}
         </div>
@@ -4935,7 +4935,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   }, [jobs.length]);
   const _restoredDraft = window._draftJob;
   if (_restoredDraft) { delete window._draftJob; }
-  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
+  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState(_restoredDraft?.photos || [null,null,null,null,null]);
   const [njPosting, setNjPosting] = useState(false);
   // Image cropper: stash raw src + a callback that receives the cropped result
@@ -5006,7 +5006,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null, screeningQ:nj.screeningQ||{} };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, payType:nj.payType||"Annually", workplace:nj.workplace||"On-site", salaryShown:nj.salaryShown!==false, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null, screeningQ:nj.screeningQ||{} };
   };
 
   const resetForm = () => {
@@ -5367,12 +5367,51 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               <input value={nj.applyEmail||""} onChange={e=>setNj(j=>({...j,applyEmail:e.target.value}))} placeholder={user.email||"hiring@yourvenue.com"} type="email" style={IS}/>
               <div style={{ color:C.textFaint, fontSize:11, marginTop:5, lineHeight:1.4 }}>📥 You'll get an email for each applicant, and every application is also saved to your dashboard under "Applications". Leave blank to use your account email.</div>
             </div>
-            {[["Employment Type","type",["Full-time","Part-time","Casual","Contract"]],["Salary Band","salaryBand",SALARY_BANDS]].map(([l,k,opts])=>(
-              <div key={k} style={{ marginBottom:12 }}>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>{l}</div>
-                <select value={nj[k]} onChange={e=>setNj(j=>({...j,[k]:e.target.value}))} style={IS}>{opts.map(o=><option key={o}>{o}</option>)}</select>
+            {/* Work type as pills (SEEK-style) */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:7, fontWeight:600 }}>Work Type</div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {["Full-time","Part-time","Casual","Contract"].map(t=>(
+                  <button key={t} className="tap" onClick={()=>setNj(j=>({...j,type:t}))}
+                    style={{ background:nj.type===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.type===t?C.terracottaM:C.border}`, borderRadius:9, padding:"8px 16px", color:nj.type===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.type===t?600:400, cursor:"pointer", transition:"all 0.15s" }}>{t}</button>
+                ))}
               </div>
-            ))}
+            </div>
+            {/* Pay type as pills (SEEK-style) */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:7, fontWeight:600 }}>Pay Type</div>
+              <div style={{ display:"flex", gap:8 }}>
+                {["Hourly","Monthly","Annually"].map(t=>(
+                  <button key={t} className="tap" onClick={()=>setNj(j=>({...j,payType:t}))}
+                    style={{ background:nj.payType===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.payType===t?C.terracottaM:C.border}`, borderRadius:9, padding:"8px 16px", color:nj.payType===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.payType===t?600:400, cursor:"pointer", transition:"all 0.15s" }}>{t}</button>
+                ))}
+              </div>
+            </div>
+            {/* Workplace option (SEEK-style) */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:7, fontWeight:600 }}>Workplace Option</div>
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {[["On-site","Work at the venue, all the time"],["Hybrid","Mix of on-site and flexible"],["Remote","Work from anywhere"]].map(([t,desc])=>(
+                  <button key={t} className="tap" onClick={()=>setNj(j=>({...j,workplace:t}))}
+                    style={{ background:nj.workplace===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.workplace===t?C.terracottaM:C.border}`, borderRadius:9, padding:"8px 16px", color:nj.workplace===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.workplace===t?600:400, cursor:"pointer", transition:"all 0.15s", textAlign:"left" }}>
+                    <div>{t}</div>
+                    <div style={{ fontSize:10, opacity:0.7, marginTop:1 }}>{desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+            {/* Salary band + shown on ad */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Salary Band</div>
+              <select value={nj.salaryBand} onChange={e=>setNj(j=>({...j,salaryBand:e.target.value}))} style={IS}>{SALARY_BANDS.map(o=><option key={o}>{o}</option>)}</select>
+              <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:8 }}>
+                <button className="tap" onClick={()=>setNj(j=>({...j,salaryShown:!j.salaryShown}))}
+                  style={{ width:36, height:20, borderRadius:10, background:nj.salaryShown?C.sage:"#ccc", border:"none", cursor:"pointer", position:"relative", flexShrink:0, transition:"background 0.2s" }}>
+                  <div style={{ width:16, height:16, borderRadius:8, background:"#fff", position:"absolute", top:2, left:nj.salaryShown?18:2, transition:"left 0.2s" }}/>
+                </button>
+                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : "(hidden — shows "Competitive")"}</span>
+              </div>
+            </div>
             {/* Location */}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>Country</div>
@@ -6465,7 +6504,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
   // Post job state
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
-  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TfwBfGkG9EGtGJgBv341e2n" });
+  const [nj, setNj] = useState({ title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:false, tier:"bronze", tierPrice:50, tierPriceId:"price_1TfwBfGkG9EGtGJgBv341e2n" });
   const [adminFormKey, setAdminFormKey] = useState(0);
   const [njPhotos, setNjPhotos] = useState([]);
   const [cropState, setCropState] = useState(null);
@@ -6497,7 +6536,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       salary: nj.salary || "Competitive",
       salaryBand: nj.salaryBand,
       type: nj.type,
-      tags: nj.tags,
+      tags: nj.tags, payType: nj.payType||"Annually", workplace: nj.workplace||"On-site", salaryShown: nj.salaryShown!==false,
       short: nj.short,
       full: nj.full || nj.short,
       link: nj.link || "#",
@@ -6704,26 +6743,57 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 </div>
               </div>
 
-              {/* Employment Type + Salary */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
-                <div>
-                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Employment Type</div>
-                  <select value={nj.type} onChange={e=>setNj(j=>({...j,type:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
-                    {["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}
-                  </select>
+              {/* Work type pills */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Work Type</div>
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  {["Full-time","Part-time","Casual","Contract"].map(t=>(
+                    <button key={t} className="tap" onClick={()=>setNj(j=>({...j,type:t}))}
+                      style={{ background:nj.type===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.type===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:nj.type===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.type===t?600:400, cursor:"pointer" }}>{t}</button>
+                  ))}
                 </div>
+              </div>
+              {/* Pay type pills */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Pay Type</div>
+                <div style={{ display:"flex", gap:7 }}>
+                  {["Hourly","Monthly","Annually"].map(t=>(
+                    <button key={t} className="tap" onClick={()=>setNj(j=>({...j,payType:t}))}
+                      style={{ background:nj.payType===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.payType===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:nj.payType===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.payType===t?600:400, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              {/* Workplace option */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Workplace</div>
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  {[["On-site","At the venue"],["Hybrid","Flexible mix"],["Remote","Work anywhere"]].map(([t,d])=>(
+                    <button key={t} className="tap" onClick={()=>setNj(j=>({...j,workplace:t}))}
+                      style={{ background:nj.workplace===t?C.terracottaL:C.bgSoft, border:`1px solid ${nj.workplace===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:nj.workplace===t?C.terracotta:C.textMid, fontSize:13, fontWeight:nj.workplace===t?600:400, cursor:"pointer" }}>
+                      <div>{t}</div><div style={{ fontSize:10, opacity:0.65 }}>{d}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Salary band + display */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10 }}>
                 <div>
                   <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Band</div>
                   <select value={nj.salaryBand} onChange={e=>setNj(j=>({...j,salaryBand:e.target.value}))} style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}>
                     {SALARY_BANDS.map(s=><option key={s}>{s}</option>)}
                   </select>
                 </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Display Text</div>
+                  <input value={nj.salary} onChange={e=>setNj(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, DOE" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+                </div>
               </div>
-
-              {/* Salary display */}
-              <div>
-                <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary (display text)</div>
-                <input value={nj.salary} onChange={e=>setNj(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, Competitive, DOE" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <button className="tap" onClick={()=>setNj(j=>({...j,salaryShown:!j.salaryShown}))}
+                  style={{ width:36, height:20, borderRadius:10, background:nj.salaryShown?C.sage:"#ccc", border:"none", cursor:"pointer", position:"relative", flexShrink:0, transition:"background 0.2s" }}>
+                  <div style={{ width:16, height:16, borderRadius:8, background:"#fff", position:"absolute", top:2, left:nj.salaryShown?18:2, transition:"left 0.2s" }}/>
+                </button>
+                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : "(hidden — shows "Competitive")"}</span>
               </div>
 
               {/* Short description */}
@@ -7097,26 +7167,57 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 </div>
               </div>
 
-              {/* Employment Type + Salary Band */}
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
-                <div>
-                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Employment Type</div>
-                  <select value={editJob.type||"Full-time"} onChange={e=>setEditJob(j=>({...j,type:e.target.value}))} style={IS}>
-                    {["Full-time","Part-time","Casual","Contract"].map(t=><option key={t}>{t}</option>)}
-                  </select>
+              {/* Work type pills */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Work Type</div>
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  {["Full-time","Part-time","Casual","Contract"].map(t=>(
+                    <button key={t} className="tap" onClick={()=>setEditJob(j=>({...j,type:t}))}
+                      style={{ background:(editJob.type||"Full-time")===t?C.terracottaL:C.bgSoft, border:`1px solid ${(editJob.type||"Full-time")===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:(editJob.type||"Full-time")===t?C.terracotta:C.textMid, fontSize:12, fontWeight:(editJob.type||"Full-time")===t?600:400, cursor:"pointer" }}>{t}</button>
+                  ))}
                 </div>
+              </div>
+              {/* Pay type pills */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Pay Type</div>
+                <div style={{ display:"flex", gap:7 }}>
+                  {["Hourly","Monthly","Annually"].map(t=>(
+                    <button key={t} className="tap" onClick={()=>setEditJob(j=>({...j,payType:t}))}
+                      style={{ background:(editJob.payType||"Annually")===t?C.terracottaL:C.bgSoft, border:`1px solid ${(editJob.payType||"Annually")===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:(editJob.payType||"Annually")===t?C.terracotta:C.textMid, fontSize:12, fontWeight:(editJob.payType||"Annually")===t?600:400, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
+              </div>
+              {/* Workplace option */}
+              <div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:7, fontWeight:600 }}>Workplace</div>
+                <div style={{ display:"flex", gap:7, flexWrap:"wrap" }}>
+                  {[["On-site","At the venue"],["Hybrid","Flexible mix"],["Remote","Work anywhere"]].map(([t,d])=>(
+                    <button key={t} className="tap" onClick={()=>setEditJob(j=>({...j,workplace:t}))}
+                      style={{ background:(editJob.workplace||"On-site")===t?C.terracottaL:C.bgSoft, border:`1px solid ${(editJob.workplace||"On-site")===t?C.terracottaM:C.border}`, borderRadius:9, padding:"7px 14px", color:(editJob.workplace||"On-site")===t?C.terracotta:C.textMid, fontSize:12, fontWeight:(editJob.workplace||"On-site")===t?600:400, cursor:"pointer" }}>
+                      <div>{t}</div><div style={{ fontSize:10, opacity:0.65 }}>{d}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Salary band + display + shown toggle */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:9 }}>
                 <div>
                   <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Band</div>
                   <select value={editJob.salaryBand||""} onChange={e=>setEditJob(j=>({...j,salaryBand:e.target.value}))} style={IS}>
                     {SALARY_BANDS.map(s=><option key={s}>{s}</option>)}
                   </select>
                 </div>
+                <div>
+                  <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Display Text</div>
+                  <input value={editJob.salary||""} onChange={e=>setEditJob(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, Competitive" style={IS}/>
+                </div>
               </div>
-
-              {/* Salary display */}
-              <div>
-                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Salary Display Text</div>
-                <input value={editJob.salary||""} onChange={e=>setEditJob(j=>({...j,salary:e.target.value}))} placeholder="e.g. $90–110k, Competitive" style={IS}/>
+              <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                <button className="tap" onClick={()=>setEditJob(j=>({...j,salaryShown:!j.salaryShown}))}
+                  style={{ width:36, height:20, borderRadius:10, background:editJob.salaryShown!==false?C.sage:"#ccc", border:"none", cursor:"pointer", position:"relative", flexShrink:0, transition:"background 0.2s" }}>
+                  <div style={{ width:16, height:16, borderRadius:8, background:"#fff", position:"absolute", top:2, left:editJob.salaryShown!==false?18:2, transition:"left 0.2s" }}/>
+                </button>
+                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {editJob.salaryShown!==false ? "(visible)" : "(hidden)"}</span>
               </div>
 
               {/* Short + Full description */}
@@ -7135,9 +7236,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <input value={editJob.link||""} onChange={e=>setEditJob(j=>({...j,link:e.target.value}))} placeholder="https://…" style={IS}/>
               </div>
 
-              {/* Tags */}
+              {/* Tags — full preset + custom for SEO */}
               <div>
-                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Tags</div>
+                <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Tags <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:10, letterSpacing:0 }}>(more tags = better search — tap preset or type custom)</span></div>
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:7 }}>
                   {(editJob.tags||[]).map(tag=>(
                     <span key={tag} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, color:C.terracotta, fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, display:"flex", alignItems:"center", gap:5 }}>
@@ -7146,7 +7247,16 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     </span>
                   ))}
                 </div>
-                <input onKeyDown={e=>{ if(e.key==="Enter"&&e.target.value.trim()){ setEditJob(j=>({...j,tags:[...(j.tags||[]),e.target.value.trim()]})); e.target.value=""; }}} placeholder="Type tag + Enter to add" style={IS}/>
+                <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
+                  {ROLE_TAGS.filter(t=>!(editJob.tags||[]).includes(t)).map(t=>(
+                    <button key={t} className="tap" onClick={()=>setEditJob(j=>({...j,tags:[...(j.tags||[]),t]}))}
+                      style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:20, padding:"3px 10px", color:C.textFaint, fontSize:11, cursor:"pointer" }}>{t}</button>
+                  ))}
+                </div>
+                <div style={{ display:"flex", gap:8 }}>
+                  <input id="editTagInput" onKeyDown={e=>{ if(e.key==="Enter"&&e.target.value.trim()){ setEditJob(j=>({...j,tags:[...(j.tags||[]),e.target.value.trim()]})); e.target.value=""; }}} placeholder="Type any custom tag + Enter…" style={{...IS,flex:1}}/>
+                  <button className="tap" onClick={()=>{ const el=document.getElementById("editTagInput"); const v=el?.value?.trim(); if(!v) return; setEditJob(j=>({...j,tags:[...(j.tags||[]),v]})); el.value=""; }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 13px", color:C.textMid, fontSize:13 }}>Add</button>
+                </div>
               </div>
 
               {/* Photos */}
@@ -7233,7 +7343,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       country: updated.country, state: updated.state, city: updated.city,
                       sector: updated.sector, role_type: updated.roleType,
                       salary: updated.salary, salary_band: updated.salaryBand,
-                      type: updated.type, tags: updated.tags,
+                      type: updated.type, pay_type: updated.payType||"Annually", workplace: updated.workplace||"On-site", salary_shown: updated.salaryShown!==false, tags: updated.tags,
                       short: updated.short, full_desc: updated.full,
                       link: updated.link, apply_email: updated.applyEmail||"", photos: updatedPhotos,
                       featured: updated.featured, verified: updated.verified,
