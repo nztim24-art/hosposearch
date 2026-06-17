@@ -90,6 +90,7 @@ const styles = `
   .hs-nav-logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:800;color:var(--ink);text-decoration:none;letter-spacing:-0.3px;}
   .hs-nav-logo span{color:var(--terra);}
   .hs-nav-links{display:flex;align-items:center;gap:32px;list-style:none;}
+  .hs-nav-mobile{display:none;}
   .hs-nav-links a{color:var(--ink-mid);text-decoration:none;font-size:14px;font-weight:500;transition:color 0.2s;}
   .hs-nav-links a:hover{color:var(--terra);}
   .hs-nav-cta{background:var(--terra)!important;color:white!important;padding:9px 22px!important;border-radius:100px;font-weight:600!important;font-size:14px!important;transition:background 0.2s,transform 0.15s!important;}
@@ -269,6 +270,7 @@ const styles = `
   @media(max-width:900px){
     .hs-nav{padding:14px 20px;}
     .hs-nav-links{display:none;}
+    .hs-nav-mobile{display:flex;align-items:center;gap:8px;}
 
     /* Hero — stack vertically */
     .hs-hero{padding:90px 20px 48px!important;min-height:auto!important;}
@@ -655,6 +657,16 @@ export default function Landing() {
       {/* Nav */}
       <nav className="hs-nav" ref={navRef}>
         <Link to="/" className="hs-nav-logo"><span>Hospo</span>Search</Link>
+        {/* Mobile-only actions — visible when nav links are hidden */}
+        <div className="hs-nav-mobile">
+          {isLoggedIn
+            ? <Link to="/app" style={{background:'var(--terra)',color:'white',padding:'8px 16px',borderRadius:100,fontWeight:600,fontSize:13,textDecoration:'none',whiteSpace:'nowrap'}}>Dashboard →</Link>
+            : <>
+                <Link to="/app" style={{color:'var(--ink-mid)',fontWeight:600,fontSize:13,textDecoration:'none',padding:'8px 12px'}}>Log in</Link>
+                <Link to="/app" style={{background:'var(--terra)',color:'white',padding:'8px 16px',borderRadius:100,fontWeight:600,fontSize:13,textDecoration:'none',whiteSpace:'nowrap'}}>Post a Job</Link>
+              </>
+          }
+        </div>
         <ul className="hs-nav-links">
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#pricing" onClick={e=>{e.preventDefault();setModalDefaultTab('listing');setShowPricingModal(true);}}>Pricing</a></li>
