@@ -3213,11 +3213,21 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 // ─── Public Browse (no login required) ───────────────────────────────────────
-function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
+function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) {
   const [expandedJob, setExpandedJob] = useState(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pubSearch, setPubSearch] = useState(initialSearch);
   const isDesktop = useIsDesktop();
+  const [pbRefreshing, setPbRefreshing] = useState(false);
+  const [pbPullDist, setPbPullDist] = useState(0);
+  const pbPullStartY = useRef(null);
+  const pbPullDelta = useRef(0);
+  const doPbRefresh = async () => {
+    if (!onRefresh) return;
+    setPbRefreshing(true);
+    try { await onRefresh(); } catch(e) { console.warn('Refresh failed:', e); }
+    setTimeout(() => { setPbRefreshing(false); setPbPullDist(0); }, 600);
+  };
 
   // ESC closes the preview
   useEffect(() => {
@@ -3259,7 +3269,27 @@ function PublicBrowse({ jobs, onLogin, onSignup, initialSearch="" }) {
       </div>
 
       {/* Job grid */}
-      <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"20px":"12px" }}>
+      <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"20px":"12px" }}
+        onTouchStart={e=>{ pbPullStartY.current = e.currentTarget.scrollTop<=0 ? (e.touches[0]?.clientY||0) : null; pbPullDelta.current=0; }}
+        onTouchMove={e=>{
+          if(pbPullStartY.current===null||pbRefreshing) return;
+          const delta=(e.touches[0]?.clientY||0)-pbPullStartY.current;
+          if(delta>0 && e.currentTarget.scrollTop<=0){ pbPullDelta.current=Math.min(delta,110); setPbPullDist(Math.min(delta*0.5,70)); }
+          else setPbPullDist(0);
+        }}
+        onTouchEnd={()=>{
+          if(pbPullDelta.current>60 && !pbRefreshing) doPbRefresh();
+          else setPbPullDist(0);
+          pbPullStartY.current=null; pbPullDelta.current=0;
+        }}>
+        {/* Pull indicator */}
+        <div style={{ height:pbPullDist, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", transition:pbPullStartY.current===null?"height 0.25s":"none" }}>
+          {pbPullDist>5 && <div style={{ display:"flex", alignItems:"center", gap:8, color:C.sage, fontSize:13, fontWeight:600 }}>
+            <div style={{ width:16, height:16, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", transform:`rotate(${pbPullDist*5}deg)`, transition:"transform 0.1s" }}/>
+            {pbPullDist>50 ? "Release to refresh" : "Pull to refresh"}
+          </div>}
+        </div>
+        {pbRefreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8, marginBottom:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
         <div style={{ maxWidth:1100, margin:"0 auto" }}>
           {/* Hero text + search */}
           <div style={{ textAlign:"center", padding:isDesktop?"24px 0 28px":"16px 0 20px" }}>
@@ -5059,6 +5089,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [formKey, setFormKey] = useState(0); // increments on every load/reset so RichTextEditor remounts
   const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
   const [myJobs, setMyJobs] = useState(null); // all of employer's jobs incl. expired; null until loaded
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullDist, setPullDist] = useState(0);
+  const empPullStartY = useRef(null);
+  const empPullDelta = useRef(0);
+  const doEmpRefresh = async () => {
+    setRefreshing(true);
+    try {
+      const [dbJobs, myList] = await Promise.all([fetchJobs(), fetchMyJobs(user.id)]);
+      if (Array.isArray(dbJobs)) setJobs(dbJobs);
+      if (Array.isArray(myList)) setMyJobs(myList);
+    } catch(e) { console.warn('Employer refresh failed:', e); }
+    setTimeout(() => { setRefreshing(false); setPullDist(0); }, 600);
+  };
   // Load full list (including expired/inactive) for the Mine tab
   useEffect(()=>{
     let alive = true;
@@ -5292,7 +5335,22 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
         {/* Mine */}
         {tab==="feed" && (
-          <div style={{ height:"100%", overflowY:"auto" }}>
+          <div style={{ height:"100%", overflowY:"auto" }}
+            onTouchStart={e=>{ empPullStartY.current = e.currentTarget.scrollTop<=0 ? (e.touches[0]?.clientY||0) : null; empPullDelta.current=0; }}
+            onTouchMove={e=>{
+              if(empPullStartY.current===null||refreshing) return;
+              const delta=(e.touches[0]?.clientY||0)-empPullStartY.current;
+              if(delta>0 && e.currentTarget.scrollTop<=0){ empPullDelta.current=Math.min(delta,110); setPullDist(Math.min(delta*0.4,44)); }
+            }}
+            onTouchEnd={()=>{
+              if(empPullDelta.current>60 && !refreshing) doEmpRefresh();
+              else setPullDist(0);
+              empPullStartY.current=null; empPullDelta.current=0;
+            }}>
+            <div style={{ height:pullDist, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center", transition:empPullStartY.current===null?"height 0.25s":"none" }}>
+              {pullDist>10 && <span style={{ color:C.textFaint, fontSize:12 }}>{pullDist>36?"Release to refresh":"Pull to refresh"}</span>}
+            </div>
+            {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             {/* Subscription listing count bar */}
             {user.subscription_active && (user.subscription_limit||0) > 0 && (() => {
               const used = mine.filter(j=>j.active!==false).length;
@@ -7715,7 +7773,7 @@ export default function App() {
     </div>
   );
   if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
-  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/>;
+  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
