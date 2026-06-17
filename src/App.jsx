@@ -5458,7 +5458,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 {ROLE_TAGS.map(t=><button key={t} className="tap" onClick={()=>setNj(j=>({ ...j, tags:j.tags.includes(t)?j.tags.filter(x=>x!==t):[...j.tags,t] }))} style={{ background:nj.tags.includes(t)?C.terracottaL:C.bgSoft, border:`1px solid ${nj.tags.includes(t)?C.terracottaM:C.border}`, borderRadius:20, padding:"5px 12px", color:nj.tags.includes(t)?C.terracotta:C.textSoft, fontSize:12, fontWeight:nj.tags.includes(t)?600:400, transition:"all 0.15s" }}>{t}</button>)}
               </div>
             </div>
-            {!user.isTrial && !editId && (()=>{
+            {!user.isTrial && !editId && !(user.subscription_active && (user.subscription_limit||0) > 0) && (()=>{
               const _activeCnt = mine.filter(j=>j.active!==false).length;
               const _subLim = user.subscription_limit || 0;
               const _hasSub = user.subscription_active && _subLim > 0;
@@ -5608,7 +5608,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               </div>
             </div>
 
-            {!user.isTrial && !editId && (
+            {!user.isTrial && !editId && !(user.subscription_active && (user.subscription_limit||0) > 0) && (
               <div style={{ display:"flex", alignItems:"center", gap:12, padding:"13px 15px", background:C.sandL, borderRadius:12, border:`1px solid ${C.sand}40`, marginBottom:12 }}>
                 <span style={{ fontSize:20 }}>💳</span>
                 <div style={{ flex:1 }}>
