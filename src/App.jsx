@@ -5409,7 +5409,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   style={{ width:36, height:20, borderRadius:10, background:nj.salaryShown?C.sage:"#ccc", border:"none", cursor:"pointer", position:"relative", flexShrink:0, transition:"background 0.2s" }}>
                   <div style={{ width:16, height:16, borderRadius:8, background:"#fff", position:"absolute", top:2, left:nj.salaryShown?18:2, transition:"left 0.2s" }}/>
                 </button>
-                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : "(hidden — shows "Competitive")"}</span>
+                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : '(hidden — shows "Competitive")'}</span>
               </div>
             </div>
             {/* Location */}
@@ -6793,7 +6793,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   style={{ width:36, height:20, borderRadius:10, background:nj.salaryShown?C.sage:"#ccc", border:"none", cursor:"pointer", position:"relative", flexShrink:0, transition:"background 0.2s" }}>
                   <div style={{ width:16, height:16, borderRadius:8, background:"#fff", position:"absolute", top:2, left:nj.salaryShown?18:2, transition:"left 0.2s" }}/>
                 </button>
-                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : "(hidden — shows "Competitive")"}</span>
+                <span style={{ fontSize:12, color:C.textMid }}>Show salary on listing {nj.salaryShown ? "(visible to candidates)" : '(hidden — shows "Competitive")'}</span>
               </div>
 
               {/* Short description */}
