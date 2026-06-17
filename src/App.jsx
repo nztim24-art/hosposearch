@@ -7064,15 +7064,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     <button className="tap" onClick={async ()=>{
                       if(!window.confirm(`Delete ${u.name} (${u.email})? This removes their account, profile and listings permanently.`)) return;
                       try {
-                        // Hardcoded admin has no Supabase session — use admin secret instead
-                        const isHardcodedAdmin = user?.id === 'admin';
-                        let token = null, adminSecret = null;
-                        if (isHardcodedAdmin) {
-                          adminSecret = import.meta.env.VITE_ADMIN_SECRET;
-                        } else {
-                          const { data: { session } } = await supabase.auth.getSession();
-                          token = session?.access_token;
-                        }
+                        // AdminDash has no Supabase session — always use admin secret
+                        const adminSecret = import.meta.env.VITE_ADMIN_SECRET;
                         const r = await fetch('/api/admin-delete-user', {
                           method:'POST',
                           headers:{'Content-Type':'application/json'},
