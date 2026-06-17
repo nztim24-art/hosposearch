@@ -7061,12 +7061,19 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                   </div>
                   <div style={{ display:"flex", flexDirection:"column", gap:5 }}>
                     <button className="tap" onClick={()=>setEditUser({...u})} style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"6px 12px", color:C.terracotta, fontSize:12, fontWeight:600 }}>Edit</button>
-                    <button className="tap" onClick={()=>{
-                      if(window.confirm(`Delete ${u.name}? This cannot be undone.`)) {
+                    <button className="tap" onClick={async ()=>{
+                      if(!window.confirm(`Delete ${u.name} (${u.email})? This removes their account, profile and listings permanently.`)) return;
+                      try {
+                        const { data: { session } } = await supabase.auth.getSession();
+                        const r = await fetch('/api/admin-delete-user', {
+                          method:'POST',
+                          headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify({ token: session?.access_token, userId: u.id }),
+                        });
+                        const data = await r.json();
+                        if (!r.ok) { alert('Delete failed: ' + (data.error||r.status)); return; }
                         setAllUsers(p=>p.filter(x=>x.id!==u.id));
-                        // Also delete from Supabase
-                        supabase.from('profiles').delete().eq('id', u.id).then(({error})=>{ if(error) console.warn('Delete user error:',error); });
-                      }
+                      } catch(e) { alert('Delete failed: ' + e.message); }
                     }} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:8, padding:"6px 12px", color:C.error, fontSize:12, fontWeight:600 }}>Delete</button>
                   </div>
                 </div>
