@@ -318,6 +318,9 @@ const HOSPO_ROLES = {
     "General Manager","Operations Manager","Food & Beverage Manager","Venue Manager",
     "Events Manager","Catering Manager","Hotel Manager","Executive Assistant Manager",
   ],
+  "Sales & Business Development": [
+    "Wedding Sales","Sales Executive","Business Development",
+  ],
   "Hotel & Accommodation": [
     "Concierge","Front Desk / Reception","Housekeeping","Room Service","Porter / Bellhop",
     "Night Auditor","Reservations Manager",
@@ -3097,12 +3100,13 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                         ))}
                         {customQ.map((q,i)=>(
                           <div key={`custom_${i}`}>
-                            <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:5 }}>✏️ {q}</div>
-                            <input
+                            <div style={{ color:C.textSoft, fontSize:13, fontWeight:600, marginBottom:5 }}>✏️ {q}</div>
+                            <textarea
                               value={(fd.screeningAnswers||{})[`custom_${i}`]||""}
                               onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), [`custom_${i}`]:e.target.value}}))}
                               placeholder="Your answer…"
-                              style={IS}
+                              rows={3}
+                              style={{...IS, resize:"vertical", lineHeight:1.5}}
                             />
                           </div>
                         ))}
@@ -5501,25 +5505,36 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <div style={{ marginBottom:16 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
               <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>Candidates must answer selected questions when applying</div>
-              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
-                {[
-                  ["rightToWork",        "🛂 Right to work in this country?"],
-                  ["yearsExperience",    "📅 Years of hospitality experience?"],
-                  ["noticePeriod",       "⏱ Notice period / when can you start?"],
-                  ["policeCheck",        "🔒 Current police check?"],
-                  ["availableWeekends",  "📆 Available to work weekends?"],
-                  ["availablePublicHols","🎉 Available to work public holidays?"],
-                  ["driverLicence",      "🚗 Current driver's licence?"],
-                  ["willingToRelocate",  "✈️ Willing to relocate?"],
-                ].map(([key,label])=>(
-                  <div key={key} className="tap" onClick={()=>setNj(j=>({...j,screeningQ:{...(j.screeningQ||{}),[key]:!(j.screeningQ||{})[key]}}))}
-                    style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:(nj.screeningQ||{})[key]?C.sageL:C.bgSoft, border:`1px solid ${(nj.screeningQ||{})[key]?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer" }}>
-                    <div style={{ width:18, height:18, borderRadius:4, background:(nj.screeningQ||{})[key]?C.sage:"#ddd", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
-                      {(nj.screeningQ||{})[key] && <Icon name="check" size={11} color="#fff"/>}
-                    </div>
-                    <span style={{ color:(nj.screeningQ||{})[key]?C.sage:C.textMid, fontSize:13 }}>{label}</span>
-                  </div>
-                ))}
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>{(()=>{
+                const _sqPre = Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&(nj.screeningQ||{})[k]).length;
+                const _sqCust = ((nj.screeningQ||{}).custom||[]).length;
+                const _sqAtMax = (_sqPre + _sqCust) >= 5;
+                return (<>
+                  <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>{_sqPre+_sqCust}/5 questions selected</div>
+                  {_sqAtMax && <div style={{ color:C.terracotta, fontSize:12, fontWeight:600, marginBottom:2 }}>Maximum reached — deselect one to add another</div>}
+                  {[
+                    ["rightToWork",        "🛂 Right to work in this country?"],
+                    ["yearsExperience",    "📅 Years of hospitality experience?"],
+                    ["noticePeriod",       "⏱ Notice period / when can you start?"],
+                    ["policeCheck",        "🔒 Current police check?"],
+                    ["availableWeekends",  "📆 Available to work weekends?"],
+                    ["availablePublicHols","🎉 Available to work public holidays?"],
+                    ["driverLicence",      "🚗 Current NZ / AU driver's licence?"],
+                    ["willingToRelocate",  "✈️ Willing to relocate?"],
+                  ].map(([key,label])=>{
+                    const _chk = !!(nj.screeningQ||{})[key];
+                    const _dis = _sqAtMax && !_chk;
+                    return (
+                      <div key={key} className={_dis?"":"tap"} onClick={()=>{ if(_dis) return; setNj(j=>({...j,screeningQ:{...(j.screeningQ||{}),[key]:!(j.screeningQ||{})[key]}})); }}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:_chk?C.sageL:C.bgSoft, border:`1px solid ${_chk?C.sage+"50":C.border}`, borderRadius:9, cursor:_dis?"not-allowed":"pointer", opacity:_dis?0.4:1 }}>
+                        <div style={{ width:18, height:18, borderRadius:4, background:_chk?C.sage:"#ddd", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          {_chk && <Icon name="check" size={11} color="#fff"/>}
+                        </div>
+                        <span style={{ color:_chk?C.sage:C.textMid, fontSize:13 }}>{label}</span>
+                      </div>
+                    );
+                  })}</>);
+              })()}
 
                 {/* Custom questions */}
                 {((nj.screeningQ||{}).custom||[]).map((q,i)=>(
@@ -5535,19 +5550,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   </div>
                 ))}
 
-                {/* Add custom question input */}
-                <div style={{ display:"flex", gap:8, marginTop:4 }}>
-                  <input
-                    id="customQInput"
-                    placeholder="✏️ Add a custom question…"
-                    style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 12px", color:C.textDark, fontSize:13 }}
-                    onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); e.target.value=""; }}}
-                  />
-                  <button className="tap" onClick={()=>{ const el=document.getElementById("customQInput"); const v=el?.value?.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); if(el) el.value=""; }}
-                    style={{ background:C.sage, border:"none", borderRadius:9, padding:"9px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", flexShrink:0 }}>
-                    Add
-                  </button>
-                </div>
+                {/* Add custom question input - hidden at max */}
+                {(Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&(nj.screeningQ||{})[k]).length + ((nj.screeningQ||{}).custom||[]).length) < 5 && (
+                  <div style={{ display:"flex", gap:8, marginTop:4 }}>
+                    <input
+                      id="customQInput"
+                      placeholder="✏️ Add a custom question…"
+                      style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"9px 12px", color:C.textDark, fontSize:13 }}
+                      onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); const v=e.target.value.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); e.target.value=""; }}}
+                    />
+                    <button className="tap" onClick={()=>{ const el=document.getElementById("customQInput"); const v=el?.value?.trim(); if(!v) return; setNj(j=>{ const custom=[...(j.screeningQ?.custom||[]),v]; return {...j, screeningQ:{...(j.screeningQ||{}), custom}}; }); if(el) el.value=""; }}
+                      style={{ background:C.sage, border:"none", borderRadius:9, padding:"9px 14px", color:"#fff", fontWeight:700, fontSize:13, cursor:"pointer", flexShrink:0 }}>
+                      Add
+                    </button>
+                  </div>
+                )}
                 <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>Type a question and press Enter or Add — candidates will be asked to answer it when applying</div>
               </div>
             </div>
@@ -6780,7 +6797,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:8, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(candidates must answer when applying)</span></div>
                 <div style={{ display:"flex", flexDirection:"column", gap:7 }}>
                   {[
-                    ["rightToWork", "Right to work in Australia?"],
+                    ["rightToWork", "🛂 Right to work in this country?"],
                     ["yearsExperience", "Years of hospitality experience?"],
                     ["noticePeriod", "Notice period required?"],
                     ["policeCheck", "Do you have a current police check?"],
