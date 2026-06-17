@@ -3359,18 +3359,25 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
   const [screen, setScreen] = useState(defaultScreen); // login | signup
   const [mode, setMode] = useState(defaultMode);
   const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
+  const [stayLoggedIn, setStayLoggedIn] = useState(()=>localStorage.getItem('hs_stay_logged_in')!=='0');
   // Sign up fields
   const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:defaultMode });
   const [suErr, setSuErr] = useState("");
   const [suDone, setSuDone] = useState(false);
 
+  const _saveStayLoggedInImmediate = (val) => {
+    localStorage.setItem('hs_stay_logged_in', val ? '1' : '0');
+    if (!val) { sessionStorage.setItem('hs_temp_session', '1'); }
+    else { sessionStorage.removeItem('hs_temp_session'); }
+  };
+
   const go = async () => {
     setErr("");
     // Check hardcoded admin first
-    if (email===ADMIN.email&&pass===ADMIN.password) { onLogin(ADMIN,"admin"); return; }
+    if (email===ADMIN.email&&pass===ADMIN.password) { _saveStayLoggedInImmediate(stayLoggedIn); onLogin(ADMIN,"admin"); return; }
     // Check hardcoded trial account
     const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
-    if (trial) { onLogin(trial,"employer"); return; }
+    if (trial) { _saveStayLoggedInImmediate(stayLoggedIn); onLogin(trial,"employer"); return; }
     // Check demo accounts — detect wrong account type and give helpful message
     const wrongPool = mode==="employer"?EMPLOYEES:EMPLOYERS;
     const wrongType = wrongPool.find(u=>u.email===email&&u.password===pass);
@@ -3396,11 +3403,22 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
           setErr("This account is registered as an Employer. Switch the toggle to Employer to log in.");
           return;
         }
+        _saveStayLoggedIn(stayLoggedIn);
         onLogin(profile, accountType);
         return;
       }
     } catch(e) {
       setErr("Incorrect email or password.");
+    }
+  };
+
+  const _saveStayLoggedIn = (val) => {
+    localStorage.setItem('hs_stay_logged_in', val ? '1' : '0');
+    if (!val) {
+      // Mark this browser tab session as active — cleared when browser closes
+      sessionStorage.setItem('hs_temp_session', '1');
+    } else {
+      sessionStorage.removeItem('hs_temp_session');
     }
   };
 
@@ -3504,6 +3522,12 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
             <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" style={IS}/>
             <input value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" type="password" onKeyDown={e=>e.key==="Enter"&&go()} style={IS}/>
             {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{err}</div>}
+            <div className="tap" onClick={()=>setStayLoggedIn(v=>!v)} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", userSelect:"none" }}>
+              <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${stayLoggedIn?C.terracotta:C.border}`, background:stayLoggedIn?C.terracotta:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
+                {stayLoggedIn && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+              <span style={{ fontSize:13, color:C.textMid }}>Stay logged in</span>
+            </div>
             <button className="btn-cta tap" onClick={go} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Log In</button>
           </div>
         </div>
@@ -7069,7 +7093,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                         const r = await fetch('/api/admin-delete-user', {
                           method:'POST',
                           headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ token, adminSecret, userId: u.id }),
+                          body: JSON.stringify({ adminSecret, userId: u.id }),
                         });
                         const data = await r.json();
                         if (!r.ok) { alert('Delete failed: ' + (data.error||r.status)); return; }
@@ -7468,11 +7492,19 @@ export default function App() {
 
     const init = async () => {
       try {
-        // Try to restore session from Supabase
-        const profile = await getSession();
-        if (profile) {
-          setUser(profile);
-          setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+        // "Stay logged in" check — if unchecked, only restore if still in same browser session
+        const _stay = localStorage.getItem('hs_stay_logged_in') !== '0';
+        const _tempActive = sessionStorage.getItem('hs_temp_session') === '1';
+        if (!_stay && !_tempActive) {
+          // User chose not to stay logged in and browser was closed — clear session
+          try { await signOut(); } catch(e) {}
+        } else {
+          // Try to restore session from Supabase
+          const profile = await getSession();
+          if (profile) {
+            setUser(profile);
+            setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+          }
         }
       } catch(e) { /* no session — show login */ }
 
@@ -7509,6 +7541,8 @@ export default function App() {
 
   const logout = async () => {
     try { await signOut(); } catch(e) {}
+    localStorage.removeItem('hs_stay_logged_in');
+    sessionStorage.removeItem('hs_temp_session');
     setUser(null); setType(null);
   };
 
