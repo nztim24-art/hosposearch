@@ -3557,10 +3557,10 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
   return (
     <div style={{ minHeight:"100vh", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px", overflow:"auto", position:"relative" }}>
       {onClose && (
-        <button onClick={onClose} style={{ position:"fixed", top:16, left:16, display:"flex", alignItems:"center", gap:6, background:"none", border:"none", color:C.textSoft, fontSize:14, fontWeight:600, cursor:"pointer", padding:"8px 12px", borderRadius:20, transition:"background 0.15s" }}
+        <button onClick={()=>window.history.back()} style={{ position:"fixed", top:16, left:16, display:"flex", alignItems:"center", gap:6, background:"none", border:"none", color:C.textSoft, fontSize:14, fontWeight:600, cursor:"pointer", padding:"8px 12px", borderRadius:20, transition:"background 0.15s" }}
           onMouseEnter={e=>e.currentTarget.style.background=C.bgSoft}
           onMouseLeave={e=>e.currentTarget.style.background="none"}>
-          <span style={{ fontSize:18 }}>←</span> Back to jobs
+          <span style={{ fontSize:18 }}>←</span> Back
         </button>
       )}
       <style>{G}</style>
@@ -6716,6 +6716,34 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [editSaved, setEditSaved] = useState(false);
   const [newCode, setNewCode] = useState({ code:"", pct:10, uses:50, desc:"", expires:"" });
   const [codeSaved, setCodeSaved] = useState(false);
+  const [weeklyIds, setWeeklyIds] = useState(()=>{ try{ return JSON.parse(localStorage.getItem('hs_weekly_email')||'[]'); }catch(e){ return []; } });
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const toggleWeekly = (id) => {
+    setWeeklyIds(prev => {
+      const next = prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id];
+      localStorage.setItem('hs_weekly_email', JSON.stringify(next));
+      return next;
+    });
+  };
+  const sendWeeklyEmail = async () => {
+    if (weeklyIds.length === 0) return;
+    setEmailSending(true);
+    try {
+      const res = await fetch('/api/send-weekly-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminSecret: 'hospo-admin-2024', jobIds: weeklyIds }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Send failed');
+      setEmailSent(true);
+      setWeeklyIds([]);
+      localStorage.removeItem('hs_weekly_email');
+      setTimeout(() => setEmailSent(false), 4000);
+    } catch(e) { alert('Send failed: ' + e.message); }
+    setEmailSending(false);
+  };
 
   // Post job state
   const ADMIN_EMPLOYER = { id:"admin", name:"HospoSearch", handle:"hosposearch", avatar:"🍽️", verified:true, cuisine:"All sectors", size:"Platform", awards:[] };
@@ -6826,7 +6854,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
       </div>
       <div style={{ display:"flex", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
-        {[["listings","📋 Listings"],["post","➕ Post Job"],["users","👥 Users"],["docs","📁 Uploads"],["codes","🎟️ Codes"]].map(([t,l])=>(
+        {[["listings","📋 Listings"],["post","➕ Post Job"],["users","👥 Users"],["docs","📁 Uploads"],["codes","🎟️ Codes"],["email","📧 Email"]].map(([t,l])=>(
           <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:12, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
         ))}
       </div>
@@ -6863,6 +6891,10 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>👁 {j.views||0} view{j.views!==1?"s":""}</span>
                       <span style={{ background:(j.apps?.length||0)>0?C.terracottaL:C.bgSoft, borderRadius:7, padding:"4px 9px", color:(j.apps?.length||0)>0?C.terracotta:C.textSoft, fontSize:11, fontWeight:(j.apps?.length||0)>0?700:400 }}>📋 {j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
+                      <button className="tap" onClick={()=>toggleWeekly(j.id)} title={weeklyIds.includes(j.id)?"Remove from weekly email":"Add to weekly email"}
+                        style={{ background:weeklyIds.includes(j.id)?C.terracottaL:"#fff", border:`1px solid ${weeklyIds.includes(j.id)?C.terracotta:C.border}`, borderRadius:7, padding:"4px 10px", color:weeklyIds.includes(j.id)?C.terracotta:C.textSoft, fontSize:11, fontWeight:600, cursor:"pointer" }}>
+                        📧{weeklyIds.includes(j.id)?" ✓":""}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -7179,6 +7211,45 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
         )}
 
         {/* Discount Codes */}
+        {tab==="email" && (
+          <div style={{ maxWidth:600, margin:"0 auto", padding:"8px 0" }}>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:4 }}>📧 Weekly Email</div>
+            <div style={{ color:C.textSoft, fontSize:13, marginBottom:20 }}>Select listings from the Listings tab using the 📧 button, then send to all job seekers.</div>
+            {emailSent && <div style={{ background:C.sageL, border:`1px solid ${C.sage}`, borderRadius:10, padding:"12px 16px", color:C.sage, fontWeight:600, fontSize:14, marginBottom:16 }}>✅ Weekly email sent successfully!</div>}
+            {weeklyIds.length === 0 ? (
+              <div style={{ textAlign:"center", padding:"40px 20px", color:C.textFaint }}>
+                <div style={{ fontSize:40, marginBottom:10 }}>📬</div>
+                <div style={{ fontSize:14 }}>No listings selected yet.</div>
+                <div style={{ fontSize:12, marginTop:6 }}>Go to Listings and tap 📧 on the ones you want to include.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize:13, color:C.textSoft, marginBottom:12 }}>{weeklyIds.length} listing{weeklyIds.length!==1?"s":""} selected for this week's email:</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:8, marginBottom:20 }}>
+                  {weeklyIds.map(id => {
+                    const j = jobs.find(x=>x.id===id);
+                    if (!j) return null;
+                    return (
+                      <div key={id} style={{ display:"flex", alignItems:"center", justifyContent:"space-between", background:C.bgSoft, borderRadius:10, padding:"10px 14px" }}>
+                        <div>
+                          <div style={{ fontWeight:600, fontSize:13, color:C.textDark }}>{j.title}</div>
+                          <div style={{ fontSize:11, color:C.textSoft }}>{j.venue} · {j.loc}</div>
+                        </div>
+                        <button className="tap" onClick={()=>toggleWeekly(id)} style={{ background:"none", border:"none", color:C.error, fontSize:18, cursor:"pointer" }}>×</button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <button className="tap" onClick={sendWeeklyEmail} disabled={emailSending}
+                  style={{ width:"100%", background:emailSending?"#ccc":C.terracotta, border:"none", borderRadius:12, padding:"14px 0", color:"#fff", fontSize:15, fontWeight:700, cursor:emailSending?"default":"pointer", boxShadow:emailSending?"none":"0 4px 14px rgba(196,98,58,0.3)" }}>
+                  {emailSending ? "Sending…" : `Send to all job seekers →`}
+                </button>
+                <div style={{ fontSize:11, color:C.textFaint, textAlign:"center", marginTop:8 }}>This will email all job seekers who are signed up to HospoSearch.</div>
+              </>
+            )}
+          </div>
+        )}
+
         {tab==="codes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:4 }}>Discount Codes</div>
