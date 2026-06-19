@@ -3831,7 +3831,7 @@ function SubscribePlans({ user, onSubscribe }) {
       key: "pro",
       name: "Pro",
       icon: "🥇",
-      price: 399,
+      price: 350,
       limit: 10,
       color: "#FFD700",
       colorL: "#FFFBEB",
@@ -6042,9 +6042,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <p style={{ color:C.textSoft, fontSize:13, marginBottom:20 }}>Post more, pay less. Cancel anytime.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {[
-                { name:"Starter", price:99, priceId:"price_1TfwByGkG9EGtGJg9FeaYFE2", sub:"3 active listings", featured:false, feats:["3 active listings at any time","All Bronze features on every listing","Application dashboard","Cancel anytime"] },
-                { name:"Growth",  price:199, priceId:"price_1TfwC5GkG9EGtGJglmXiYPOV", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","All Silver features on every listing","Candidate search & messaging","Cancel anytime"] },
-                { name:"Pro",     price:399, priceId:"price_1TfwCAGkG9EGtGJgDhgMbdHb", sub:"10 active listings", featured:false, feats:["10 active listings at any time","All Gold features on every listing","Instagram & Facebook promotion","Analytics dashboard","Cancel anytime"] },
+                { name:"Starter", price:125, priceId:"price_1TfwByGkG9EGtGJg9FeaYFE2", sub:"3 active listings", featured:false, feats:["3 active listings at any time","Bronze level listing on every post","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
+                { name:"Growth",  price:225, priceId:"price_1TfwC5GkG9EGtGJglmXiYPOV", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","Bronze level listing on every post","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
+                { name:"Pro",     price:350, priceId:"price_1TfwCAGkG9EGtGJgDhgMbdHb", sub:"10 active listings", featured:false, feats:["10 active listings at any time","Bronze level listing on every post","Save $15 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
               ].map(plan=>(
                 <div key={plan.name} style={{ background:"#fff", border:`${plan.featured?"2px":"1px"} solid ${plan.featured?C.terracotta:C.border}`, borderRadius:14, padding:"18px 20px", position:"relative" }}>
                   {plan.featured && <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)", background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"3px 14px", borderRadius:100, whiteSpace:"nowrap" }}>Most Popular</div>}
