@@ -378,17 +378,17 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'bronze', icon:'🥉', name:'Bronze', price:50, period:'one-time',
       color:'#C9A96E', colorD:'#8B6914',
-      features:['30-day listing visibility','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
+      features:['15-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
     },
     {
       key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
-      features:['Everything in Bronze','Pinned to top of feed 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts']
+      features:['Everything in Bronze','30-day listing visibility','Pinned to top of feed','Featured listings shown first in feed','Featured badge & silver star','3× more applications on average']
     },
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Gold "Premium Venue" verified badge']
+      features:['Everything in Silver','30-day listing visibility','Up to 5 screening questions','Shared to @hosposearch social media','Featured badge & gold star']
     },
   ]
   const subTiers = [
@@ -508,7 +508,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
           </div>
           {tab==='subscription' && (
             <div style={{marginTop:16,padding:'12px 16px',background:'#F5F0E8',borderRadius:10,fontSize:11,color:'#7A7570',lineHeight:1.6,textAlign:'left',maxWidth:480,margin:'16px auto 0'}}>
-              <strong style={{color:'#3A3733'}}>Subscription terms:</strong> Cancel anytime from your account dashboard. No refunds are issued on the current billing period. To avoid being charged for the next period, cancel before your renewal date. All subscription listings are Bronze level — upgrade individual listings anytime with a one-off payment.
+              <strong style={{color:'#3A3733'}}>Subscription terms:</strong> Cancel anytime from your account dashboard. No refunds are issued on the current billing period. To avoid being charged for the next period, cancel before your renewal date. Subscription listings run for 15 days. Upgrade any listing to Silver or Gold for 30-day visibility and featured placement.
             </div>
           )}
         </div>
@@ -844,11 +844,11 @@ export default function Landing() {
             const DOT = '#C4623A';
             const listingTiers = [
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
-                feats:['30-day listing visibility','Up to 5 photos','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
+                feats:['15-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
-                feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
+                feats:['Everything in Bronze','30-day listing visibility','Pinned to top of feed','Featured listings shown first in feed','Featured badge & silver star','3× more applications on average'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Gold "Premium Venue" verified badge'] },
+                feats:['Everything in Silver','30-day listing visibility','Up to 5 screening questions','Shared to @hosposearch social media','Featured badge & gold star'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
@@ -911,7 +911,7 @@ export default function Landing() {
           {/* Subscription fine print */}
           {pricingTab==='subscription' && (
             <div style={{maxWidth:660,margin:'-32px auto 40px',textAlign:'center',fontSize:11,color:'#A8A29A',lineHeight:1.7,padding:'0 16px'}}>
-              Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. All subscription listings are Bronze level. Individual listings can be upgraded to Silver or Gold anytime with a one-off payment.
+              Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. Subscription listings run for 15 days. Upgrade any listing to Silver or Gold (+$20/$50) for 30-day visibility and featured placement.
             </div>
           )}
 
@@ -933,12 +933,14 @@ export default function Landing() {
                 <tbody>
                   {[
                     ['Price per listing', '$275–$695+', px(50), px(70), px(100)],
+                    ['Listing duration','30 days','15 days','30 days','30 days'],
                     ['Hospitality-specific','✗','✓','✓','✓'],
                     ['Instagram-style feed','✗','✓','✓','✓'],
                     ['Story-style profiles','✗','✓','✓','✓'],
-                    ['Pinned to top of feed','Extra cost','—','✓ 30 days','✓ 30 days'],
-                    ['Social media promotion','✗','✗','✗','✓ Instagram + Facebook'],
-                    ['Screening questions','Extra cost','✗','✗','✓ Up to 5'],
+                    ['Featured first in feed','Extra cost','—','✓','✓'],
+                    ['Pinned to top of feed','Extra cost','—','✓','✓'],
+                    ['Social media promotion','✗','✗','✗','✓ @hosposearch social media'],
+                    ['Screening questions','Extra cost','✓ Up to 5','✓ Up to 5','✓ Up to 5'],
                   ].map(([feat,...vals])=>(
                     <tr key={feat} style={{borderBottom:'1px solid var(--border)'}}>
                       <td style={{padding:'11px 20px',color:'var(--ink)',fontWeight:500}}>{feat}</td>
@@ -1068,7 +1070,7 @@ export default function Landing() {
               <h3 className="hs-split-title">Find your next role in hospitality</h3>
               <p className="hs-split-desc">Browse roles from the best venues in Australia, New Zealand and worldwide. Apply in seconds — it's completely free.</p>
               <ul className="hs-feat-list">
-                {['Swipe through roles like an Instagram feed','Filter by country, state, city, sector and role type','Save résumé & cover letter to auto-attach','Track every application and its status','Get job alerts for matching roles','Build a portfolio with work history and photos','Collect verified references and skill endorsements'].map(f=><li key={f}>{f}</li>)}
+                {['Swipe through roles like an Instagram feed','Filter by country, state, city, sector and role type','Save résumé & cover letter to auto-attach','Track every application and its status','Get job alerts for matching roles','Build a portfolio with work history and photos','Verified work history and references'].map(f=><li key={f}>{f}</li>)}
               </ul>
               <Link to="/app" className="btn-cand">Browse Jobs — Free →</Link>
             </div>
@@ -1118,7 +1120,7 @@ export default function Landing() {
             {[
               {emoji:'👨‍🍳',quote:'"I landed my Head Chef role within a week of signing up. The quality of venues on here is outstanding — these are exactly the kind of places I wanted to work. Best career move I\'ve made."',name:'Sarah Mitchell',role:'Head Chef · Melbourne'},
               {emoji:'👨‍🍳',quote:'"Finally a jobs platform that actually understands hospitality. The Instagram-style feed makes it so easy to browse — I got three interviews in my first week."',name:'Jordan Lim',role:'Chef de Partie · Melbourne'},
-              {emoji:'👩‍🍳',quote:'"The verified references feature is game-changing. Employers can see my track record before we even have a conversation. Landed my dream role at a hatted restaurant."',name:'Mia Santos',role:'Floor Manager · Sydney'},
+              {emoji:'👩‍🍳',quote:'"Found my dream role at a hatted restaurant within two weeks. The application process was so much easier than anything else I've tried."',name:'Mia Santos',role:'Floor Manager · Sydney'},
             ].map(t=>(
               <div className="hs-testi-card" key={t.name}>
                 <div className="hs-stars">★★★★★</div>

@@ -104,7 +104,9 @@ export default async function handler(req, res) {
 
         if (jobId) {
           // 30-day listing window — fresh clock on every payment (incl. re-activation)
-          const expiresAt = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+          // Bronze = 15 days, Silver/Gold = 30 days
+          const days = tier === 'bronze' ? 15 : 30;
+          const expiresAt = new Date(Date.now() + days*24*60*60*1000).toISOString();
           await supabaseUpdate('jobs', {
             paid: true,
             active: true,
