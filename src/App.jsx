@@ -7629,12 +7629,8 @@ export default function App() {
   const [type, setType]     = useState(null);
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showLogin, setShowLogin] = useState(()=>{
-    if (typeof window === 'undefined') return false;
-    const p = new URLSearchParams(window.location.search);
-    return p.get('login') === '1';
-  });
-  const [showSignup, setShowSignup] = useState(false);;
+  const [showLogin, setShowLogin] = useState(false);
+  const [showSignup, setShowSignup] = useState(false);
   const [jobs, setJobs]     = useState(INIT_JOBS);
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
@@ -7820,6 +7816,9 @@ export default function App() {
     </div>
   );
   if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
+  const _loginParam = new URLSearchParams(window.location.search).get('login') === '1';
+  const _typeParam  = new URLSearchParams(window.location.search).get('type') || 'employee';
+  if (!user && _loginParam) return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
   if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
