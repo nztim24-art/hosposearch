@@ -112,6 +112,30 @@ export default async function handler(req, res) {
             featured: ['silver','gold'].includes(tier),
             expires_at: expiresAt,
           }, { id: jobId });
+
+          // Notify admin when a Gold listing is purchased so they can reach out
+          if (tier === 'gold') {
+            try {
+              const resendKey = process.env.RESEND_API_KEY;
+              const buyerEmail = session.customer_details?.email || session.customer_email || 'unknown';
+              if (resendKey) {
+                await fetch('https://api.resend.com/emails', {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    from: 'HospoSearch <noreply@hosposearch.com>',
+                    to: ['tim@hosposearch.com.au'],
+                    subject: '🥇 Gold listing purchased — reach out to help',
+                    html: `<h2>Gold listing purchased</h2>
+                      <p><strong>Buyer:</strong> ${buyerEmail}</p>
+                      <p><strong>Job ID:</strong> ${jobId}</p>
+                      <p><strong>Amount:</strong> $${(session.amount_total/100).toFixed(2)} AUD</p>
+                      <p>Reach out to offer photo assistance and concierge onboarding.</p>`,
+                  }),
+                });
+              }
+            } catch(e) { console.warn('Gold notification email failed:', e.message); }
+          }
         }
 
       } else if (mode === 'subscription') {

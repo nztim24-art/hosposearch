@@ -395,17 +395,20 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'starter', icon:'🥉', name:'Starter', price:99, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
-      features:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Cancel anytime — no lock-in']
+      tagline:'Great for small to medium businesses with regular hiring needs',
+      features:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'growth', icon:'🥈', name:'Growth', price:199, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
-      features:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Cancel anytime — no lock-in']
+      tagline:'Great for venues gearing up for seasonal rushes or rapid expansion',
+      features:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'pro', icon:'🥇', name:'Pro', price:399, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
-      features:['10 active listings at any time','Bronze level listing on every post','Instagram & Facebook promotion','Bulk application management','Analytics dashboard','Custom venue landing page','Cancel anytime — no lock-in']
+      tagline:'Great for hotels, resorts and large venue groups with ongoing staffing',
+      features:['10 active listings at any time','Bronze level listing on every post','Bulk application management','Analytics dashboard','Custom venue landing page','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
   ]
   const tiers = tab === 'listing' ? listingTiers : subTiers
@@ -457,7 +460,8 @@ function PricingModal({ onClose, defaultTab='listing' }) {
                   <span style={{width:8,height:8,borderRadius:'50%',background:'#C4623A',flexShrink:0}}/>
                   <div style={{color:isFeatured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{tier.name}</div>
                 </div>
-                {tier.limit && <div style={{color:'#A8A29A',fontSize:11,marginBottom:10}}>{tier.limit}</div>}
+                {tier.limit && <div style={{color:'#A8A29A',fontSize:11,marginBottom:4}}>{tier.limit}</div>}
+                {tier.tagline && <div style={{color:'#7A7570',fontSize:10,lineHeight:1.4,marginBottom:10,fontStyle:'italic',padding:'0 4px'}}>{tier.tagline}</div>}
 
                 {/* Price */}
                 <div style={{marginBottom:14}}>
@@ -672,8 +676,8 @@ export default function Landing() {
           {isLoggedIn
             ? <Link to="/app" style={{background:'var(--terra)',color:'white',padding:'8px 16px',borderRadius:100,fontWeight:600,fontSize:13,textDecoration:'none',whiteSpace:'nowrap'}}>Dashboard →</Link>
             : <>
-                <Link to="/app" style={{color:'var(--ink-mid)',fontWeight:600,fontSize:13,textDecoration:'none',padding:'8px 12px'}}>Log in</Link>
-                <Link to="/app" style={{background:'var(--terra)',color:'white',padding:'8px 16px',borderRadius:100,fontWeight:600,fontSize:13,textDecoration:'none',whiteSpace:'nowrap'}}>Post a Job</Link>
+                <Link to="/app?login=1" style={{color:'var(--ink-mid)',fontWeight:600,fontSize:13,textDecoration:'none',padding:'8px 12px'}}>Log in</Link>
+                <Link to="/app?login=1&type=employer" style={{background:'var(--terra)',color:'white',padding:'8px 16px',borderRadius:100,fontWeight:600,fontSize:13,textDecoration:'none',whiteSpace:'nowrap'}}>Post a Job</Link>
               </>
           }
         </div>
@@ -694,12 +698,12 @@ export default function Landing() {
             </a>
             <div className="hs-dd-menu" style={{display:'none',position:'absolute',top:'100%',right:0,paddingTop:6,zIndex:200,minWidth:180}}>
               <div style={{background:'white',borderRadius:14,boxShadow:'0 8px 32px rgba(0,0,0,0.12)',border:'1px solid var(--border)',overflow:'hidden'}}>
-                <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
+                <Link to="/app?login=1&type=employee" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,borderBottom:'1px solid var(--border)',transition:'background 0.15s'}}
                   onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
                   onMouseLeave={e=>e.currentTarget.style.background='white'}>
                   <span style={{fontSize:18}}>👨‍🍳</span><div><div style={{fontWeight:600,fontSize:13}}>Job Seeker</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Find your next role</div></div>
                 </Link>
-                <Link to="/app" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,transition:'background 0.15s'}}
+                <Link to="/app?login=1&type=employer" style={{display:'flex',alignItems:'center',gap:10,padding:'13px 18px',textDecoration:'none',color:'var(--ink)',fontSize:14,fontWeight:500,transition:'background 0.15s'}}
                   onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
                   onMouseLeave={e=>e.currentTarget.style.background='white'}>
                   <span style={{fontSize:18}}>🍽️</span><div><div style={{fontWeight:600,fontSize:13}}>Employer</div><div style={{color:'var(--ink-soft)',fontSize:11}}>Post jobs & find talent</div></div>
@@ -848,11 +852,14 @@ export default function Landing() {
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
-                feats:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Cancel anytime — no lock-in'] },
+                tagline:'Great for small to medium businesses with regular hiring needs',
+                feats:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
-                feats:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Cancel anytime — no lock-in'] },
+                tagline:'Great for venues gearing up for seasonal rushes or rapid expansion',
+                feats:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
-                feats:['10 active listings at any time','Bronze level listing on every post','Instagram & Facebook promotion','Analytics dashboard','Custom venue landing page','Cancel anytime — no lock-in'] },
+                tagline:'Great for hotels, resorts and large venue groups with ongoing staffing',
+                feats:['10 active listings at any time','Bronze level listing on every post','Bulk application management','Analytics dashboard','Custom venue landing page','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
@@ -868,7 +875,8 @@ export default function Landing() {
                       <span style={{width:9,height:9,borderRadius:'50%',background:DOT,flexShrink:0}}/>
                       <div style={{color:t.featured?'#C4623A':'#7A7570',fontSize:11,fontWeight:700,letterSpacing:1.2,textTransform:'uppercase'}}>{t.name}</div>
                     </div>
-                    <div style={{color:'#A8A29A',fontSize:11,marginBottom:14}}>{t.sub}</div>
+                    <div style={{color:'#A8A29A',fontSize:11,marginBottom:isSub&&t.tagline?4:14}}>{t.sub}</div>
+                    {isSub && t.tagline && <div style={{color:'#7A7570',fontSize:11,lineHeight:1.45,marginBottom:14,fontStyle:'italic',padding:'0 4px'}}>{t.tagline}</div>}
                     <div style={{display:'flex',alignItems:'baseline',justifyContent:'center',gap:6}}>
                       <div style={{fontFamily:"'Playfair Display',serif",fontSize:46,fontWeight:800,color:'#0F0E0C',lineHeight:1,letterSpacing:-1.5}}>{px(t.price)}</div>
                       {isSub && <div style={{color:'#A8A29A',fontSize:13}}>/mo</div>}
