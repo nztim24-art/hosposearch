@@ -383,12 +383,12 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
-      features:['Everything in Bronze','30-day listing visibility','Pinned to top of feed','Featured listings shown first in feed','Featured badge & silver star','3× more applications on average']
+      features:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & silver star','Featured listings shown first in feed','3× more applications on average']
     },
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['Everything in Silver','30-day listing visibility','Up to 5 screening questions','Shared to @hosposearch social media','Featured badge & gold star']
+      features:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & gold star','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media']
     },
   ]
   const subTiers = [
@@ -846,9 +846,9 @@ export default function Landing() {
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
                 feats:['15-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
-                feats:['Everything in Bronze','30-day listing visibility','Pinned to top of feed','Featured listings shown first in feed','Featured badge & silver star','3× more applications on average'] },
+                feats:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & silver star','Featured listings shown first in feed','3× more applications on average'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['Everything in Silver','30-day listing visibility','Up to 5 screening questions','Shared to @hosposearch social media','Featured badge & gold star'] },
+                feats:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & gold star','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
