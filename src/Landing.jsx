@@ -395,20 +395,20 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'starter', icon:'🥉', name:'Starter', price:99, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
-      tagline:'Great for small to medium businesses with regular hiring needs',
-      features:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      tagline:'Great for small to medium venues with ongoing hiring — just $33 per listing vs $50 individually',
+      features:['3 active listings at any time','Bronze level listing on every post','Save $17 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'growth', icon:'🥈', name:'Growth', price:199, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
-      tagline:'Great for venues gearing up for seasonal rushes or rapid expansion',
-      features:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      tagline:'Great for venues gearing up for seasonal rushes or growth — just $33 per listing vs $50 individually',
+      features:['6 active listings at any time','Bronze level listing on every post','Save $17 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'pro', icon:'🥇', name:'Pro', price:399, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
-      tagline:'Great for hotels, resorts and large venue groups with ongoing staffing',
-      features:['10 active listings at any time','Bronze level listing on every post','Bulk application management','Analytics dashboard','Custom venue landing page','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $40 per listing vs $50 individually',
+      features:['10 active listings at any time','Bronze level listing on every post','Save $10 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
   ]
   const tiers = tab === 'listing' ? listingTiers : subTiers
@@ -852,14 +852,14 @@ export default function Landing() {
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:99, cta:'Start Starter Plan', featured:false,
-                tagline:'Great for small to medium businesses with regular hiring needs',
-                feats:['3 active listings at any time','Bronze level listing on every post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                tagline:'Great for small to medium venues with ongoing hiring — just $33 per listing vs $50 individually',
+                feats:['3 active listings at any time','Bronze level listing on every post','Save $17 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Growth', sub:'6 active listings', price:199, cta:'Start Growth Plan', featured:true,
-                tagline:'Great for venues gearing up for seasonal rushes or rapid expansion',
-                feats:['6 active listings at any time','Bronze level listing on every post','Candidate search & messaging','Highlighted in job alert emails','Priority application inbox','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                tagline:'Great for venues gearing up for seasonal rushes or growth — just $33 per listing vs $50 individually',
+                feats:['6 active listings at any time','Bronze level listing on every post','Save $17 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Pro', sub:'10 active listings', price:399, cta:'Start Pro Plan', featured:false,
-                tagline:'Great for hotels, resorts and large venue groups with ongoing staffing',
-                feats:['10 active listings at any time','Bronze level listing on every post','Bulk application management','Analytics dashboard','Custom venue landing page','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $40 per listing vs $50 individually',
+                feats:['10 active listings at any time','Bronze level listing on every post','Save $10 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
