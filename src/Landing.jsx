@@ -378,17 +378,17 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'bronze', icon:'🥉', name:'Bronze', price:50, period:'one-time',
       color:'#C9A96E', colorD:'#8B6914',
-      features:['15-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted']
+      features:['15-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime']
     },
     {
       key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
-      features:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & silver star','Featured listings shown first in feed','3× more applications on average']
+      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Cancel anytime']
     },
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & gold star','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media']
+      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Personal response from our team when your listing goes live','Cancel anytime']
     },
   ]
   const subTiers = [
@@ -396,19 +396,19 @@ function PricingModal({ onClose, defaultTab='listing' }) {
       key:'starter', icon:'🥉', name:'Starter', price:125, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
       tagline:'Great for small to medium venues with ongoing hiring — just $41.67 per listing vs $50 individually',
-      features:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      features:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'growth', icon:'🥈', name:'Growth', price:225, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
       tagline:'Great for venues gearing up for seasonal rushes or growth — just $37.50 per listing vs $50 individually',
-      features:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      features:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'pro', icon:'🥇', name:'Pro', price:350, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
       tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $35 per listing vs $50 individually',
-      features:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
+      features:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
   ]
   const tiers = tab === 'listing' ? listingTiers : subTiers
@@ -844,22 +844,22 @@ export default function Landing() {
             const DOT = '#C4623A';
             const listingTiers = [
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
-                feats:['15-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted'] },
+                feats:['15-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
-                feats:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & silver star','Featured listings shown first in feed','3× more applications on average'] },
+                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Cancel anytime'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['30-day listing visibility','Up to 5 photos','Up to 5 screening questions','Unlimited applications','Application management dashboard','Verified venue profile','Discount codes accepted','Pinned to top of feed','Featured badge & gold star','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media'] },
+                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Personal response from our team when your listing goes live','Cancel anytime'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
                 tagline:'Great for small to medium venues with ongoing hiring — just $41.67 per listing vs $50 individually',
-                feats:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                feats:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Growth', sub:'6 active listings', price:225, cta:'Start Growth Plan', featured:true,
                 tagline:'Great for venues gearing up for seasonal rushes or growth — just $37.50 per listing vs $50 individually',
-                feats:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                feats:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Pro', sub:'10 active listings', price:350, cta:'Start Pro Plan', featured:false,
                 tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $35 per listing vs $50 individually',
-                feats:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Application management dashboard','Verified venue profile','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
+                feats:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
