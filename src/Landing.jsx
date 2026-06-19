@@ -1120,7 +1120,7 @@ export default function Landing() {
             {[
               {emoji:'👨‍🍳',quote:'"I landed my Head Chef role within a week of signing up. The quality of venues on here is outstanding — these are exactly the kind of places I wanted to work. Best career move I\'ve made."',name:'Sarah Mitchell',role:'Head Chef · Melbourne'},
               {emoji:'👨‍🍳',quote:'"Finally a jobs platform that actually understands hospitality. The Instagram-style feed makes it so easy to browse — I got three interviews in my first week."',name:'Jordan Lim',role:'Chef de Partie · Melbourne'},
-              {emoji:'👩‍🍳',quote:'"Found my dream role at a hatted restaurant within two weeks. The application process was so much easier than anything else I've tried."',name:'Mia Santos',role:'Floor Manager · Sydney'},
+              {emoji:'👩‍🍳',quote:'"Found my dream role at a hatted restaurant within two weeks. The application process was so much easier than anything else I\'ve tried."',name:'Mia Santos',role:'Floor Manager · Sydney'},
             ].map(t=>(
               <div className="hs-testi-card" key={t.name}>
                 <div className="hs-stars">★★★★★</div>
