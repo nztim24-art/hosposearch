@@ -388,7 +388,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Priority application inbox','Gold "Premium Venue" verified badge']
+      features:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 screening questions','Gold "Premium Venue" verified badge']
     },
   ]
   const subTiers = [
@@ -848,7 +848,7 @@ export default function Landing() {
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
                 feats:['Everything in Bronze','Pinned to top of feed for 30 days','Featured badge & silver star','Priority in search results','3× more applications on average','Highlighted in candidate job alerts'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Priority application inbox','Gold "Premium Venue" verified badge'] },
+                feats:['Everything in Silver','Shared on @hosposearch Instagram','Shared on HospoSearch Facebook','Up to 5 employer screening questions','Gold "Premium Venue" verified badge'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
@@ -939,8 +939,6 @@ export default function Landing() {
                     ['Pinned to top of feed','Extra cost','—','✓ 30 days','✓ 30 days'],
                     ['Social media promotion','✗','✗','✗','✓ Instagram + Facebook'],
                     ['Screening questions','Extra cost','✗','✗','✓ Up to 5'],
-                    ['Priority application inbox','✗','✗','✗','✓'],
-                                        ['Candidate job alert emails','Paid add-on','✗','✓','✓'],
                   ].map(([feat,...vals])=>(
                     <tr key={feat} style={{borderBottom:'1px solid var(--border)'}}>
                       <td style={{padding:'11px 20px',color:'var(--ink)',fontWeight:500}}>{feat}</td>
