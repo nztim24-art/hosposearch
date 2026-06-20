@@ -3,15 +3,17 @@
 // No stripe npm package — uses native fetch.
 
 const LISTING_PRICE_IDS = {
-  'price_1TfwBfGkG9EGtGJgBv341e2n': 'bronze',
-  'price_1TfwBlGkG9EGtGJgGxDjQEhS': 'silver',
-  'price_1TfwBrGkG9EGtGJg6O8z5oAu': 'gold',
+  'price_1TYxkgGgUkBXedj25MHNk2OX':    'bronze',
+  'price_1TYxkbGgUkBXedj23615jbeg':    'silver',
+  'price_1TYxkdGgUkBXedj2p59j0zcZ':      'gold',
+  'price_1TkLi1GgUkBXedj2rGk7CBC1': 'silver', // silver upgrade from subscription
+  'price_1TkLhDGgUkBXedj21S867prY':   'gold',   // gold upgrade from subscription
 };
 
 const SUBSCRIPTION_PRICE_MAP = {
-  'price_1TfwByGkG9EGtGJg9FeaYFE2': { plan:'starter', limit:3 },
-  'price_1TfwC5GkG9EGtGJglmXiYPOV': { plan:'growth',  limit:6 },
-  'price_1TfwCAGkG9EGtGJgDhgMbdHb': { plan:'pro',     limit:10 },
+  'price_1TYyDFGgUkBXedj2J0cf9bjG': { plan:'starter', limit:3 },
+  'price_1TYyHMGgUkBXedj2SFs5zNUI':  { plan:'growth',  limit:6 },
+  'price_1TYyLJGgUkBXedj2Jvagygug':     { plan:'pro',     limit:10 },
 };
 
 async function stripeGet(path, key) {
