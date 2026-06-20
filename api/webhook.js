@@ -57,15 +57,24 @@ async function getRawBody(req) {
 async function verifySignature(rawBody, sig, secret) {
   const encoder = new TextEncoder();
   const parts = sig.split(',');
-  const timestamp = parts.find(p => p.startsWith('t=')).slice(2);
-  const v1 = parts.find(p => p.startsWith('v1=')).slice(3);
+  const tPart = parts.find(p => p.startsWith('t='));
+  if (!tPart) { console.error('No timestamp in signature'); return false; }
+  const timestamp = tPart.slice(2);
+
+  // Support both v1 (classic webhooks) and v2 (Workbench Event Destinations)
+  const v1Part = parts.find(p => p.startsWith('v1='));
+  const v2Part = parts.find(p => p.startsWith('v2='));
+  const sigHex = (v1Part || v2Part)?.split('=').slice(1).join('=');
+  if (!sigHex) { console.error('No v1 or v2 signature found in:', sig); return false; }
+
   const payload = `${timestamp}.${rawBody}`;
   const keyData = encoder.encode(secret);
   const msgData = encoder.encode(payload);
   const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name:'HMAC', hash:'SHA-256' }, false, ['sign']);
   const sig2 = await crypto.subtle.sign('HMAC', cryptoKey, msgData);
   const hex = Array.from(new Uint8Array(sig2)).map(b => b.toString(16).padStart(2,'0')).join('');
-  return hex === v1;
+  console.log('Signature check:', hex === sigHex ? 'PASS' : 'FAIL', '| format:', v1Part ? 'v1' : 'v2');
+  return hex === sigHex;
 }
 
 export default async function handler(req, res) {
