@@ -3744,12 +3744,12 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
       <div style={{ background:C.bgSoft, borderRadius:12, padding:"14px 16px", border:`1px solid ${C.border}`, marginBottom:16 }}>
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
           <span style={{ color:C.textSoft, fontSize:13 }}>{tierLabel} listing</span>
-          <span style={{ color:C.textDark, fontSize:13 }}>${basePrice}.00 AUD</span>
+          <span style={{ color:C.textDark, fontSize:13 }}>${basePrice.toFixed(2)} AUD</span>
         </div>
         {discount > 0 && (
           <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6 }}>
             <span style={{ color:C.sage, fontSize:13 }}>Discount ({appliedCode?.code})</span>
-            <span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>−${discount}.00</span>
+            <span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>−${discount.toFixed(2)}</span>
           </div>
         )}
         <div style={{ display:"flex", justifyContent:"space-between", marginBottom:8 }}>
@@ -3757,7 +3757,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
         </div>
         <div style={{ display:"flex", justifyContent:"space-between", borderTop:`1px solid ${C.border}`, paddingTop:10 }}>
           <span style={{ color:C.textDark, fontSize:15, fontWeight:700 }}>Total</span>
-          <span style={{ color:C.terracotta, fontSize:17, fontWeight:700 }}>${total}.00 AUD</span>
+          <span style={{ color:C.terracotta, fontSize:17, fontWeight:700 }}>${total.toFixed(2)} AUD</span>
         </div>
       </div>
 
@@ -3791,7 +3791,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
         <button className="tap" onClick={()=>{ notifyAbandoned(captureEmail||user?.email||''); onCancel(); }} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 0", color:C.textMid, fontSize:14 }}>Back</button>
         <button className="btn-cta tap" onClick={pay} disabled={loading}
           style={{ flex:2, background:loading?"#ccc":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:loading?"none":"0 4px 14px rgba(196,98,58,0.22)" }}>
-          {loading ? "Redirecting to Stripe…" : `Pay $${total}.00 AUD →`}
+          {loading ? "Redirecting to Stripe…" : `Pay $${total.toFixed(2)} AUD →`}
         </button>
       </div>
       <div style={{ textAlign:"center", marginTop:10, color:C.textFaint, fontSize:11 }}>Secured by Stripe · No GST charged</div>
