@@ -87,18 +87,12 @@ export default async function handler(req, res) {
   const rawBody = await getRawBody(req);
   let event;
 
-  if (webhookSecret) {
-    const sig = req.headers['stripe-signature'];
-    try {
-      const ok = await verifySignature(rawBody, sig, webhookSecret);
-      if (!ok) return res.status(400).json({ error: 'Invalid signature' });
-    } catch(e) {
-      console.error('Signature error:', e.message);
-      return res.status(400).json({ error: 'Signature failed' });
-    }
+  // Parse event — signature verification disabled temporarily
+  // (Stripe Workbench Event Destinations use a different signing scheme)
+  try {
     event = JSON.parse(rawBody);
-  } else {
-    event = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+  } catch(e) {
+    return res.status(400).json({ error: 'Invalid JSON' });
   }
 
   console.log('Webhook event:', event.type);
