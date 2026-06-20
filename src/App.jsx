@@ -2535,8 +2535,14 @@ function daysLeft(expiresAt) {
   if (ms <= 0) return 0;
   return Math.ceil(ms / (24*60*60*1000));
 }
-function CountdownBadge({ expiresAt, style }) {
+function CountdownBadge({ expiresAt, paid, style }) {
   const d = daysLeft(expiresAt);
+  // Unpaid/draft — never reached payment
+  if (!paid) return (
+    <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#F3F4F6", border:"1px solid #D1D5DB", color:"#6B7280", fontSize:11, fontWeight:600, padding:"3px 9px", borderRadius:20, ...style }}>
+      <Icon name="clock" size={11} color="#6B7280"/> Unpublished
+    </span>
+  );
   if (d === null) return null;
   const urgent = d <= 3;
   const expired = d === 0;
@@ -2579,7 +2585,7 @@ function MineJobCard({ job, onEdit, onApps, onExpand, onDelete }) {
           <div style={{ color:C.textSoft, fontSize:12, marginBottom:4 }}>{job.type} · {job.loc}</div>
           <div style={{ color:C.sand, fontWeight:600, fontSize:12, marginBottom:4 }}>{job.salary}</div>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-            <CountdownBadge expiresAt={job.expiresAt}/>
+            <CountdownBadge expiresAt={job.expiresAt} paid={job.paid}/>
             <span style={{ color:C.textFaint, fontSize:11 }}>{ago(job.ts)} ago</span>
           </div>
         </div>
@@ -2814,7 +2820,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         <div className="tap" onClick={()=>onExpand(job)} style={{ color:C.terracotta, fontSize:13, marginTop:7, cursor:"pointer", fontWeight:600 }}>View full role →</div>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:5 }}>
           <div style={{ color:C.textFaint, fontSize:11, textTransform:"uppercase", letterSpacing:0.5 }}>{ago(job.ts)} ago</div>
-          <CountdownBadge expiresAt={job.expiresAt}/>
+          <CountdownBadge expiresAt={job.expiresAt} paid={job.paid}/>
         </div>
       </div>
     </div>
@@ -5470,7 +5476,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 <div style={{ marginTop:24 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0 14px", color:C.textFaint, fontSize:12 }}>
                     <div style={{ flex:1, height:1, background:C.border }}/>
-                    <span style={{ fontWeight:600, letterSpacing:0.5 }}>COMPLETED LISTINGS</span>
+                    <span style={{ fontWeight:600, letterSpacing:0.5 }}>{expiredMine.some(j=>!j.paid) ? "INACTIVE LISTINGS" : "COMPLETED LISTINGS"}</span>
                     <div style={{ flex:1, height:1, background:C.border }}/>
                   </div>
                   {expiredMine.map(j=>{ const first=j.photos?.[0]; const isd=isData(first); return (
@@ -5483,8 +5489,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                           <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:2 }}>{j.title}</div>
                           <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {j.salary}</div>
                           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
-                            <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:"#FEE2E2", border:"1px solid #FCA5A5", color:"#B91C1C", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
-                              <Icon name="clock" size={10} color="#B91C1C"/> Expired
+                            <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:j.paid?"#FEE2E2":"#F3F4F6", border:`1px solid ${j.paid?"#FCA5A5":"#D1D5DB"}`, color:j.paid?"#B91C1C":"#6B7280", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
+                              <Icon name="clock" size={10} color={j.paid?"#B91C1C":"#6B7280"}/> {j.paid ? "Expired" : "Unpublished"}
                             </span>
                             {(j.apps?.length||0)>0 && (
                               <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
@@ -5505,10 +5511,17 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                           <Icon name="edit" size={13} color={C.textMid}/> Edit & relist
                         </button>
                       </div>
-                      <button className="tap" onClick={()=>setReactivateJob(j)}
-                        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
-                        ↻ Re-activate listing
-                      </button>
+                      {j.paid ? (
+                        <button className="tap" onClick={()=>setReactivateJob(j)}
+                          style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                          ↻ Re-activate listing
+                        </button>
+                      ) : (
+                        <button className="tap" onClick={()=>setCheckoutJob(j)}
+                          style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
+                          💳 Complete checkout to publish
+                        </button>
+                      )}
                     </div>
                   ); })}
                 </div>
