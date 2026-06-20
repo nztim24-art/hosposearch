@@ -3,15 +3,36 @@
 // Always uses server-side price IDs regardless of what the frontend sends.
 
 const PRICE_IDS = {
-  bronze: 'price_1TfwBfGkG9EGtGJgBv341e2n',  // $50 AUD
-  silver: 'price_1TfwBlGkG9EGtGJgGxDjQEhS',   // $70 AUD
-  gold:   'price_1TfwBrGkG9EGtGJg6O8z5oAu',   // $100 AUD
+  bronze:         'price_1TYxkgGgUkBXedj25MHNk2OX',  // $50 AUD
+  silver:         'price_1TYxkbGgUkBXedj23615jbeg',  // $70 AUD
+  gold:           'price_1TYxkdGgUkBXedj2p59j0zcZ',  // $100 AUD
+  silver_upgrade: 'price_1TkLi1GgUkBXedj2rGk7CBC1',  // $20 AUD
+  gold_upgrade:   'price_1TkLhDGgUkBXedj21S867prY',  // $50 AUD
 };
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { tier, jobTitle, venueEmail, jobId } = req.body || {};
+  const { tier, jobTitle, venueEmail, jobId, discountPct } = req.body || {};
+
+  // 100% discount — skip Stripe, activate job directly via Supabase
+  if (Number(discountPct) >= 100 && jobId) {
+    try {
+      const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const sbKey = process.env.SUPABASE_SERVICE_KEY;
+      const days = tier === 'bronze' ? 15 : 30;
+      const expiresAt = new Date(Date.now() + days*24*60*60*1000).toISOString();
+      await fetch(`${sbUrl}/rest/v1/jobs?id=eq.${jobId}`, {
+        method: 'PATCH',
+        headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
+        body: JSON.stringify({ paid: true, active: true, tier: tier || 'bronze', featured: ['silver','gold'].includes(tier), expires_at: expiresAt }),
+      });
+      const origin = req.headers.origin || 'https://www.hosposearch.com.au';
+      return res.status(200).json({ free: true, url: `${origin}/app?payment=success&tier=${tier || 'bronze'}&jobId=${jobId}` });
+    } catch(e) {
+      return res.status(500).json({ error: 'Free activation failed', detail: e.message });
+    }
+  }
 
   // Always resolve from server-side map — never trust client-sent price IDs
   const resolvedPriceId = PRICE_IDS[tier?.toLowerCase()] || PRICE_IDS.bronze;

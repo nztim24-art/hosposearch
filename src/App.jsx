@@ -14,15 +14,15 @@ const useIsDesktop = () => {
 // ─── Stripe ───────────────────────────────────────────────────────────────────
 const STRIPE_PK = "pk_test_51TYwmyGkG9EGtGJgeITW1dBzVae1mfXaac2ccNNjvk89D6s52Mgu4rdImGkCelAZd8UoVrWvf7MHe929Bzzmwokl00K7uBM1kw";
 
-async function createCheckoutSession(tier, jobTitle, venueEmail, jobId) {
+async function createCheckoutSession(tier, jobTitle, venueEmail, jobId, discountPct=0) {
   const res = await fetch('/api/create-checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tier, jobTitle, venueEmail, jobId }),
+    body: JSON.stringify({ tier, jobTitle, venueEmail, jobId, discountPct }),
   });
   if (!res.ok) throw new Error('Failed to create checkout session');
-  const { url } = await res.json();
-  return url;
+  const data = await res.json();
+  return data.url;
 }
 
 async function createSubscriptionSession(plan, userEmail, userId) {
@@ -3692,7 +3692,8 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
         tierKey,
         jobDraft?.title || '',
         user?.email || '',
-        jobDraft?.id || ''
+        jobDraft?.id || '',
+        appliedCode?.pct || 0
       );
       window.location.href = url;
     } catch(e) {
