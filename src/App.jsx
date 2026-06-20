@@ -132,6 +132,16 @@ const ROLE_TAGS = [
   "Full-time","Part-time","Casual","Live-in",
 ];
 const SALARY_BANDS = ["Under $50k","$50–70k","$70–90k","$90–110k","$110k+","Hourly Rate"];
+const CURRENCIES = [
+  { code:'AUD', symbol:'$', label:'AUD — Australian Dollar' },
+  { code:'NZD', symbol:'$', label:'NZD — New Zealand Dollar' },
+  { code:'GBP', symbol:'£', label:'GBP — British Pound' },
+  { code:'USD', symbol:'$', label:'USD — US Dollar' },
+  { code:'EUR', symbol:'€', label:'EUR — Euro' },
+  { code:'SGD', symbol:'$', label:'SGD — Singapore Dollar' },
+  { code:'JPY', symbol:'¥', label:'JPY — Japanese Yen' },
+  { code:'HKD', symbol:'$', label:'HKD — Hong Kong Dollar' },
+];
 
 // ─── Visa options by country ─────────────────────────────────────────────────
 const VISA_OPTIONS = {
@@ -5084,7 +5094,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   }, [jobs.length]);
   const _restoredDraft = window._draftJob;
   if (_restoredDraft) { delete window._draftJob; }
-  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
+  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryCurrency:"AUD", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState(_restoredDraft?.photos || [null,null,null,null,null]);
   const [njPosting, setNjPosting] = useState(false);
   // Image cropper: stash raw src + a callback that receives the cropped result
@@ -5189,7 +5199,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     // Pass photos as-is (base64 or number placeholders) — supabase.js handles upload
     const photoData = fp.length > 0 ? fp : [0, 1, 2];
     const hasActiveSub = user.subscription_active && (user.subscription_limit||0) > 0;
-    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary||"Competitive", salaryBand:nj.salaryBand, type:nj.type, payType:nj.payType||"Annually", workplace:nj.workplace||"On-site", salaryShown:nj.salaryShown!==false, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null, screeningQ:nj.screeningQ||{} };
+    return { empId:user.id, title:nj.title, venue:nj.venueName?.trim()||user.name, loc:locStr, address:nj.address?.trim()||"", country:nj.country, state:nj.state, city:nj.city, sector:nj.sector, roleType:nj.roleType, salary:nj.salary ? (nj.salary.match(/^[A-Z]{3} /) ? nj.salary : `${nj.salaryCurrency||"AUD"} ${nj.salary}`) : "Competitive", salaryBand:nj.salaryBand, type:nj.type, payType:nj.payType||"Annually", workplace:nj.workplace||"On-site", salaryShown:nj.salaryShown!==false, tags:nj.tags, short:nj.short, full:nj.full||nj.short, link:nj.link||"#", applyEmail:nj.applyEmail?.trim()||user.email||"", photos:photoData, video:null, verified:user.verified, featured:nj.featured, tier:nj.tier||"bronze", paid:hasActiveSub, active:true, avatar_url:user.avatar_url||null, screeningQ:nj.screeningQ||{} };
   };
 
   const resetForm = () => {
@@ -5561,7 +5571,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:5, fontWeight:600 }}>Venue Address <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional — shown on the listing)</span></div>
               <input value={nj.address||""} onChange={e=>setNj(j=>({...j,address:e.target.value}))} placeholder="e.g. 12 Marine Parade, Burleigh Heads QLD 4220" style={{ width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"11px 13px", color:C.textDark, fontSize:14 }}/>
             </div>
-            {[["Job Title *","title","e.g. Head Chef…"],["Salary / Rate","salary","e.g. $70k–$85k"],["Apply Link","link","https://…"]].map(([l,k,p])=>(
+            {[["Job Title *","title","e.g. Head Chef…"],["Apply Link","link","https://…"]].map(([l,k,p])=>(
               <div key={k} style={{ marginBottom:12 }}>
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:5, fontWeight:600 }}>{l}</div>
                 <input value={nj[k]} onChange={e=>setNj(j=>({...j,[k]:e.target.value}))} placeholder={p} style={IS}/>
@@ -5583,6 +5593,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 ))}
               </div>
             </div>
+            {/* Salary / Rate with currency */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:7, fontWeight:600 }}>Salary / Rate</div>
+              <div style={{ display:"flex", gap:8 }}>
+                <select value={nj.salaryCurrency||"AUD"} onChange={e=>setNj(j=>({...j,salaryCurrency:e.target.value}))}
+                  style={{ width:90, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13, flexShrink:0 }}>
+                  {CURRENCIES.map(c=><option key={c.code} value={c.code}>{c.code}</option>)}
+                </select>
+                <input value={nj.salary||""} onChange={e=>setNj(j=>({...j,salary:e.target.value}))} placeholder="e.g. 80,000"
+                  style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13 }}/>
+              </div>
+            </div>
+
             {/* Pay type as pills (SEEK-style) */}
             <div style={{ marginBottom:12 }}>
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:7, fontWeight:600 }}>Pay Type</div>
