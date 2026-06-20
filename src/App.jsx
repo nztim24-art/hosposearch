@@ -14,11 +14,11 @@ const useIsDesktop = () => {
 // ─── Stripe ───────────────────────────────────────────────────────────────────
 const STRIPE_PK = "pk_test_51TYwmyGkG9EGtGJgeITW1dBzVae1mfXaac2ccNNjvk89D6s52Mgu4rdImGkCelAZd8UoVrWvf7MHe929Bzzmwokl00K7uBM1kw";
 
-async function createCheckoutSession(tier, jobTitle, venueEmail, jobId, discountPct=0) {
+async function createCheckoutSession(tier, jobTitle, venueEmail, jobId, discountCode='') {
   const res = await fetch('/api/create-checkout', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ tier, jobTitle, venueEmail, jobId, discountPct }),
+    body: JSON.stringify({ tier, jobTitle, venueEmail, jobId, discountCode }),
   });
   if (!res.ok) throw new Error('Failed to create checkout session');
   const data = await res.json();
@@ -3699,7 +3699,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
         jobDraft?.title || '',
         user?.email || '',
         jobDraft?.id || '',
-        appliedCode?.pct || 0
+        appliedCode ? codeInput.trim().toUpperCase() : ''
       );
       window.location.href = url;
     } catch(e) {
