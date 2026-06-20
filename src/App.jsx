@@ -3253,6 +3253,9 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
 
       {/* Header */}
       <div style={{ display:"flex", alignItems:"center", padding:"12px 20px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+        <a href="/" style={{ display:"flex", alignItems:"center", gap:5, color:C.textSoft, fontSize:13, fontWeight:600, textDecoration:"none", marginRight:16, flexShrink:0 }}>
+          <span style={{ fontSize:16 }}>←</span>{!isDesktop ? "" : " Back"}
+        </a>
         <a href="/" style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:22, color:C.textDark, flex:1, textDecoration:"none", cursor:"pointer" }}>
           <span style={{ color:C.terracotta }}>Hospo</span>Search
         </a>

@@ -383,7 +383,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
-      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Cancel anytime']
+      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime']
     },
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
@@ -395,19 +395,19 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'starter', icon:'🥉', name:'Starter', price:125, period:'mo',
       color:'#C9A96E', colorD:'#8B6914', limit:'3 active listings',
-      tagline:'Great for small to medium venues with ongoing hiring — just $41.67 per listing vs $50 individually',
+      tagline:'Perfect for small venues with regular hiring needs',
       features:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'growth', icon:'🥈', name:'Growth', price:225, period:'mo',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true, limit:'6 active listings',
-      tagline:'Great for venues gearing up for seasonal rushes or growth — just $37.50 per listing vs $50 individually',
+      tagline:'Ideal for venues scaling up or hiring across seasons',
       features:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
     {
       key:'pro', icon:'🥇', name:'Pro', price:350, period:'mo',
       color:'#FFD700', colorD:'#D4A017', limit:'10 active listings',
-      tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $35 per listing vs $50 individually',
+      tagline:'Built for hotels, resorts & large venues with ongoing needs',
       features:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in']
     },
   ]
@@ -846,24 +846,24 @@ export default function Landing() {
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
                 feats:['15-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
-                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge makes your listing stand out','Featured listings shown first in feed','3× more applications on average','Cancel anytime'] },
+                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
                 feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & gold star — makes your listing unmissable','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Featured in our weekly curated email to active job seekers','Cancel anytime'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
-                tagline:'Great for small to medium venues with ongoing hiring — just $41.67 per listing vs $50 individually',
+                tagline:'Perfect for small venues with regular hiring needs',
                 feats:['3 active listings at any time','Bronze level listing on every post','Save up to $8 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Growth', sub:'6 active listings', price:225, cta:'Start Growth Plan', featured:true,
-                tagline:'Great for venues gearing up for seasonal rushes or growth — just $37.50 per listing vs $50 individually',
+                tagline:'Ideal for venues scaling up or hiring across seasons',
                 feats:['6 active listings at any time','Bronze level listing on every post','Save $12.50 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
               { name:'Pro', sub:'10 active listings', price:350, cta:'Start Pro Plan', featured:false,
-                tagline:'Great for hotels, resorts and large venues with constant staffing needs — just $35 per listing vs $50 individually',
+                tagline:'Built for hotels, resorts & large venues with ongoing needs',
                 feats:['10 active listings at any time','Bronze level listing on every post','Save $15 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'] },
             ];
             const isSub = pricingTab==='subscription';
             const tiers = isSub ? subTiers : listingTiers;
-            const onCta = isSub ? ()=>{setModalDefaultTab('subscription');setShowPricingModal(true);} : null;
+            const onCta = isSub ? (tier)=>`/app?login=1&type=employer&sub=${tier.key}` : null;
             return (
               <div className="reveal visible hs-pricing-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:16,maxWidth:900,margin:'0 auto 60px',textAlign:'left',alignItems:'stretch'}}>
                 {tiers.map(t=>(
@@ -889,19 +889,11 @@ export default function Landing() {
                         </li>
                       ))}
                     </ul>
-                    {onCta ? (
-                      <button onClick={onCta} style={{marginTop:'auto',width:'100%',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,cursor:'pointer',transition:'all 0.2s'}}
-                        onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
-                        onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
-                        Get Started
-                      </button>
-                    ) : (
-                      <a href={`/app?tier=${t.name.toLowerCase()}&mode=listing`} style={{marginTop:'auto',width:'100%',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
-                        onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
-                        onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
-                        Get Started
-                      </a>
-                    )}
+                    <a href={onCta ? onCta(t) : `/app?tier=${t.name.toLowerCase()}&mode=listing`} style={{marginTop:'auto',width:'100%',display:'block',textAlign:'center',background:t.featured?'#C4623A':'#fff',border:'1px solid #C4623A',color:t.featured?'#fff':'#C4623A',padding:'12px 0',borderRadius:100,fontSize:14,fontWeight:700,textDecoration:'none',transition:'all 0.2s'}}
+                      onMouseEnter={e=>{ e.currentTarget.style.background=t.featured?'#A84F2E':'#FBF2EC'; }}
+                      onMouseLeave={e=>{ e.currentTarget.style.background=t.featured?'#C4623A':'#fff'; }}>
+                      Get Started
+                    </a>
                   </div>
                 ))}
               </div>
