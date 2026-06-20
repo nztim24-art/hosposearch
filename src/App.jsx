@@ -3666,7 +3666,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
     } catch(e) {}
   };
 
-  const discount   = appliedCode ? Math.round(basePrice * (appliedCode.pct/100)) : 0;
+  const discount   = appliedCode ? Math.floor(basePrice * (appliedCode.pct/100)) : 0;
   const subtotal   = basePrice - discount;
   const total      = subtotal;
 
