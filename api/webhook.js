@@ -2,6 +2,8 @@
 // Handles Stripe webhook events and updates Supabase.
 // No stripe npm package — uses native fetch.
 
+export const config = { api: { bodyParser: false } }; // CRITICAL: must read raw body for Stripe signature
+
 const LISTING_PRICE_IDS = {
   'price_1TYxkgGgUkBXedj25MHNk2OX':    'bronze',
   'price_1TYxkbGgUkBXedj23615jbeg':    'silver',
