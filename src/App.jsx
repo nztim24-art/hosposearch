@@ -6727,7 +6727,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                         ? <video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                         : hm
                           ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
-                          : <div style={{ width:"100%", height:"100%", display:"flex", alignItems:"center", justifyContent:"center" }}><span style={{ fontSize:40, opacity:0.2 }}>{emp?.avatar}</span></div>
+                          : <VenuePlaceholder venue={j.venue||emp?.name} loc={j.loc}/>
                       }
                       {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                     </div>

@@ -148,7 +148,18 @@ function JobCard({ job }) {
       <div className="jb-card-img" style={{ background:pbg }}>
         {hasImg
           ? <img src={first} alt={`${job.title} at ${job.venue}`} loading="lazy" className="jb-main"/>
-          : <div style={{ width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:42,opacity:0.25 }}>🍽️</div>}
+          : <div style={{ width:"100%", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, position:"relative", overflow:"hidden" }}>
+              <div style={{ position:"absolute", inset:0, backgroundImage:"radial-gradient(circle, #C9A96E 1px, transparent 1px)", backgroundSize:"22px 22px", opacity:0.1 }}/>
+              <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
+              <div className="jb-serif" style={{ fontSize:18, fontWeight:700, color:"#0F0E0C", textAlign:"center", padding:"0 18px", lineHeight:1.25, letterSpacing:"-0.3px", maxWidth:"90%", position:"relative" }}>{job.venue||"HospoSearch"}</div>
+              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
+                <div style={{ width:24, height:"0.5px", background:"#0F0E0C" }}/>
+                <div style={{ width:4, height:4, background:"#0F0E0C", transform:"rotate(45deg)" }}/>
+                <div style={{ width:24, height:"0.5px", background:"#0F0E0C" }}/>
+              </div>
+              {(job.loc||"").split(",")[0].trim() && <div style={{ fontSize:9, color:"#3A3733", letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>{(job.loc||"").split(",")[0].trim()}</div>}
+              <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
+            </div>}
         {job.featured && <div className="jb-badge">★ Featured</div>}
       </div>
       <div className="jb-card-body">
