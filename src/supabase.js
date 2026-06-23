@@ -40,6 +40,35 @@ export async function getSession() {
   return profile
 }
 
+// True when there's an active auth session (e.g. just signed in with Google)
+// but no HospoSearch profile row yet — i.e. a brand-new social sign-in that
+// still needs to pick an account type.
+export async function getAuthSessionWithoutProfile() {
+  const { data } = await supabase.auth.getSession()
+  if (!data.session) return null
+  const { data: profile } = await supabase.from('profiles').select('id').eq('auth_id', data.session.user.id).maybeSingle()
+  if (profile) return null
+  const u = data.session.user
+  return { authId: u.id, email: u.email, name: u.user_metadata?.full_name || u.user_metadata?.name || '' }
+}
+
+// Creates a profile for an already-authenticated user (Google sign-in) once
+// they've chosen Employer or Job Seeker.
+export async function createOAuthProfile(type) {
+  const { data: sess } = await supabase.auth.getSession()
+  if (!sess.session) throw new Error('No active session')
+  const u = sess.session.user
+  const existing = await supabase.from('profiles').select('*').eq('auth_id', u.id).maybeSingle()
+  if (existing.data) return existing.data
+  const name = u.user_metadata?.full_name || u.user_metadata?.name || (u.email ? u.email.split('@')[0] : 'New User')
+  const handle = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now().toString().slice(-4)
+  const { data: profile, error } = await supabase.from('profiles')
+    .insert({ auth_id: u.id, email: u.email, name, handle, type, avatar: type === 'employer' ? '🍽️' : '👨‍🍳' })
+    .select().single()
+  if (error) throw error
+  return profile
+}
+
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 export async function fetchJobs() {

@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -7848,6 +7848,7 @@ export default function App() {
   const [user, setUser]     = useState(null);
   const [type, setType]     = useState(null);
   const [applyJobId, setApplyJobId] = useState(null);
+  const [needsAccountType, setNeedsAccountType] = useState(null);
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
@@ -7939,6 +7940,11 @@ export default function App() {
                 const _pa = consumePendingApply();
                 if (_pa) setApplyJobId(_pa);
               }
+            } else {
+              // Active auth session but no profile yet — a brand-new Google
+              // sign-in. Ask whether they're an employer or a job seeker.
+              const pending = await getAuthSessionWithoutProfile();
+              if (pending) setNeedsAccountType(pending);
             }
           }
         }
@@ -7982,6 +7988,17 @@ export default function App() {
     sessionStorage.removeItem('hs_temp_session');
     sessionStorage.removeItem('hs_admin_session');
     setUser(null); setType(null);
+  };
+
+  // New Google user picks Employer or Job Seeker → create their profile.
+  const chooseAccountType = async (t) => {
+    try {
+      const profile = await createOAuthProfile(t);
+      setNeedsAccountType(null);
+      handleLogin(profile, t === 'employer' ? 'employer' : 'employee');
+    } catch(e) {
+      alert('Could not create your account. Please try again.');
+    }
   };
 
   // Reads (and clears) a pending "apply to this job after login" marker.
@@ -8032,6 +8049,44 @@ export default function App() {
       <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#C4623A,#C9A96E)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, marginBottom:16, boxShadow:"0 6px 18px rgba(196,98,58,0.3)" }}>🍽️</div>
       <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:800, color:"#1A1A1A", letterSpacing:-0.5 }}><span style={{ color:"#C4623A" }}>Hospo</span>Search</div>
       <div style={{ color:"#BBB", fontSize:12, marginTop:8, letterSpacing:2, textTransform:"uppercase" }}>Loading…</div>
+    </div>
+  );
+
+  // New Google sign-in with no profile yet — choose Employer or Job Seeker.
+  if (needsAccountType && !user) return (
+    <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
+      <div style={{ maxWidth:440, width:"100%" }}>
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#C4623A,#C9A96E)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 16px" }}>🍽️</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:25, fontWeight:700, color:C.textDark, marginBottom:6 }}>Welcome{needsAccountType.name?`, ${needsAccountType.name.split(' ')[0]}`:""}!</div>
+          <div style={{ color:C.textSoft, fontSize:14.5, lineHeight:1.5 }}>One quick thing — how will you be using HospoSearch?</div>
+        </div>
+        <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+          <button className="tap" onClick={()=>chooseAccountType('employee')}
+            style={{ display:"flex", alignItems:"center", gap:14, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:16, padding:"18px 18px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+            <div style={{ width:48, height:48, borderRadius:12, background:C.terracottaL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>👨‍🍳</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>I'm looking for work</div>
+              <div style={{ color:C.textSoft, fontSize:13, marginTop:2 }}>Browse roles, apply, and get discovered by venues.</div>
+            </div>
+            <Icon name="chevron" size={20} color={C.textFaint}/>
+          </button>
+          <button className="tap" onClick={()=>chooseAccountType('employer')}
+            style={{ display:"flex", alignItems:"center", gap:14, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:16, padding:"18px 18px", cursor:"pointer", textAlign:"left", boxShadow:"0 2px 10px rgba(0,0,0,0.04)" }}>
+            <div style={{ width:48, height:48, borderRadius:12, background:C.sandL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:24, flexShrink:0 }}>🍽️</div>
+            <div style={{ flex:1 }}>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, fontWeight:700, color:C.textDark }}>I'm hiring</div>
+              <div style={{ color:C.textSoft, fontSize:13, marginTop:2 }}>Post listings and find hospitality talent.</div>
+            </div>
+            <Icon name="chevron" size={20} color={C.textFaint}/>
+          </button>
+        </div>
+        <button className="tap" onClick={async()=>{ try{ await signOut(); }catch(e){} setNeedsAccountType(null); window.location.replace('/app'); }}
+          style={{ display:"block", margin:"22px auto 0", background:"none", border:"none", color:C.textFaint, fontSize:13, cursor:"pointer" }}>
+          Cancel
+        </button>
+      </div>
     </div>
   );
 
