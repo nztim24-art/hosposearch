@@ -49,6 +49,15 @@ const ago = (ts) => {
   if (d<30) return Math.floor(d/7)+"w"; return Math.floor(d/30)+"mo"
 }
 
+// Salary with pay-type suffix (e.g. "AUD 80,000/yr", "AUD 35/hr")
+function fmtSalary(job){
+  const s = job && job.salary;
+  if(!s || s === "Competitive") return s || "Competitive";
+  const suf = job.payType === "Hourly" ? "/hr" : job.payType === "Monthly" ? "/mo" : job.payType === "Annually" ? "/yr" : "";
+  if(!suf || s.endsWith(suf)) return s;
+  return s + suf;
+}
+
 // ─── SEO head management (no external deps) ───────────────────────────────────
 function useSEO({ title, description, canonical, jsonLd }) {
   useEffect(() => {
@@ -145,7 +154,7 @@ function JobCard({ job }) {
       <div className="jb-card-body">
         <div className="jb-venue">{job.venue}</div>
         <div className="jb-title jb-serif">{job.title}</div>
-        <div className="jb-salary">{job.salary}</div>
+        <div className="jb-salary">{fmtSalary(job)}</div>
         <div className="jb-short">{stripTags(job.short)}</div>
         <div className="jb-meta">
           <span>{job.loc} · {ago(job.ts)} ago</span>
@@ -267,7 +276,7 @@ function JobDetail({ jobs, loading }) {
       {hasImg && <div className="jb-detail-hero"><img src={first} alt={`${job.title} at ${job.venue}`} /></div>}
       <div className="jb-detail-venue">{job.venue} · {job.loc}</div>
       <h1 className="jb-serif">{job.title}</h1>
-      {job.salary && <div className="jb-salary" style={{ fontSize:18, marginBottom:18 }}>{job.salary}</div>}
+      {job.salary && <div className="jb-salary" style={{ fontSize:18, marginBottom:18 }}>{fmtSalary(job)}</div>}
       <div className="jb-tags">
         {[job.type, job.sector, job.roleType, ...(job.tags||[])].filter(Boolean).map((t,i)=>(
           <span key={i} className="jb-tag">{t}</span>

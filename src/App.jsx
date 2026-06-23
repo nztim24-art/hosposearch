@@ -137,11 +137,21 @@ const CURRENCIES = [
   { code:'NZD', symbol:'$', label:'NZD — New Zealand Dollar' },
   { code:'GBP', symbol:'£', label:'GBP — British Pound' },
   { code:'USD', symbol:'$', label:'USD — US Dollar' },
+  { code:'CAD', symbol:'$', label:'CAD — Canadian Dollar' },
   { code:'EUR', symbol:'€', label:'EUR — Euro' },
   { code:'SGD', symbol:'$', label:'SGD — Singapore Dollar' },
   { code:'JPY', symbol:'¥', label:'JPY — Japanese Yen' },
   { code:'HKD', symbol:'$', label:'HKD — Hong Kong Dollar' },
 ];
+
+// Formats a listing salary with its pay-type suffix (e.g. "AUD 80,000/yr", "AUD 35/hr").
+function fmtSalary(job){
+  const s = job && job.salary;
+  if(!s || s === "Competitive") return s || "Competitive";
+  const suf = job.payType === "Hourly" ? "/hr" : job.payType === "Monthly" ? "/mo" : job.payType === "Annually" ? "/yr" : "";
+  if(!suf || s.endsWith(suf)) return s;
+  return s + suf;
+}
 
 // ─── Visa options by country ─────────────────────────────────────────────────
 const VISA_OPTIONS = {
@@ -1222,7 +1232,7 @@ function StoryViewer({ stories, startIndex=0, currentUser, onClose, onApply }) {
         <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:"#fff", lineHeight:1.15, marginBottom:5 }}>{job.title}</div>
         <div style={{ color:"rgba(255,255,255,0.75)", fontSize:13, marginBottom:12 }}>{job.venue} · {job.loc}</div>
         <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
-          {[job.salary, job.type, job.workplace&&job.workplace!=="On-site"?job.workplace:null, job.payType&&job.payType!=="Annually"?job.payType:null, ...(job.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
+          {[fmtSalary(job), job.type, job.workplace&&job.workplace!=="On-site"?job.workplace:null, ...(job.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
             <span key={t} style={{ background:"rgba(255,255,255,0.18)", backdropFilter:"blur(6px)", color:"#fff", fontSize:11, fontWeight:600, padding:"4px 11px", borderRadius:20, border:"1px solid rgba(255,255,255,0.25)" }}>{t}</span>
           ))}
         </div>
@@ -2364,7 +2374,7 @@ function MyApplications({ userId, jobs, bookmarks, onExpand }) {
                   <div style={{ flex:1, padding:"10px 12px" }}>
                     <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:1 }}>{job.title}</div>
                     <div style={{ color:C.textSoft, fontSize:11, marginBottom:5 }}>{job.venue} · {job.type}</div>
-                    <div style={{ color:C.sand, fontWeight:600, fontSize:12 }}>{job.salary}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:12 }}>{fmtSalary(job)}</div>
                   </div>
                 </div>
               </div>
@@ -2523,7 +2533,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
               <div style={{ padding:"12px 14px 14px" }}>
                 <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                 <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
-                <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{fmtSalary(j)}</div>
                 <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                 <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                   <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
@@ -2595,7 +2605,7 @@ function MineJobCard({ job, onEdit, onApps, onExpand, onDelete }) {
         <div style={{ flex:1, minWidth:0 }}>
           <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:16, color:C.textDark, marginBottom:2, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{job.title}</div>
           <div style={{ color:C.textSoft, fontSize:12, marginBottom:4 }}>{job.type} · {job.loc}</div>
-          <div style={{ color:C.sand, fontWeight:600, fontSize:12, marginBottom:4 }}>{job.salary}</div>
+          <div style={{ color:C.sand, fontWeight:600, fontSize:12, marginBottom:4 }}>{fmtSalary(job)}</div>
           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
             <CountdownBadge expiresAt={job.expiresAt} paid={job.paid}/>
             <span style={{ color:C.textFaint, fontSize:11 }}>{ago(job.ts)} ago</span>
@@ -2820,7 +2830,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
           <TypeChip type={job.type}/>
         </div>
         {/* Salary */}
-        <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:6 }}>{job.salary}</div>
+        <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:6 }}>{fmtSalary(job)}</div>
         {/* Tags */}
         {(job.tags||[]).length>0 && (
           <div style={{ display:"flex", gap:5, flexWrap:"wrap", marginBottom:8 }}>
@@ -2884,7 +2894,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
     if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
     // Validate all screening questions are answered
     if (job.screeningQ) {
-      const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]);
+      const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!["rightToWork","noticePeriod","availability"].includes(k));
       const customQ = job.screeningQ.custom||[];
       const answers = fd.screeningAnswers||{};
       const unanswered = activeQ.filter(k=>!(answers[k]||"").trim());
@@ -2929,7 +2939,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           {job.featured && <div style={{ display:"flex", alignItems:"center", gap:6, background:C.featuredL, border:`1px solid ${C.featured}30`, borderRadius:10, padding:"8px 12px", marginBottom:14 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontWeight:600, fontSize:13 }}>Featured Listing</span></div>}
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark, lineHeight:1.2, marginBottom:6 }}>{job.title}</div>
           <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10, flexWrap:"wrap" }}>
-            <span style={{ color:C.sand, fontWeight:700, fontSize:14 }}>{job.salary}</span>
+            <span style={{ color:C.sand, fontWeight:700, fontSize:14 }}>{fmtSalary(job)}</span>
             <span style={{ width:3, height:3, borderRadius:"50%", background:C.textFaint, display:"inline-block" }}/>
             <TypeChip type={job.type}/>
             <span style={{ color:C.textFaint, fontSize:12 }}>· {job.loc}</span>
@@ -3066,6 +3076,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 </div>
 
                 {/* Right to work */}
+                {job.screeningQ?.rightToWork !== false && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>🛂 Right to Work</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which best describes your right to work in {job.country||"this country"}?</div>
@@ -3073,9 +3084,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     <option value="">Select your visa / work status…</option>
                     {(VISA_OPTIONS[job.country]||VISA_OPTIONS["default"]).map(v=><option key={v} value={v}>{v}</option>)}
                   </select>
-                </div>
+                </div>)}
 
                 {/* Availability */}
+                {job.screeningQ?.availability !== false && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📅 Availability</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which days are you available to work?</div>
@@ -3102,7 +3114,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                       );
                     })}
                   </div>
-                </div>
+                </div>)}
 
                 {/* Screening questions from employer */}
                 {job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
@@ -3120,7 +3132,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                   };
                   // rightToWork and noticePeriod are always shown as dedicated form sections
                   // below — exclude them here so candidates don't answer them twice
-                  const ALWAYS_SHOWN = ["rightToWork","noticePeriod"];
+                  const ALWAYS_SHOWN = ["rightToWork","noticePeriod","availability"];
                   const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!ALWAYS_SHOWN.includes(k));
                   const customQ = job.screeningQ.custom||[];
                   return (
@@ -3195,6 +3207,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 })()}
 
                 {/* Notice period */}
+                {job.screeningQ?.noticePeriod !== false && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>⏱️ Notice Period</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>How much notice do you need to give your current employer?</div>
@@ -3202,7 +3215,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     <option value="">Select…</option>
                     {NOTICE_PERIODS.map(n=><option key={n} value={n}>{n}</option>)}
                   </select>
-                </div>
+                </div>)}
 
                 {/* Buttons */}
                 <div style={{ display:"flex", gap:9, paddingTop:4 }}>
@@ -3385,7 +3398,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                   <div className="tap" onClick={()=>handleExpand(j)} style={{ padding:"12px 14px 14px", cursor:"pointer" }}>
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                     <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
-                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{fmtSalary(j)}</div>
                     <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
@@ -3422,7 +3435,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
 
               <div style={{ padding:"16px 18px 24px" }}>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:700, color:C.textDark, marginBottom:6 }}>{expandedJob.title}</div>
-                <div style={{ color:C.sand, fontWeight:700, fontSize:15, marginBottom:10 }}>{expandedJob.salary}</div>
+                <div style={{ color:C.sand, fontWeight:700, fontSize:15, marginBottom:10 }}>{fmtSalary(expandedJob)}</div>
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16 }}>
                   {[expandedJob.type, expandedJob.loc, ...(expandedJob.tags||[]).slice(0,2)].filter(Boolean).map(t=>(
                     <span key={t} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, color:C.textSoft, fontSize:11, fontWeight:600, padding:"3px 10px", borderRadius:20 }}>{t}</span>
@@ -4773,7 +4786,7 @@ function EmployerBrowse({ jobs, user, onExpand }) {
                   <div style={{ padding:"12px 14px 14px" }}>
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                     <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
-                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                    <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{fmtSalary(j)}</div>
                     <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                       <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
@@ -4822,6 +4835,14 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
   };
   const screening = a.screeningAnswers || {};
   const screeningKeys = Object.keys(screening).filter(k=>screening[k]);
+  // Resolve a screening answer key to its human-readable question.
+  // Custom questions are stored as custom_0, custom_1… — look up the real text
+  // from the job's screeningQ.custom array so employers see the actual question.
+  const screenLabel = (k) => {
+    const m = /^custom_(\d+)$/.exec(k);
+    if (m) return (job?.screeningQ?.custom||[])[Number(m[1])] || "Custom question";
+    return SCREENING_Q_LABELS[k] || k;
+  };
   return (
     <div style={{ padding:"4px 2px" }}>
       {/* Header */}
@@ -4886,7 +4907,7 @@ function ApplicantDetailCard({ a, job, user, setJobs, setSupabaseApps, setMessag
             {(a.availability||[]).length>0 && <ScreenRow label="Availability" value={(a.availability||[]).join(", ")}/>}
             {(a.hours||[]).length>0 && <ScreenRow label="Preferred hours" value={(a.hours||[]).join(", ")}/>}
             {a.notice && <ScreenRow label="Notice period" value={a.notice}/>}
-            {screeningKeys.map(k=><ScreenRow key={k} label={SCREENING_Q_LABELS[k]||k} value={screening[k]}/>)}
+            {screeningKeys.map(k=><ScreenRow key={k} label={screenLabel(k)} value={screening[k]}/>)}
           </div>
         </div>
       )}
@@ -5516,7 +5537,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                         </div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:2 }}>{j.title}</div>
-                          <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {j.salary}</div>
+                          <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {fmtSalary(j)}</div>
                           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                             <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:j.paid?"#FEE2E2":"#F3F4F6", border:`1px solid ${j.paid?"#FCA5A5":"#D1D5DB"}`, color:j.paid?"#B91C1C":"#6B7280", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
                               <Icon name="clock" size={10} color={j.paid?"#B91C1C":"#6B7280"}/> {j.paid ? "Expired" : "Unpublished"}
@@ -5806,10 +5827,29 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
               <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>Candidates must answer selected questions when applying</div>
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>{(()=>{
-                const _sqPre = Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&(nj.screeningQ||{})[k]).length;
+                const _sqPre = Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!["rightToWork","availability","noticePeriod"].includes(k)&&(nj.screeningQ||{})[k]).length;
                 const _sqCust = ((nj.screeningQ||{}).custom||[]).length;
                 const _sqAtMax = (_sqPre + _sqCust) >= 5;
                 return (<>
+                  <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>Standard questions — included free, preselected</div>
+                  {[
+                    ["rightToWork",  "🛂 Right to work / visa status"],
+                    ["availability", "📅 Availability — days & hours"],
+                    ["noticePeriod", "⏱️ Notice period"],
+                  ].map(([key,label])=>{
+                    const _on = (nj.screeningQ||{})[key] !== false;
+                    return (
+                      <div key={key} className="tap" onClick={()=>setNj(j=>({...j, screeningQ:{...(j.screeningQ||{}), [key]: ((j.screeningQ||{})[key]===false)}}))}
+                        style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:_on?C.sageL:C.bgSoft, border:`1px solid ${_on?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer" }}>
+                        <div style={{ width:18, height:18, borderRadius:4, background:_on?C.sage:"#ddd", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                          {_on && <Icon name="check" size={11} color="#fff"/>}
+                        </div>
+                        <span style={{ color:_on?C.sage:C.textMid, fontSize:13 }}>{label}</span>
+                      </div>
+                    );
+                  })}
+                  <div style={{ height:1, background:C.border, margin:"10px 0 6px" }}/>
+                  <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>Extra questions — optional, count toward your 5</div>
                   <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>{_sqPre+_sqCust}/5 questions selected</div>
                   {_sqAtMax && <div style={{ color:C.terracotta, fontSize:12, fontWeight:600, marginBottom:2 }}>Maximum reached — deselect one to add another</div>}
                   {[
@@ -5849,7 +5889,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 ))}
 
                 {/* Add custom question input - hidden at max */}
-                {(Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&(nj.screeningQ||{})[k]).length + ((nj.screeningQ||{}).custom||[]).length) < 5 && (
+                {(Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!["rightToWork","availability","noticePeriod"].includes(k)&&(nj.screeningQ||{})[k]).length + ((nj.screeningQ||{}).custom||[]).length) < 5 && (
                   <div style={{ display:"flex", gap:8, marginTop:4 }}>
                     <input
                       id="customQInput"
@@ -6230,7 +6270,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
                     </div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ fontWeight:700, fontSize:13, color:C.textDark, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{j.title}</div>
-                      <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{j.salary} · {j.type}</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{fmtSalary(j)} · {j.type}</div>
                       <div style={{ color:C.textFaint, fontSize:11, marginTop:2 }}>{ago(j.ts)} ago</div>
                     </div>
                     <div style={{ color:C.terracotta, fontSize:13, fontWeight:600, flexShrink:0 }}>View →</div>
@@ -6657,7 +6697,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                     <div style={{ padding:"12px 14px 14px" }}>
                       <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
                       <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:17, color:C.textDark, marginBottom:4, lineHeight:1.2 }}>{j.title}</div>
-                      <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{j.salary}</div>
+                      <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{fmtSalary(j)}</div>
                       <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                         <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
@@ -6805,7 +6845,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       const res = await fetch('/api/send-weekly-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminSecret: 'hospo-admin-2024', jobIds: weeklyIds }),
+        body: JSON.stringify({ secret: ADMIN_SECRET, adminSecret: ADMIN_SECRET, jobIds: weeklyIds }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Send failed');
