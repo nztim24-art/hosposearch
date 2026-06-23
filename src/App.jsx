@@ -596,6 +596,8 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     sliders:  <><line x1="4" y1="21" x2="4" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="4" y1="10" x2="4" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="21" x2="12" y2="12" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="12" y1="8" x2="12" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="21" x2="20" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="20" y1="12" x2="20" y2="3" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="1" y1="14" x2="7" y2="14" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="9" y1="8" x2="15" y2="8" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><line x1="17" y1="16" x2="23" y2="16" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
     edit:     <><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
     clock:    <><circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6"/><path d="M12 7v5l3 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
+    mail:     <><rect x="2" y="4" width="20" height="16" rx="2" stroke={color} strokeWidth="1.6"/><path d="M3 6.5l9 6 9-6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
+    chevron:  <><path d="M9 6l6 6-6 6" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none">{p[name]||null}</svg>;
 };
@@ -5553,6 +5555,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   ); })}
                 </div>
               )}
+
+              {/* Need help? — always-visible support contact */}
+              <a href="mailto:hello@hosposearch.com?subject=HospoSearch%20Support" className="tap"
+                style={{ display:"flex", alignItems:"center", gap:12, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:14, padding:"14px 16px", textDecoration:"none", marginTop:8, marginBottom:8 }}>
+                <div style={{ width:42, height:42, borderRadius:"50%", background:C.terracottaL, border:`1px solid ${C.terracottaM}`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                  <Icon name="mail" size={20} color={C.terracotta}/>
+                </div>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontWeight:700, fontSize:14, color:C.textDark }}>Need help?</div>
+                  <div style={{ fontSize:12, color:C.textSoft, marginTop:1 }}>Email us at hello@hosposearch.com</div>
+                </div>
+                <Icon name="chevron" size={18} color={C.textFaint}/>
+              </a>
             </div>
           </div>
         )}
