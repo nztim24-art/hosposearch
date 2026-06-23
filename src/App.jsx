@@ -3452,7 +3452,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                 <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
                   <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply in seconds</div>
-                  <button onClick={onSignup||onLogin} className="btn-cta tap"
+                  <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} (onSignup||onLogin)(); }} className="btn-cta tap"
                     style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                     Apply via HospoSearch →
                   </button>
@@ -3462,7 +3462,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                       Or apply on their website ↗
                     </a>
                   )}
-                  <button onClick={onLogin} style={{ background:"none", border:"none", color:C.textFaint, fontSize:12, cursor:"pointer", marginTop:4 }}>
+                  <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} onLogin(); }} style={{ background:"none", border:"none", color:C.textFaint, fontSize:12, cursor:"pointer", marginTop:4 }}>
                     Already have an account? Log in →
                   </button>
                 </div>
@@ -6285,7 +6285,7 @@ function FollowingScreen({ following, jobs, currentUser, onUnfollow, onOpen }) {
   );
 }
 
-function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, notifs, setNotifs, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount }) {
+function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setFollowing, messages, setMessages, notifs, setNotifs, notifPrefs, setNotifPrefs, onLogout, altAccount, onSwitchAccount, applyJobId, onApplyConsumed }) {
   const isDesktop = useIsDesktop();
   const [tab, setTabRaw] = useState("home");
   const tabHistory = useRef([]);
@@ -6308,6 +6308,18 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   const [openToApply, setOpenToApply] = useState(false);
   const openJob  = (j) => { setOpenToApply(false); setExpandedJob(j); };
   const applyJob = (j) => { setOpenToApply(true);  setExpandedJob(j); };
+  // If the visitor clicked Apply on a job before logging in, reopen that job's
+  // application now that they're signed in. Runs once when the job is available.
+  const _appliedPendingRef = useRef(false);
+  useEffect(() => {
+    if (_appliedPendingRef.current || !applyJobId) return;
+    const j = (jobs||[]).find(x => String(x.id) === String(applyJobId));
+    if (j) {
+      _appliedPendingRef.current = true;
+      applyJob(j);
+      onApplyConsumed && onApplyConsumed();
+    }
+  }, [applyJobId, jobs]);
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
@@ -7810,6 +7822,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 export default function App() {
   const [user, setUser]     = useState(null);
   const [type, setType]     = useState(null);
+  const [applyJobId, setApplyJobId] = useState(null);
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
@@ -7893,7 +7906,14 @@ export default function App() {
             const profile = await getSession();
             if (profile) {
               setUser(profile);
-              setType(profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee');
+              const _t = profile.type === 'admin' ? 'admin' : profile.type === 'employer' ? 'employer' : 'employee';
+              setType(_t);
+              // If they clicked Apply on a job before logging in (e.g. via Google),
+              // reopen that job's application once they're back.
+              if (_t === 'employee') {
+                const _pa = consumePendingApply();
+                if (_pa) setApplyJobId(_pa);
+              }
             }
           }
         }
@@ -7939,8 +7959,25 @@ export default function App() {
     setUser(null); setType(null);
   };
 
+  // Reads (and clears) a pending "apply to this job after login" marker.
+  // Set when a logged-out visitor clicks Apply/Log in on a specific job.
+  const consumePendingApply = () => {
+    try {
+      const raw = localStorage.getItem('hs_apply_after_login');
+      if (!raw) return null;
+      localStorage.removeItem('hs_apply_after_login');
+      const o = JSON.parse(raw);
+      if (o && o.id && (Date.now() - (o.ts || 0) < 3600000)) return o.id;
+    } catch(e) {}
+    return null;
+  };
+
   const handleLogin = async (u, t) => {
     setUser(u); setType(t);
+    if (t === 'employee') {
+      const _pa = consumePendingApply();
+      if (_pa) setApplyJobId(_pa);
+    }
     if (u?.id) localStorage.setItem('hs_pref_type_' + u.id, t);
     if (u?.email && t !== 'admin') {
       try {
@@ -8005,5 +8042,5 @@ export default function App() {
   if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
   if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
-  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
+  return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount} applyJobId={applyJobId} onApplyConsumed={()=>setApplyJobId(null)}/>;
 }
