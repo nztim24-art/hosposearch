@@ -13,9 +13,14 @@ const LISTING_PRICE_IDS = {
 };
 
 const SUBSCRIPTION_PRICE_MAP = {
+  // Current live price IDs (must match /api/create-subscription.js)
+  'price_1TfwByGkG9EGtGJg9FeaYFE2': { plan:'starter', limit:3 },   // $99/mo
+  'price_1TfwC5GkG9EGtGJglmXiYPOV': { plan:'growth',  limit:6 },   // $199/mo
+  'price_1TfwCAGkG9EGtGJgDhgMbdHb': { plan:'pro',     limit:10 },  // $399/mo
+  // Legacy IDs kept as a harmless fallback for any older subscriptions
   'price_1TYyDFGgUkBXedj2J0cf9bjG': { plan:'starter', limit:3 },
-  'price_1TYyHMGgUkBXedj2SFs5zNUI':  { plan:'growth',  limit:6 },
-  'price_1TYyLJGgUkBXedj2Jvagygug':     { plan:'pro',     limit:10 },
+  'price_1TYyHMGgUkBXedj2SFs5zNUI': { plan:'growth',  limit:6 },
+  'price_1TYyLJGgUkBXedj2Jvagygug': { plan:'pro',     limit:10 },
 };
 
 async function stripeGet(path, key) {
@@ -158,6 +163,8 @@ export default async function handler(req, res) {
             subscription_tier: planInfo.plan,
             subscription_active: true,
             subscription_limit: planInfo.limit,
+            subscription_used: 0,
+            subscription_start: new Date().toISOString(),
             stripe_customer_id: session.customer,
             stripe_subscription_id: session.subscription,
           }, { id: userId });
@@ -172,6 +179,16 @@ export default async function handler(req, res) {
         subscription_limit: 0,
         stripe_subscription_id: null,
       }, { stripe_subscription_id: sub.id });
+
+    } else if (event.type === 'invoice.payment_succeeded') {
+      // Monthly renewal — reset the listing usage counter for the new period.
+      // The first invoice (initial signup) also lands here, which harmlessly
+      // re-sets the counter to 0. Matched by the Stripe subscription id.
+      const inv = event.data.object;
+      const subId = inv.subscription || inv.parent?.subscription_details?.subscription;
+      if (subId) {
+        await supabaseUpdate('profiles', { subscription_used: 0 }, { stripe_subscription_id: subId });
+      }
 
     } else if (event.type === 'invoice.payment_failed') {
       console.warn('Payment failed for subscription:', event.data.object.subscription);

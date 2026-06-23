@@ -5270,16 +5270,24 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const post = async () => {
     if(!nj.title.trim()) return;
     const jobData = buildJobData();
-    const _activeCount = mine.filter(j=>j.active!==false).length;
+    const _used = user.subscription_used || 0;
     const _subLimit = user.subscription_limit || 0;
     const _hasSub = user.subscription_active && _subLimit > 0;
-    const _subCovers = _hasSub && _activeCount < _subLimit;
+    const _subCovers = _hasSub && _used < _subLimit;
     // Post directly (no payment) for trial accounts or active subscriptions with remaining listings
     if(user.isTrial || _subCovers) {
       setPosting(true);
       try {
         const saved = await sbCreateJob(user.id, jobData);
         setJobs(p=>[saved,...p]);
+        // Consume one subscription slot. The counter never decrements on delete,
+        // so deleting a listing can't refund the slot (resets monthly on renewal).
+        if (_hasSub && !user.isTrial) {
+          try {
+            await supabase.rpc('consume_subscription_listing');
+            user.subscription_used = (user.subscription_used||0) + 1;
+          } catch(e) { console.warn('Subscription slot consume failed:', e); }
+        }
         // Notify followers of new listing
         try {
           const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
@@ -5461,7 +5469,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             {refreshing && <div style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"10px 0", background:C.sageL, gap:8 }}><div style={{ width:14, height:14, borderRadius:"50%", border:`2px solid ${C.sage}`, borderTopColor:"transparent", animation:"spin 0.7s linear infinite" }}/><span style={{ color:C.sage, fontSize:13, fontWeight:600 }}>Refreshing…</span></div>}
             {/* Subscription listing count bar */}
             {user.subscription_active && (user.subscription_limit||0) > 0 && (() => {
-              const used = mine.filter(j=>j.active!==false).length;
+              const used = user.subscription_used || 0;
               const limit = user.subscription_limit;
               const remaining = Math.max(0, limit - used);
               const pct = Math.min(100, (used/limit)*100);
@@ -5508,7 +5516,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               ))}
               {/* Add new listing — prominent CTA */}
               {(() => {
-                const _ac = mine.filter(j=>j.active!==false).length;
+                const _ac = user.subscription_used || 0;
                 const _sl = user.subscription_limit || 0;
                 const _hs = user.subscription_active && _sl > 0;
                 const _rem = Math.max(0, _sl - _ac);
