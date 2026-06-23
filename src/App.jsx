@@ -5411,6 +5411,30 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         <AvatarMenu user={user} onDashboard={()=>setTab("feed")} onLogout={onLogout}/>
       </div>
 
+      {/* Desktop nav — persistent tab strip (mobile uses the bottom nav) */}
+      {isDesktop && (
+        <div style={{ display:"flex", gap:4, padding:"0 16px", borderBottom:`1px solid ${C.border}`, background:"#fff", flexShrink:0 }}>
+          {[
+            ["feed","grid","My Listings"],
+            ["browse","search","Browse"],
+            ["post","plus","Post a Job"],
+            ["talent","person","Talent Search"],
+            ["apps","briefcase","Applications"],
+            ["profile","person","Profile"],
+          ].map(([t,ic,l])=>{
+            const _on = tab===t;
+            return (
+              <button key={t} className="tap" onClick={()=>{ if(t==="post" && editId){ resetForm(); } setTab(t); }}
+                style={{ display:"flex", alignItems:"center", gap:7, padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", color:_on?C.terracotta:C.textSoft, fontWeight:_on?700:500, fontSize:13.5, borderBottom:_on?`2.5px solid ${C.terracotta}`:"2.5px solid transparent", position:"relative" }}>
+                <Icon name={ic} size={17} color={_on?C.terracotta:C.textSoft}/>
+                {l}
+                {t==="apps" && (newAppsCount||apps)>0 && <span style={{ background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20, minWidth:16, textAlign:"center" }}>{newAppsCount||apps}</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       <div style={{ flex:1, overflow:"hidden" }}>
         {/* Browse */}
         {tab==="browse" && (
@@ -6058,6 +6082,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <NavBtn t="feed"    ic="grid"      l="Listings"/>
           <NavBtn t="browse"  ic="search"    l="Browse"/>
           <NavBtn t="post"    ic="plus"      l="Post"/>
+          <NavBtn t="talent"  ic="person"    l="Talent"/>
           <NavBtn t="apps"    ic="briefcase" l="Apply" badge={newAppsCount||apps}/>
           <NavBtn t="profile" ic="person"    l="Profile"/>
         </div>
