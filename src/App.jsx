@@ -3644,6 +3644,23 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
               <span style={{ fontSize:13, color:C.textMid }}>Stay logged in</span>
             </div>
             <button className="btn-cta tap" onClick={go} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Log In</button>
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0" }}>
+              <div style={{ flex:1, height:1, background:C.border }}/>
+              <span style={{ color:C.textFaint, fontSize:11, fontWeight:500 }}>or</span>
+              <div style={{ flex:1, height:1, background:C.border }}/>
+            </div>
+            <button className="tap" onClick={async()=>{
+              try {
+                const { error } = await supabase.auth.signInWithOAuth({
+                  provider: 'google',
+                  options: { redirectTo: window.location.origin + '/app', queryParams: { prompt: 'select_account' } }
+                });
+                if (error) setErr(error.message);
+              } catch(e) { setErr('Google sign-in failed'); }
+            }} style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:10, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:12, padding:"12px 0", color:C.textDark, fontWeight:600, fontSize:14, cursor:"pointer", boxShadow:"0 1px 4px rgba(0,0,0,0.07)" }}>
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20H24v8h11.3C33.7 32.6 29.3 35 24 35c-6.1 0-11-4.9-11-11s4.9-11 11-11c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.4 7.1 28.9 5 24 5 13 5 4 14 4 25s9 20 20 20c11 0 19.3-8 19.3-19.4 0-1.2-.1-2.4-.3-3.5-.1 0-.4-2.1-.4-2.1z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.5 16.1 18.9 13 24 13c2.8 0 5.3 1 7.2 2.7l5.7-5.7C33.4 7.1 28.9 5 24 5c-7.6 0-14.1 4-17.7 9.7z"/><path fill="#4CAF50" d="M24 45c5.2 0 9.9-1.8 13.5-4.9l-6.3-5.2C29.4 36.6 26.8 37.5 24 37.5c-5.2 0-9.6-3.4-11.2-8.1l-6.5 5C9.8 40.8 16.4 45 24 45z"/><path fill="#1976D2" d="M43.6 20H24v8h11.3c-.8 2.4-2.4 4.4-4.5 5.8l6.3 5.2c3.8-3.5 6.2-8.7 6.2-14.9 0-1.3-.1-2.6-.4-3.8l.7.3z"/></svg>
+              Continue with Google
+            </button>
           </div>
         </div>
         <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:12 }}>
