@@ -3691,7 +3691,8 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
 function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TfwBfGkG9EGtGJgBv341e2n", user=null }) {
   const basePrice = tierPrice;
-  const tierLabel = tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
+  const tierLabel = tierKey==='gold_upgrade' ? 'Gold upgrade for this listing' : tierKey==='silver_upgrade' ? 'Silver upgrade for this listing' : tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
+  const isUpgrade = tierKey==='gold_upgrade' || tierKey==='silver_upgrade';
 
   const [codeInput, setCodeInput]     = useState("");
   const [appliedCode, setAppliedCode] = useState(null);
@@ -3755,7 +3756,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
   return (
     <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
       <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Complete Payment</div>
-      <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>Posting <strong style={{color:C.textDark}}>{jobDraft?.title||"your listing"}</strong> as {tierLabel}</div>
+      <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>{isUpgrade ? <>Upgrading <strong style={{color:C.textDark}}>{jobDraft?.title||"your listing"}</strong> — {tierLabel}</> : <>Posting <strong style={{color:C.textDark}}>{jobDraft?.title||"your listing"}</strong> as {tierLabel}</>}</div>
 
       {/* Email field — captured for follow-up if abandoned */}
       {!user?.email && (
@@ -5148,6 +5149,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const [posting, setPosting] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [checkoutJob, setCheckoutJob] = useState(null);
+  const [subUpgrade, setSubUpgrade] = useState(null); // null=Bronze(included) | 'silver' | 'gold'
   const [editId, setEditId] = useState(null);
   const [deleteConfirmJob, setDeleteConfirmJob] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -5277,8 +5279,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     // Post directly (no payment) for trial accounts or active subscriptions with remaining listings
     if(user.isTrial || _subCovers) {
       setPosting(true);
+      let savedJob = null;
       try {
         const saved = await sbCreateJob(user.id, jobData);
+        savedJob = saved;
         setJobs(p=>[saved,...p]);
         // Consume one subscription slot. The counter never decrements on delete,
         // so deleting a listing can't refund the slot (resets monthly on renewal).
@@ -5305,7 +5309,22 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         } catch(e) { console.warn('Follower notify error:', e); }
       } catch(e) {
         console.warn('Supabase save failed, using local:', e);
-        setJobs(p=>[{...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0},...p]);
+        const local = {...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0};
+        savedJob = local;
+        setJobs(p=>[local,...p]);
+      }
+      // Paid upgrade chosen for this subscription listing — collect the one-off
+      // upgrade fee ($20 Silver / $50 Gold). The listing is already live as
+      // Bronze; the webhook lifts it to the higher tier once payment clears.
+      if (_hasSub && !user.isTrial && subUpgrade && savedJob) {
+        const upKey   = subUpgrade==='gold' ? 'gold_upgrade' : 'silver_upgrade';
+        const upPrice = subUpgrade==='gold' ? 50 : 20;
+        setSubUpgrade(null);
+        setCheckoutJob({ ...savedJob, _upTier:upKey, _upPrice:upPrice });
+        setPosting(false);
+        setTab("feed");
+        resetForm();
+        return;
       }
       setPosting(false);
       setPosted(true);
@@ -5772,6 +5791,59 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 {ROLE_TAGS.map(t=><button key={t} className="tap" onClick={()=>setNj(j=>({ ...j, tags:j.tags.includes(t)?j.tags.filter(x=>x!==t):[...j.tags,t] }))} style={{ background:nj.tags.includes(t)?C.terracottaL:C.bgSoft, border:`1px solid ${nj.tags.includes(t)?C.terracottaM:C.border}`, borderRadius:20, padding:"5px 12px", color:nj.tags.includes(t)?C.terracotta:C.textSoft, fontSize:12, fontWeight:nj.tags.includes(t)?600:400, transition:"all 0.15s" }}>{t}</button>)}
               </div>
             </div>
+            {/* Subscription listing — Bronze included, optional paid upgrade for this listing */}
+            {!user.isTrial && !editId && user.subscription_active && (user.subscription_limit||0) > 0 && (()=>{
+              const _used = user.subscription_used || 0;
+              const _lim  = user.subscription_limit || 0;
+              const _rem  = Math.max(0, _lim - _used);
+              const planName = (user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1);
+              if (_rem <= 0) return (
+                <div style={{ background:"#FFF8EE", border:"1px solid #F5A62355", borderRadius:12, padding:"14px 16px", marginBottom:16 }}>
+                  <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:3 }}>You've used all {_lim} listings on your {planName} plan this month</div>
+                  <div style={{ color:C.textSoft, fontSize:12, marginBottom:10 }}>Upgrade your plan for more, or post this one as a paid listing below.</div>
+                  <button className="tap" onClick={()=>setShowSubModal(true)} style={{ background:C.terracotta, border:"none", borderRadius:20, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>Upgrade Plan →</button>
+                </div>
+              );
+              const opts = [
+                { key:null,     label:"🥉 Bronze", sub:"Included in your plan", price:0,  perks:["Listed in the feed","Candidates can apply"] },
+                { key:"silver", label:"🥈 Silver", sub:"Featured + pinned",     price:20, perks:["⭐ Pinned to top","Featured badge","Priority 7 days"] },
+                { key:"gold",   label:"🥇 Gold",   sub:"Maximum visibility",    price:50, perks:["Everything in Silver","🔥 Shared on our socials","Highlighted in search"] },
+              ];
+              return (
+                <div style={{ marginBottom:16 }}>
+                  <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Listing tier — included with your {planName} plan</div>
+                  <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                    {opts.map(o=>{
+                      const sel = (subUpgrade||null)===o.key;
+                      return (
+                        <div key={o.key||"bronze"} className="tap" onClick={()=>setSubUpgrade(o.key)}
+                          style={{ border:`2px solid ${sel?C.terracotta:C.border}`, borderRadius:13, padding:"13px 15px", background:sel?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:7 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <div style={{ width:22, height:22, borderRadius:"50%", background:sel?C.terracotta:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                {sel && <Icon name="check" size={13} color="#fff"/>}
+                              </div>
+                              <div>
+                                <span style={{ fontWeight:700, fontSize:14, color:sel?C.terracotta:C.textDark }}>{o.label}</span>
+                                <span style={{ fontSize:12, color:C.textSoft, marginLeft:7 }}>{o.sub}</span>
+                              </div>
+                            </div>
+                            <div style={{ fontFamily:"'Fraunces',serif", fontSize:o.price?18:13, fontWeight:700, color:o.price?(sel?C.terracotta:C.textDark):C.sage }}>{o.price?`+$${o.price}`:"Included"}</div>
+                          </div>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                            {o.perks.map(p=><span key={p} style={{ background:sel?"rgba(196,98,58,0.12)":C.bgSoft, color:sel?C.terracotta:C.textSoft, fontSize:11, padding:"2px 8px", borderRadius:20, border:`1px solid ${sel?C.terracottaM:C.border}` }}>{p}</span>)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div style={{ marginTop:8, fontSize:11.5, color:C.textFaint, lineHeight:1.5 }}>
+                    {_rem} listing{_rem!==1?"s":""} left this month. Bronze is included free — Silver and Gold add a one-off upgrade fee for this listing only (you'll pay after posting).
+                  </div>
+                </div>
+              );
+            })()}
+
             {!user.isTrial && !editId && !(user.subscription_active && (user.subscription_limit||0) > 0) && (()=>{
               const _activeCnt = mine.filter(j=>j.active!==false).length;
               const _subLim = user.subscription_limit || 0;
@@ -6126,7 +6198,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         </div>
       )}
 
-      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={nj.tier||"bronze"} tierPrice={nj.tierPrice||50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
+      {checkoutJob && <StripeCheckout jobDraft={checkoutJob} onSuccess={publishAfterPayment} onCancel={()=>setCheckoutJob(null)} codes={codes} setCodes={setCodes} isFeatured={nj.featured} tierKey={checkoutJob._upTier || nj.tier || "bronze"} tierPrice={checkoutJob._upPrice || nj.tierPrice || 50} tierPriceId={nj.tierPriceId||"price_1TfwBfGkG9EGtGJgBv341e2n"} user={user}/>}
 
       {/* Job card preview */}
       {showPreview && (() => {
@@ -6876,6 +6948,15 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [weeklyIds, setWeeklyIds] = useState(()=>{ try{ return JSON.parse(localStorage.getItem('hs_weekly_email')||'[]'); }catch(e){ return []; } });
   const [emailSending, setEmailSending] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [sentEmails, setSentEmails] = useState([]);
+  const [previewEmail, setPreviewEmail] = useState(null);
+  const loadSentEmails = async () => {
+    try {
+      const { data } = await supabase.from('sent_emails').select('*').order('sent_at', { ascending:false }).limit(50);
+      if (Array.isArray(data)) setSentEmails(data);
+    } catch(e) { console.warn('Load sent emails error:', e); }
+  };
+  useEffect(()=>{ loadSentEmails(); }, []);
   const toggleWeekly = (id) => {
     setWeeklyIds(prev => {
       const next = prev.includes(id) ? prev.filter(x=>x!==id) : [...prev, id];
@@ -6897,6 +6978,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       setEmailSent(true);
       setWeeklyIds([]);
       localStorage.removeItem('hs_weekly_email');
+      loadSentEmails();
       setTimeout(() => setEmailSent(false), 4000);
     } catch(e) { alert('Send failed: ' + e.message); }
     setEmailSending(false);
@@ -7404,9 +7486,62 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <div style={{ fontSize:11, color:C.textFaint, textAlign:"center", marginTop:8 }}>This will email all job seekers who are signed up to HospoSearch.</div>
               </>
             )}
+
+            {/* Sent history */}
+            <div style={{ marginTop:32, borderTop:`1px solid ${C.border}`, paddingTop:20 }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:12 }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:700, color:C.textDark }}>Sent emails</div>
+                <button className="tap" onClick={loadSentEmails} style={{ background:"none", border:`1px solid ${C.border}`, borderRadius:8, padding:"4px 10px", color:C.textSoft, fontSize:12, cursor:"pointer" }}>↻ Refresh</button>
+              </div>
+              {sentEmails.length === 0 ? (
+                <div style={{ color:C.textFaint, fontSize:13, padding:"10px 0" }}>No emails sent yet. Your sent weekly emails will appear here.</div>
+              ) : (
+                <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                  {sentEmails.map(e => {
+                    const d = new Date(e.sent_at);
+                    const when = d.toLocaleString('en-AU', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' });
+                    const titles = Array.isArray(e.job_titles) ? e.job_titles : [];
+                    return (
+                      <div key={e.id} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 14px" }}>
+                        <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", gap:10 }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ fontWeight:700, fontSize:13, color:C.textDark }}>{e.subject || "Weekly email"}</div>
+                            <div style={{ fontSize:11.5, color:C.textSoft, marginTop:2 }}>{when} · {e.recipient_count||0} recipient{e.recipient_count!==1?"s":""} · {titles.length} listing{titles.length!==1?"s":""}</div>
+                          </div>
+                          {e.html && <button className="tap" onClick={()=>setPreviewEmail(e)} style={{ flexShrink:0, background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:8, padding:"5px 12px", color:C.terracotta, fontSize:12, fontWeight:700, cursor:"pointer" }}>Preview</button>}
+                        </div>
+                        {titles.length > 0 && (
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:5, marginTop:8 }}>
+                            {titles.slice(0,6).map((t,i)=>(
+                              <span key={i} style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:20, padding:"2px 9px", fontSize:11, color:C.textMid }}>{t.title || t}</span>
+                            ))}
+                            {titles.length > 6 && <span style={{ fontSize:11, color:C.textFaint, alignSelf:"center" }}>+{titles.length-6} more</span>}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
+        {/* Sent email preview modal */}
+        {previewEmail && (
+          <div onClick={()=>setPreviewEmail(null)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:4000, display:"flex", alignItems:"center", justifyContent:"center", padding:16, backdropFilter:"blur(3px)" }}>
+            <div onClick={ev=>ev.stopPropagation()} style={{ background:"#fff", borderRadius:16, width:"100%", maxWidth:640, height:"88vh", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", padding:"14px 18px", borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontFamily:"'Fraunces',serif", fontSize:16, fontWeight:700, color:C.textDark, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{previewEmail.subject || "Weekly email"}</div>
+                  <div style={{ fontSize:11.5, color:C.textSoft }}>{new Date(previewEmail.sent_at).toLocaleString('en-AU', { day:'numeric', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' })} · {previewEmail.recipient_count||0} recipients</div>
+                </div>
+                <button className="tap" onClick={()=>setPreviewEmail(null)} style={{ background:"none", border:"none", fontSize:24, color:C.textSoft, cursor:"pointer", lineHeight:1, flexShrink:0 }}>×</button>
+              </div>
+              <iframe title="Email preview" srcDoc={previewEmail.html} style={{ flex:1, width:"100%", border:"none", background:"#EFE9E1" }}/>
+            </div>
+          </div>
+        )}
         {tab==="codes" && (
           <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:4 }}>Discount Codes</div>

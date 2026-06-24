@@ -145,9 +145,11 @@ export default async function handler(req, res) {
   </body>
   </html>`;
 
-  // Send in batches of 50 (Resend limit)
+  // Send in batches. Each email goes TO hello@hosposearch.com with the
+  // recipients on BCC, so no job seeker can see anyone else's address.
+  // Resend caps recipients at 50 per request (1 "to" + up to 49 bcc).
   let sent = 0;
-  const BATCH = 50;
+  const BATCH = 49;
   for (let i = 0; i < emails.length; i += BATCH) {
     const batch = emails.slice(i, i + BATCH);
     await fetch('https://api.resend.com/emails', {
@@ -155,13 +157,30 @@ export default async function handler(req, res) {
       headers: { Authorization: `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         from: 'HospoSearch <noreply@hosposearch.com>',
-        to: batch,
+        to: ['hello@hosposearch.com'],
+        bcc: batch,
         subject: `This week's top hospitality roles — HospoSearch`,
         html,
       }),
     });
     sent += batch.length;
   }
+
+  // Record what was sent so the admin can review it later.
+  try {
+    await sb('sent_emails', {
+      method: 'POST',
+      headers: { Prefer: 'return=minimal' },
+      body: JSON.stringify({
+        type: 'weekly',
+        subject: `This week's top hospitality roles — HospoSearch`,
+        job_ids: jobs.map(j => j.id),
+        job_titles: jobs.map(j => ({ id: j.id, title: j.title || '', venue: j.venue || '', loc: j.loc || '' })),
+        recipient_count: sent,
+        html,
+      }),
+    });
+  } catch (e) { console.warn('Could not log sent email:', e.message); }
 
   return res.status(200).json({ ok: true, sent, jobs: jobs.length });
 }
