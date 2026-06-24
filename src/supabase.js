@@ -178,6 +178,9 @@ export async function createJob(empId, jobData) {
     role_type:   jobData.roleType || '',
     salary:      jobData.salary || 'Competitive',
     salary_band: jobData.salaryBand || '',
+    pay_type:    jobData.payType || 'Annually',
+    workplace:   jobData.workplace || 'On-site',
+    salary_shown: jobData.salaryShown !== false,
     type:        jobData.type || 'Full-time',
     tags:        jobData.tags || [],
     short:       jobData.short || '',
@@ -207,7 +210,7 @@ export async function createJob(empId, jobData) {
   // strip optional columns and retry so the listing still saves.
   if (error && /column .* does not exist|Could not find/i.test(error.message || '')) {
     console.warn('Insert failed on optional column, retrying without optionals:', error.message)
-    const { apply_email, tier, paid, ...safeData } = insertData
+    const { apply_email, tier, paid, pay_type, workplace, salary_shown, ...safeData } = insertData
     const retry = await supabase.from('jobs').insert(safeData).select().single()
     data = retry.data; error = retry.error
   }
@@ -260,6 +263,9 @@ export async function updateJobFull(jobId, jobData) {
     role_type:   jobData.roleType || '',
     salary:      jobData.salary || 'Competitive',
     salary_band: jobData.salaryBand || '',
+    pay_type:    jobData.payType || 'Annually',
+    workplace:   jobData.workplace || 'On-site',
+    salary_shown: jobData.salaryShown !== false,
     type:        jobData.type || 'Full-time',
     tags:        jobData.tags || [],
     short:       jobData.short || '',
@@ -281,7 +287,7 @@ export async function updateJobFull(jobId, jobData) {
 
   // Retry without optional columns if any are missing
   if (error && /column .* does not exist|Could not find/i.test(error.message || '')) {
-    const { apply_email, tier, ...safeData } = updateData
+    const { apply_email, tier, pay_type, workplace, salary_shown, ...safeData } = updateData
     const retry = await supabase.from('jobs').update(safeData).eq('id', jobId).select().single()
     data = retry.data; error = retry.error
   }
@@ -515,6 +521,9 @@ function normaliseJob(row) {
     roleType:   row.role_type || '',
     salary:     row.salary || 'Competitive',
     salaryBand: row.salary_band || '',
+    payType:    row.pay_type || 'Annually',
+    workplace:  row.workplace || 'On-site',
+    salaryShown: row.salary_shown !== undefined ? row.salary_shown !== false : true,
     type:       row.type || 'Full-time',
     tags:       Array.isArray(row.tags) ? row.tags : [],
     short:      row.short || '',
@@ -623,6 +632,9 @@ export async function adminCreateJob(adminSecret, jobData) {
     role_type:   jobData.roleType || '',
     salary:      jobData.salary || 'Competitive',
     salary_band: jobData.salaryBand || '',
+    pay_type:    jobData.payType || 'Annually',
+    workplace:   jobData.workplace || 'On-site',
+    salary_shown: jobData.salaryShown !== false,
     type:        jobData.type || 'Full-time',
     tags:        jobData.tags || [],
     short:       jobData.short || '',
