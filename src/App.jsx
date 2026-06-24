@@ -5360,6 +5360,22 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     setPosted(true);
     setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
   };
+  // Re-activate an expired listing using a subscription slot (no payment).
+  // Fresh 30-day clock; consumes one plan listing (counter doesn't refund on delete).
+  const renewWithSubscription = async (job) => {
+    const expiresAt = new Date(Date.now() + 30*24*60*60*1000).toISOString();
+    setReactivateJob(null);
+    try {
+      await supabase.from('jobs').update({ active:true, paid:true, expires_at:expiresAt, tier:'bronze', featured:false }).eq('id', job.id);
+      try { await supabase.rpc('consume_subscription_listing'); user.subscription_used = (user.subscription_used||0)+1; } catch(e) { console.warn('consume on renew failed:', e); }
+      const fresh = await fetchJobs();
+      if (Array.isArray(fresh)) setJobs(fresh);
+    } catch(e) {
+      console.warn('Subscription renew failed:', e);
+      alert('Could not renew the listing. Please try again.');
+    }
+  };
+
   const fmtS = b => !b?"":b<1048576?`${(b/1024).toFixed(0)}KB`:`${(b/1048576).toFixed(1)}MB`;
 
   const NavBtn = ({ t, ic, l, badge }) => {
@@ -6224,6 +6240,20 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <div style={{ width:38, height:4, background:C.border, borderRadius:10, margin:"0 auto 16px" }}/>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700, color:C.textDark, marginBottom:4 }}>Re-activate listing</div>
             <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>“{reactivateJob.title}” will go live again for a fresh 30 days. Choose a tier:</div>
+            {/* Renew using the subscription plan (deducts one listing) */}
+            {user.subscription_active && (user.subscription_limit||0) - (user.subscription_used||0) > 0 && (
+              <button className="tap" onClick={()=>renewWithSubscription(reactivateJob)}
+                style={{ width:"100%", textAlign:"left", display:"flex", alignItems:"center", justifyContent:"space-between", gap:10, background:C.sageL, border:`1.5px solid ${C.sage}`, borderRadius:13, padding:"14px 15px", marginBottom:14, cursor:"pointer" }}>
+                <div>
+                  <div style={{ fontWeight:700, fontSize:15, color:C.sage, marginBottom:3 }}>Renew with your {(user.subscription_tier||"subscription")} plan</div>
+                  <div style={{ color:C.textSoft, fontSize:11 }}>Uses 1 of your {(user.subscription_limit||0)-(user.subscription_used||0)} remaining listings · 30-day listing</div>
+                </div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:15, fontWeight:700, color:C.sage, whiteSpace:"nowrap" }}>Included</div>
+              </button>
+            )}
+            {user.subscription_active && (user.subscription_limit||0) - (user.subscription_used||0) > 0 && (
+              <div style={{ fontSize:11, color:C.textFaint, textTransform:"uppercase", letterSpacing:1, fontWeight:600, margin:"0 0 10px" }}>Or pay for a single listing</div>
+            )}
             {[
               { key:"bronze", name:"Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", feats:"Listed in the feed · 30-day listing" },
               { key:"silver", name:"Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", feats:"Pinned to top · Featured badge · 30-day listing" },
