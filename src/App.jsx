@@ -5126,6 +5126,16 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     return () => { alive = false; supabase.removeChannel(channel); };
   }, [user.id]); // removed [tab] — tab change was causing status revert
 
+  // Clear the "new applications" badge once the employer opens the Applications tab.
+  useEffect(()=>{
+    if (tab === 'apps') {
+      const now = Date.now();
+      setLastSeenApps(now);
+      try { localStorage.setItem('hs_last_seen_apps', String(now)); } catch(e) {}
+      setNewAppsCount(0);
+    }
+  }, [tab]);
+
   // If arriving from email "View all applicants", select that job once loaded
   useEffect(()=>{
     if (_jobIdParam && jobs.length) {
@@ -5157,18 +5167,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const handleDeleteJob = async () => {
     if (!deleteConfirmJob) return;
     setDeleting(true);
+    const id = deleteConfirmJob.id;
     try {
-      const { error } = await supabase.from('jobs').delete()
-        .eq('id', deleteConfirmJob.id)
-        .eq('emp_id', user.id); // safety: can only delete own jobs
+      // Soft delete: archive the listing (remove from the live board) but keep
+      // the row + its applications so the employer can still see who applied.
+      const { error } = await supabase.from('jobs').update({ active:false })
+        .eq('id', id)
+        .eq('emp_id', user.id); // safety: can only archive own jobs
       if (error) throw error;
-      // Remove from local state
-      setJobs(prev => prev.filter(j => j.id !== deleteConfirmJob.id));
-      if (typeof setMyJobs === 'function') setMyJobs(prev => prev.filter(j => j.id !== deleteConfirmJob.id));
+      // Reflect locally: drop from the live feed, keep in Mine as inactive.
+      setJobs(prev => prev.filter(j => j.id !== id));
+      if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).map(j => j.id===id ? {...j, active:false} : j));
       setDeleteConfirmJob(null);
     } catch(e) {
       console.error('Delete listing error:', e);
-      alert('Failed to delete listing. Please try again.');
+      alert('Failed to remove listing. Please try again.');
     }
     setDeleting(false);
   }; // when set, the Post form is editing this job id
@@ -5471,7 +5484,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 style={{ display:"flex", alignItems:"center", gap:7, padding:"12px 14px", border:"none", background:"transparent", cursor:"pointer", color:_on?C.terracotta:C.textSoft, fontWeight:_on?700:500, fontSize:13.5, borderBottom:_on?`2.5px solid ${C.terracotta}`:"2.5px solid transparent", position:"relative" }}>
                 <Icon name={ic} size={17} color={_on?C.terracotta:C.textSoft}/>
                 {l}
-                {t==="apps" && (newAppsCount||apps)>0 && <span style={{ background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20, minWidth:16, textAlign:"center" }}>{newAppsCount||apps}</span>}
+                {t==="apps" && newAppsCount>0 && <span style={{ background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, padding:"1px 6px", borderRadius:20, minWidth:16, textAlign:"center" }}>{newAppsCount}</span>}
               </button>
             );
           })}
@@ -6179,7 +6192,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <NavBtn t="browse"  ic="search"    l="Browse"/>
           <NavBtn t="post"    ic="plus"      l="Post"/>
           <NavBtn t="talent"  ic="person"    l="Talent"/>
-          <NavBtn t="apps"    ic="briefcase" l="Apply" badge={newAppsCount||apps}/>
+          <NavBtn t="apps"    ic="briefcase" l="Apply" badge={newAppsCount}/>
           <NavBtn t="profile" ic="person"    l="Profile"/>
         </div>
       )}
@@ -6190,24 +6203,24 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 20px 36px" }}>
             <div style={{ width:40, height:4, background:C.border, borderRadius:2, margin:"0 auto 20px" }}/>
             <div style={{ textAlign:"center", marginBottom:20 }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>🗑️</div>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:"#DC2626", marginBottom:8 }}>Delete this listing?</div>
-              <div style={{ background:"#FEF2F2", border:"1px solid #FECACA", borderRadius:10, padding:"12px 16px", marginBottom:12, textAlign:"left" }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📥</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>Remove this listing?</div>
+              <div style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 16px", marginBottom:12, textAlign:"left" }}>
                 <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:4 }}>{deleteConfirmJob.title}</div>
                 <div style={{ fontSize:12, color:C.textSoft }}>{deleteConfirmJob.loc} · {deleteConfirmJob.type}</div>
               </div>
               <div style={{ fontSize:13, color:C.textSoft, lineHeight:1.6 }}>
-                This listing will be <strong>permanently removed</strong> from the jobs page. Any applications already received will still be accessible in your dashboard, but the listing itself <strong>cannot be restored</strong>.
+                This will take the listing off the live jobs board. It moves to your <strong>inactive listings</strong>, where you can still see everyone who applied — and re-activate it anytime.
               </div>
             </div>
             <div style={{ display:"flex", gap:10 }}>
               <button className="tap" onClick={()=>setDeleteConfirmJob(null)} disabled={deleting}
                 style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:600, cursor:"pointer" }}>
-                Keep listing
+                Keep it live
               </button>
               <button className="tap" onClick={handleDeleteJob} disabled={deleting}
-                style={{ flex:1, background:deleting?"#ccc":"#DC2626", border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontSize:14, fontWeight:700, cursor:deleting?"default":"pointer", boxShadow:deleting?"none":"0 4px 12px rgba(220,38,38,0.3)" }}>
-                {deleting ? "Deleting…" : "Yes, delete it"}
+                style={{ flex:1, background:deleting?"#ccc":C.terracotta, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontSize:14, fontWeight:700, cursor:deleting?"default":"pointer", boxShadow:deleting?"none":"0 4px 12px rgba(196,98,58,0.3)" }}>
+                {deleting ? "Removing…" : "Remove listing"}
               </button>
             </div>
           </div>
