@@ -378,17 +378,17 @@ function PricingModal({ onClose, defaultTab='listing' }) {
     {
       key:'bronze', icon:'🥉', name:'Bronze', price:50, period:'one-time',
       color:'#C9A96E', colorD:'#8B6914',
-      features:['15-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime']
+      features:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime']
     },
     {
       key:'silver', icon:'🥈', name:'Silver', price:70, period:'one-time',
       color:'#C0D0E0', colorD:'#A8B8C8', popular:true,
-      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime']
+      features:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime']
     },
     {
       key:'gold', icon:'🥇', name:'Gold', price:100, period:'one-time',
       color:'#FFD700', colorD:'#D4A017',
-      features:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & gold star — makes your listing unmissable','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Featured in our weekly curated email to active job seekers','Cancel anytime']
+      features:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & gold star — makes your listing unmissable','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Featured in our weekly curated email to active job seekers','Cancel anytime']
     },
   ]
   const subTiers = [
@@ -508,7 +508,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
           </div>
           {tab==='subscription' && (
             <div style={{marginTop:16,padding:'12px 16px',background:'#F5F0E8',borderRadius:10,fontSize:11,color:'#7A7570',lineHeight:1.6,textAlign:'left',maxWidth:480,margin:'16px auto 0'}}>
-              <strong style={{color:'#3A3733'}}>Subscription terms:</strong> Cancel anytime from your account dashboard. No refunds are issued on the current billing period. To avoid being charged for the next period, cancel before your renewal date. Subscription listings run for 15 days. Upgrade any listing to Silver or Gold for 30-day visibility and featured placement.
+              <strong style={{color:'#3A3733'}}>Subscription terms:</strong> Cancel anytime from your account dashboard. No refunds are issued on the current billing period. To avoid being charged for the next period, cancel before your renewal date. All listings run for 30 days. Upgrade any listing to Silver or Gold for featured placement and priority visibility.
             </div>
           )}
         </div>
@@ -844,11 +844,11 @@ export default function Landing() {
             const DOT = '#C4623A';
             const listingTiers = [
               { name:'Bronze', sub:'Standard Listing', price:50, cta:'Post a Job', featured:false,
-                feats:['15-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime'] },
+                feats:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Cancel anytime'] },
               { name:'Silver', sub:'Featured Listing', price:70, cta:'Post Featured', featured:true,
-                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime'] },
+                feats:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & silver star — makes your listing stand out','Featured listings shown first in feed','Cancel anytime'] },
               { name:'Gold', sub:'Premium Listing', price:100, cta:'Post Premium Gold', featured:false,
-                feats:['30-day listing visibility — twice as long','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & gold star — makes your listing unmissable','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Featured in our weekly curated email to active job seekers','Cancel anytime'] },
+                feats:['30-day listing visibility','Reaches candidates across Australia, New Zealand & beyond','Mobile-first feed — candidates browse like Instagram','One-tap applications with résumé & cover letter','Up to 5 screening questions to filter applicants','Applications land in your dashboard in real time','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Pinned to top of feed — seen before newer listings','Featured badge & gold star — makes your listing unmissable','Featured listings shown first in feed','3× more applications on average','Shared to @hosposearch social media','Featured in our weekly curated email to active job seekers','Cancel anytime'] },
             ];
             const subTiers = [
               { name:'Starter', sub:'3 active listings', price:125, cta:'Start Starter Plan', featured:false,
@@ -903,7 +903,7 @@ export default function Landing() {
           {/* Subscription fine print */}
           {pricingTab==='subscription' && (
             <div style={{maxWidth:660,margin:'-32px auto 40px',textAlign:'center',fontSize:11,color:'#A8A29A',lineHeight:1.7,padding:'0 16px'}}>
-              Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. Subscription listings run for 15 days. Upgrade any listing to Silver or Gold (+$20/$50) for 30-day visibility and featured placement.
+              Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. All listings run for 30 days. Upgrade any listing to Silver or Gold (+$20/$50) for featured placement and priority visibility.
             </div>
           )}
 
@@ -925,7 +925,7 @@ export default function Landing() {
                 <tbody>
                   {[
                     ['Price per listing', '$275–$695+', px(50), px(70), px(100)],
-                    ['Listing duration','30 days','15 days','30 days','30 days'],
+                    ['Listing duration','30 days','30 days','30 days','30 days'],
                     ['Hospitality-specific','✗','✓','✓','✓'],
                     ['Instagram-style feed','✗','✓','✓','✓'],
                     ['Story-style profiles','✗','✓','✓','✓'],

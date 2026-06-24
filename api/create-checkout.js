@@ -85,7 +85,7 @@ export default async function handler(req, res) {
     try {
       const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
       const sbKey = process.env.SUPABASE_SERVICE_KEY;
-      const days = tierKey === 'bronze' ? 15 : 30;
+      const days = 30; // all listings run 30 days
       const expiresAt = new Date(Date.now() + days*24*60*60*1000).toISOString();
       await fetch(`${sbUrl}/rest/v1/jobs?id=eq.${jobId}`, {
         method: 'PATCH',
