@@ -5805,9 +5805,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 </div>
               );
               const opts = [
-                { key:null,     label:"🥉 Bronze", sub:"Included in your plan", price:0,  perks:["Listed in the feed","Candidates can apply"] },
-                { key:"silver", label:"🥈 Silver", sub:"Featured + pinned",     price:20, perks:["⭐ Pinned to top","Featured badge","Priority 7 days"] },
-                { key:"gold",   label:"🥇 Gold",   sub:"Maximum visibility",    price:50, perks:["Everything in Silver","🔥 Shared on our socials","Highlighted in search"] },
+                { key:null,     label:"🥉 Bronze", sub:"Included in your plan", price:0,  perks:["Listed in the feed","Candidates can apply","15-day listing"] },
+                { key:"silver", label:"🥈 Silver", sub:"Featured + pinned",     price:20, perks:["⭐ Pinned to top","Featured badge","30-day listing"] },
+                { key:"gold",   label:"🥇 Gold",   sub:"Maximum visibility",    price:50, perks:["Everything in Silver","🔥 Shared on our socials","30-day listing"] },
               ];
               return (
                 <div style={{ marginBottom:16 }}>
@@ -5862,8 +5862,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Choose Your Listing Type</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {[
-                    { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", perks:["Listed in the feed","Candidates can apply","7-day listing"], missing:["Not featured","No priority placement"] },
-                    { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", perks:["Everything in Bronze","⭐ Pinned to top of feed","Priority placement for 7 days","Featured badge on listing"], missing:[] },
+                    { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", perks:["Listed in the feed","Candidates can apply","15-day listing"], missing:["Not featured","No priority placement"] },
+                    { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", perks:["Everything in Bronze","⭐ Pinned to top of feed","30-day listing","Featured badge on listing"], missing:[] },
                     { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
                   ].map(tier=>(
                     <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
@@ -6225,7 +6225,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:21, fontWeight:700, color:C.textDark, marginBottom:4 }}>Re-activate listing</div>
             <div style={{ color:C.textSoft, fontSize:13, marginBottom:18 }}>“{reactivateJob.title}” will go live again for a fresh 30 days. Choose a tier:</div>
             {[
-              { key:"bronze", name:"Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", feats:"Listed in the feed · 30-day listing" },
+              { key:"bronze", name:"Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", feats:"Listed in the feed · 15-day listing" },
               { key:"silver", name:"Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", feats:"Pinned to top · Featured badge · 30-day listing" },
               { key:"gold",   name:"Gold — Premium",   price:100, priceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu", feats:"Max visibility · Highlighted · 30-day listing" },
             ].map(t=>(
@@ -7415,7 +7415,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                 <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1, marginBottom:10, fontWeight:600 }}>Listing Tier</div>
                 <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                   {[
-                    { key:"bronze", label:"🥉 Bronze — Standard",  price:50,  featured:false, desc:"Listed in the feed · 30-day listing" },
+                    { key:"bronze", label:"🥉 Bronze — Standard",  price:50,  featured:false, desc:"Listed in the feed · 15-day listing" },
                     { key:"silver", label:"🥈 Silver — Featured",  price:70,  featured:true,  desc:"Pinned to top · Featured badge · Priority placement" },
                     { key:"gold",   label:"🥇 Gold — Premium",     price:100, featured:true,  desc:"Max visibility · Highlighted in search · Dedicated support" },
                   ].map(t=>(
