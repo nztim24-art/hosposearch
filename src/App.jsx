@@ -5259,6 +5259,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
   const resetForm = () => {
     setNj({title:"",short:"",full:"",salary:"",salaryBand:"$70–90k",type:"Full-time",country:"Australia",state:"",city:"",sector:"",roleType:"",link:"",tags:[],featured:false});
+    setSubUpgrade(null);
     setFormKey(k=>k+1);
     setPhotos([null,null,null,null,null]);
     setEditId(null);
@@ -5283,77 +5284,72 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   };
 
   const post = async () => {
-    if(!nj.title.trim()) return;
+    if(!nj.title.trim()) { alert("Please add a job title before posting."); return; }
     const jobData = buildJobData();
     const _used = user.subscription_used || 0;
     const _subLimit = user.subscription_limit || 0;
-    const _hasSub = user.subscription_active && _subLimit > 0;
+    const _hasSub = !!user.subscription_active && _subLimit > 0;
     const _subCovers = _hasSub && _used < _subLimit;
-    // Post directly (no payment) for trial accounts or active subscriptions with remaining listings
+
+    // ---- Subscription or trial: the listing posts immediately (Bronze, included).
+    // If they chose a paid Silver/Gold upgrade, we open checkout for the one-off
+    // upgrade fee AFTER the listing is live — staying on this tab so the modal shows.
     if(user.isTrial || _subCovers) {
       setPosting(true);
       let savedJob = null;
       try {
-        const saved = await sbCreateJob(user.id, jobData);
-        savedJob = saved;
-        setJobs(p=>[saved,...p]);
-        // Consume one subscription slot. The counter never decrements on delete,
-        // so deleting a listing can't refund the slot (resets monthly on renewal).
-        if (_hasSub && !user.isTrial) {
-          try {
-            await supabase.rpc('consume_subscription_listing');
-            user.subscription_used = (user.subscription_used||0) + 1;
-          } catch(e) { console.warn('Subscription slot consume failed:', e); }
-        }
-        // Notify followers of new listing
-        try {
-          const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
-          if (followers?.length > 0) {
-            const notifs = followers.map(f=>({
-              user_id: f.follower_id,
-              type: 'listing',
-              text: `New listing from ${user.name}`,
-              sub: `${jobData.title} · ${jobData.loc}`,
-              icon: '🍽️',
-              read: false,
-            }));
-            await supabase.from('notifications').insert(notifs);
-          }
-        } catch(e) { console.warn('Follower notify error:', e); }
+        savedJob = await sbCreateJob(user.id, jobData);
+        setJobs(p=>[savedJob,...p]);
       } catch(e) {
-        console.warn('Supabase save failed, using local:', e);
-        const local = {...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0};
-        savedJob = local;
-        setJobs(p=>[local,...p]);
+        // DB save failed — keep the user moving with a local copy, but tell them.
+        console.error('Listing save failed:', e);
+        savedJob = { ...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0 };
+        setJobs(p=>[savedJob,...p]);
       }
-      // Paid upgrade chosen for this subscription listing — collect the one-off
-      // upgrade fee ($20 Silver / $50 Gold). The listing is already live as
-      // Bronze; the webhook lifts it to the higher tier once payment clears.
-      if (_hasSub && !user.isTrial && subUpgrade && savedJob) {
+      // Consume one subscription slot (counter never decrements on delete). Non-blocking.
+      if (_hasSub && !user.isTrial) {
+        try {
+          await supabase.rpc('consume_subscription_listing');
+          user.subscription_used = (user.subscription_used||0) + 1;
+        } catch(e) { console.warn('Subscription slot consume failed:', e); }
+      }
+      // Notify followers. Non-blocking.
+      try {
+        const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
+        if (followers?.length > 0) {
+          await supabase.from('notifications').insert(followers.map(f=>({
+            user_id: f.follower_id, type:'listing', text:`New listing from ${user.name}`,
+            sub:`${jobData.title} · ${jobData.loc}`, icon:'🍽️', read:false,
+          })));
+        }
+      } catch(e) { console.warn('Follower notify error:', e); }
+
+      // Paid upgrade chosen — open checkout for the $20/$50 upgrade fee. Stay on the
+      // post tab so the modal is visible; navigation happens after pay/cancel.
+      if (_hasSub && !user.isTrial && subUpgrade) {
         const upKey   = subUpgrade==='gold' ? 'gold_upgrade' : 'silver_upgrade';
         const upPrice = subUpgrade==='gold' ? 50 : 20;
         setSubUpgrade(null);
-        setCheckoutJob({ ...savedJob, _upTier:upKey, _upPrice:upPrice });
         setPosting(false);
-        setTab("feed");
-        resetForm();
+        setCheckoutJob({ ...savedJob, _upTier:upKey, _upPrice:upPrice });
         return;
       }
       setPosting(false);
       setPosted(true);
       setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
-    } else {
-      // Paid listing: create the job as an unpaid draft FIRST so the Stripe
-      // webhook has a real jobId to flip to paid/active after payment.
-      setPosting(true);
-      try {
-        const draft = { ...jobData, paid:false, active:false };
-        const saved = await sbCreateJob(user.id, draft);
-        setCheckoutJob(saved); // saved.id is the real Supabase row id
-      } catch(e) {
-        console.warn('Draft job save failed, proceeding without persisted id:', e);
-        setCheckoutJob(jobData); // fallback — checkout still works, webhook just can't match
-      }
+      return;
+    }
+
+    // ---- Pay-per-listing: create an unpaid/inactive draft FIRST so the Stripe
+    // webhook has a real jobId to flip to paid/active after payment, then open checkout.
+    setPosting(true);
+    try {
+      const saved = await sbCreateJob(user.id, { ...jobData, paid:false, active:false });
+      setCheckoutJob(saved);
+    } catch(e) {
+      console.error('Draft job save failed, proceeding without persisted id:', e);
+      setCheckoutJob(jobData); // checkout still works; webhook just can't match by id
+    } finally {
       setPosting(false);
     }
   };
@@ -6062,31 +6058,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             )}
             {/* Listing limit check */}
             {!editId && (() => {
-              const activeListings = mine.filter(j=>j.active!==false).length;
+              const used = Math.min(user.subscription_used || 0, user.subscription_limit || 0);
               const subLimit = user.subscription_limit || 0;
               const hasActiveSub = user.subscription_active && subLimit > 0;
-              const atLimit = hasActiveSub && activeListings >= subLimit;
-
-              if (atLimit) return (
-                <div style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:12, padding:"16px", textAlign:"center" }}>
-                  <div style={{ fontSize:24, marginBottom:8 }}>🚫</div>
-                  <div style={{ fontWeight:700, fontSize:14, color:C.error, marginBottom:4 }}>Active listing limit reached</div>
-                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:12 }}>
-                    You have {activeListings}/{subLimit} active listings on your {user.subscription_tier} plan.
-                    Remove a listing or upgrade to post more.
-                  </div>
-                  <div style={{ display:"flex", gap:8 }}>
-                    <button className="tap" onClick={()=>setTab("listings")}
-                      style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 0", color:C.textMid, fontSize:13, fontWeight:600 }}>
-                      Manage Listings
-                    </button>
-                    <button className="tap" onClick={()=>setShowSubModal(true)}
-                      style={{ flex:1, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"10px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
-                      Upgrade Plan
-                    </button>
-                  </div>
-                </div>
-              );
 
               return (
                 <>
@@ -6094,7 +6068,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                     <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40`, marginBottom:8 }}>
                       <span style={{ fontSize:14 }}>📊</span>
                       <span style={{ color:C.sage, fontSize:12 }}>
-                        {activeListings}/{subLimit} active listings used on {user.subscription_tier} plan
+                        {used}/{subLimit} listings used this month on your {user.subscription_tier} plan
                       </span>
                     </div>
                   )}
@@ -6107,10 +6081,10 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   <button className="btn-cta tap" onClick={post} disabled={posting}
                     style={{ width:"100%", background:posting?"#ccc":posted?C.sage:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"15px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:posting||posted?"none":"0 4px 14px rgba(196,98,58,0.22)", transition:"all 0.3s" }}>
                     {posting ? "⏳ Posting your listing…" : posted ? "✓ Job Posted!" : (() => {
-                      const _ac = mine.filter(j=>j.active!==false).length;
+                      const _used = user.subscription_used || 0;
                       const _sl = user.subscription_limit||0;
                       const _hs = user.subscription_active && _sl > 0;
-                      if (user.isTrial || (_hs && _ac < _sl) || editId) return "🚀 Post Listing";
+                      if (user.isTrial || (_hs && _used < _sl) || editId) return "🚀 Post Listing";
                       return "Continue to Payment →";
                     })()}
                   </button>
@@ -6302,9 +6276,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             <p style={{ color:C.textSoft, fontSize:13, marginBottom:20 }}>Post more, pay less. Cancel anytime.</p>
             <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
               {[
-                { name:"Starter", price:125, priceId:"price_1TfwByGkG9EGtGJg9FeaYFE2", sub:"3 active listings", featured:false, feats:["3 active listings at any time","Bronze level listing on every post","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
-                { name:"Growth",  price:225, priceId:"price_1TfwC5GkG9EGtGJglmXiYPOV", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","Bronze level listing on every post","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
-                { name:"Pro",     price:350, priceId:"price_1TfwCAGkG9EGtGJgDhgMbdHb", sub:"10 active listings", featured:false, feats:["10 active listings at any time","Bronze level listing on every post","Save $15 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
+                { name:"Starter", price:125, priceId:"price_1TfwByGkG9EGtGJg9FeaYFE2", sub:"3 active listings", featured:false, feats:["3 active listings at any time","Bronze level listing on every post","Every listing runs for 30 days","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
+                { name:"Growth",  price:225, priceId:"price_1TfwC5GkG9EGtGJglmXiYPOV", sub:"6 active listings", featured:true,  feats:["6 active listings at any time","Bronze level listing on every post","Every listing runs for 30 days","Save up to $8 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
+                { name:"Pro",     price:350, priceId:"price_1TfwCAGkG9EGtGJgDhgMbdHb", sub:"10 active listings", featured:false, feats:["10 active listings at any time","Bronze level listing on every post","Every listing runs for 30 days","Save $15 per listing vs pay-per-post","Application management dashboard","Upgrade any listing to Silver (+$20) or Gold (+$50)","Cancel anytime — no lock-in"] },
               ].map(plan=>(
                 <div key={plan.name} style={{ background:"#fff", border:`${plan.featured?"2px":"1px"} solid ${plan.featured?C.terracotta:C.border}`, borderRadius:14, padding:"18px 20px", position:"relative" }}>
                   {plan.featured && <div style={{ position:"absolute", top:-10, left:"50%", transform:"translateX(-50%)", background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"3px 14px", borderRadius:100, whiteSpace:"nowrap" }}>Most Popular</div>}
