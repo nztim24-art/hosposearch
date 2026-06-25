@@ -50,6 +50,23 @@ async function supabaseUpdate(table, data, match) {
   else console.log(`Supabase ${table} updated:`, match);
 }
 
+async function supabaseRpc(fn, args) {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) { console.error('Supabase env vars missing'); return; }
+  const r = await fetch(`${url}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${key}`,
+      'apikey': key,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(args || {}),
+  });
+  if (!r.ok) console.error(`Supabase rpc ${fn} failed:`, r.status, await r.text());
+  else console.log(`Supabase rpc ${fn} ok:`, args);
+}
+
 async function getRawBody(req) {
   return new Promise((resolve, reject) => {
     let data = '';
@@ -126,6 +143,13 @@ export default async function handler(req, res) {
             featured: ['silver','gold'].includes(tier),
             expires_at: expiresAt,
           }, { id: jobId });
+
+          // If this payment was a SUBSCRIPTION upgrade (Silver/Gold add-on bought
+          // on top of a plan), the listing only just went live — consume one plan
+          // slot now. Abandoned upgrades never reach here, so they cost no slot.
+          if (priceId === 'price_1TkLi1GgUkBXedj2rGk7CBC1' || priceId === 'price_1TkLhDGgUkBXedj21S867prY') {
+            await supabaseRpc('consume_slot_for_job', { p_job_id: jobId });
+          }
 
           // Notify admin when a Gold listing is purchased so they can reach out
           if (tier === 'gold') {

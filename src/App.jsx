@@ -5290,18 +5290,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     const _subLimit = user.subscription_limit || 0;
     const _hasSub = !!user.subscription_active && _subLimit > 0;
     const _subCovers = _hasSub && _used < _subLimit;
+    // Subscriber chose a paid Silver/Gold upgrade for this listing?
+    const wantsUpgrade = _subCovers && !user.isTrial && (subUpgrade==='silver' || subUpgrade==='gold');
 
-    // ---- Subscription or trial: the listing posts immediately (Bronze, included).
-    // If they chose a paid Silver/Gold upgrade, we open checkout for the one-off
-    // upgrade fee AFTER the listing is live — staying on this tab so the modal shows.
-    if(user.isTrial || _subCovers) {
+    // ---- Subscription Bronze (included) or trial: post immediately, consume a slot.
+    // (Skipped when an upgrade is chosen — that goes through the paid draft path below
+    // so nothing goes live until the upgrade payment clears.)
+    if((user.isTrial || _subCovers) && !wantsUpgrade) {
       setPosting(true);
       let savedJob = null;
       try {
         savedJob = await sbCreateJob(user.id, jobData);
         setJobs(p=>[savedJob,...p]);
       } catch(e) {
-        // DB save failed — keep the user moving with a local copy, but tell them.
         console.error('Listing save failed:', e);
         savedJob = { ...jobData, id:"j"+Date.now(), ts:Date.now(), apps:[], views:0 };
         setJobs(p=>[savedJob,...p]);
@@ -5324,31 +5325,30 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         }
       } catch(e) { console.warn('Follower notify error:', e); }
 
-      // Paid upgrade chosen — open checkout for the $20/$50 upgrade fee. Stay on the
-      // post tab so the modal is visible; navigation happens after pay/cancel.
-      if (_hasSub && !user.isTrial && subUpgrade) {
-        const upKey   = subUpgrade==='gold' ? 'gold_upgrade' : 'silver_upgrade';
-        const upPrice = subUpgrade==='gold' ? 50 : 20;
-        setSubUpgrade(null);
-        setPosting(false);
-        setCheckoutJob({ ...savedJob, _upTier:upKey, _upPrice:upPrice });
-        return;
-      }
       setPosting(false);
       setPosted(true);
       setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
       return;
     }
 
-    // ---- Pay-per-listing: create an unpaid/inactive draft FIRST so the Stripe
-    // webhook has a real jobId to flip to paid/active after payment, then open checkout.
+    // ---- Paid path: pay-per-listing OR a subscription Silver/Gold upgrade.
+    // Create an INACTIVE, unpaid draft first, then open checkout. The webhook flips
+    // it live once payment clears (and, for an upgrade, consumes one plan slot at
+    // that point). If the user abandons checkout, the draft simply sits in their
+    // inactive listings — it never goes live as Bronze and no slot is used.
     setPosting(true);
+    const draftData = { ...jobData, paid:false, active:false };
+    let upMeta = null;
+    if (wantsUpgrade) {
+      upMeta = { _upTier: subUpgrade==='gold' ? 'gold_upgrade' : 'silver_upgrade', _upPrice: subUpgrade==='gold' ? 50 : 20 };
+      setSubUpgrade(null);
+    }
     try {
-      const saved = await sbCreateJob(user.id, { ...jobData, paid:false, active:false });
-      setCheckoutJob(saved);
+      const saved = await sbCreateJob(user.id, draftData);
+      setCheckoutJob(upMeta ? { ...saved, ...upMeta } : saved);
     } catch(e) {
       console.error('Draft job save failed, proceeding without persisted id:', e);
-      setCheckoutJob(jobData); // checkout still works; webhook just can't match by id
+      setCheckoutJob(upMeta ? { ...draftData, ...upMeta } : draftData);
     } finally {
       setPosting(false);
     }
