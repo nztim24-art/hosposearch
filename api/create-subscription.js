@@ -3,9 +3,9 @@
 // Uses Stripe REST API directly — no stripe npm package needed.
 
 const PRICE_IDS = {
-  starter: 'price_1TfwByGkG9EGtGJg9FeaYFE2',  // $99/mo AUD
-  growth:  'price_1TfwC5GkG9EGtGJglmXiYPOV',   // $199/mo AUD
-  pro:     'price_1TfwCAGkG9EGtGJgDhgMbdHb',   // $399/mo AUD
+  starter: 'price_1TfwByGkG9EGtGJg9FeaYFE2',  // $125/mo AUD
+  growth:  'price_1TfwC5GkG9EGtGJglmXiYPOV',   // $225/mo AUD
+  pro:     'price_1TfwCAGkG9EGtGJgDhgMbdHb',   // $350/mo AUD
 };
 
 export default async function handler(req, res) {

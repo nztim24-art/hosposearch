@@ -3844,7 +3844,7 @@ function SubscribePlans({ user, onSubscribe }) {
       key: "starter",
       name: "Starter",
       icon: "🥉",
-      price: 99,
+      price: 125,
       limit: 3,
       color: "#C9A96E",
       colorL: "#FDF6E8",
@@ -3863,7 +3863,7 @@ function SubscribePlans({ user, onSubscribe }) {
       key: "growth",
       name: "Growth",
       icon: "🥈",
-      price: 199,
+      price: 225,
       limit: 6,
       color: "#C0D0E0",
       colorL: "#EEF3F8",
@@ -5928,7 +5928,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 {/* Subscription option */}
                 <div style={{ marginTop:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
                   <div style={{ color:C.sage, fontSize:12, fontWeight:600, marginBottom:2 }}>💡 Hiring regularly? Save with a subscription</div>
-                  <div style={{ color:C.textSoft, fontSize:11 }}>Starter $99/mo · Growth $199/mo · Pro $399/mo — unlimited listings, priority support</div>
+                  <div style={{ color:C.textSoft, fontSize:11 }}>Starter $125/mo · Growth $225/mo · Pro $350/mo — post multiple listings, save per listing</div>
                   <button className="tap" onClick={()=>setShowSubModal(true)} style={{ marginTop:6, background:"none", border:`1px solid ${C.sage}`, borderRadius:20, padding:"4px 12px", color:C.sage, fontSize:11, fontWeight:600, cursor:"pointer" }}>View Plans →</button>
                 </div>
               </div>
