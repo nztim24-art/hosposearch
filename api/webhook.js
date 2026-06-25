@@ -7,20 +7,16 @@ export const config = { api: { bodyParser: false } }; // CRITICAL: must read raw
 const LISTING_PRICE_IDS = {
   'price_1TYxkgGgUkBXedj25MHNk2OX':    'bronze',
   'price_1TYxkbGgUkBXedj23615jbeg':    'silver',
-  'price_1TYxkdGgUkBXedj2p59j0zcZ':      'gold',
+  'price_1TYxkdGgUkBXedj2pS9j0zcZ':      'gold',
   'price_1TkLi1GgUkBXedj2rGk7CBC1': 'silver', // silver upgrade from subscription
   'price_1TkLhDGgUkBXedj21S867prY':   'gold',   // gold upgrade from subscription
 };
 
 const SUBSCRIPTION_PRICE_MAP = {
-  // Current live price IDs (must match /api/create-subscription.js)
-  'price_1TfwByGkG9EGtGJg9FeaYFE2': { plan:'starter', limit:3 },   // $99/mo
-  'price_1TfwC5GkG9EGtGJglmXiYPOV': { plan:'growth',  limit:6 },   // $199/mo
-  'price_1TfwCAGkG9EGtGJgDhgMbdHb': { plan:'pro',     limit:10 },  // $399/mo
-  // Legacy IDs kept as a harmless fallback for any older subscriptions
-  'price_1TYyDFGgUkBXedj2J0cf9bjG': { plan:'starter', limit:3 },
-  'price_1TYyHMGgUkBXedj2SFs5zNUI': { plan:'growth',  limit:6 },
-  'price_1TYyLJGgUkBXedj2Jvagygug': { plan:'pro',     limit:10 },
+  // Live subscription price IDs (must match /api/create-subscription.js)
+  'price_1TYyDFGgUkBXedj2J0cf9bjG': { plan:'starter', limit:3 },   // $125/mo
+  'price_1TYyHMGgUkBXedj2SFs5zNUI': { plan:'growth',  limit:6 },   // $225/mo
+  'price_1TYyLJGgUkBXedj2Jvagygug': { plan:'pro',     limit:10 },  // $350/mo
 };
 
 async function stripeGet(path, key) {

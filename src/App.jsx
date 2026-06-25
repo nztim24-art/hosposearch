@@ -3841,148 +3841,90 @@ function SubscribePlans({ user, onSubscribe }) {
 
   const plans = [
     {
-      key: "starter",
-      name: "Starter",
-      icon: "🥉",
-      price: 125,
-      limit: 3,
-      color: "#C9A96E",
-      colorL: "#FDF6E8",
-      border: "#8B6914",
-      features: [
-        "3 active listings at any time",
-        "30-day listing visibility",
-        "Up to 5 photos",
-        "Unlimited applications",
-        "Application management dashboard",
-        "Verified venue profile",
-        "Cancel anytime",
-      ],
+      key: "starter", name: "Starter", limit: 3, price: 125, popular: false,
+      tagline: "Perfect for small venues with regular hiring needs",
+      features: ['3 active listings at any time','Bronze level listing on every post','Every listing runs for 30 days','Save up to $8 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions, including custom questions','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'],
     },
     {
-      key: "growth",
-      name: "Growth",
-      icon: "🥈",
-      price: 225,
-      limit: 6,
-      color: "#C0D0E0",
-      colorL: "#EEF3F8",
-      border: "#A8B8C8",
-      popular: true,
-      features: [
-        "6 active listings at any time",
-        "All Starter features",
-        "Pinned to top of feed",
-        "Featured badge on every listing",
-        "Priority in search results",
-        "Highlighted in job alert emails",
-        "Candidate search & messaging",
-        "Cancel anytime",
-      ],
+      key: "growth", name: "Growth", limit: 6, price: 225, popular: true,
+      tagline: "Ideal for venues scaling up or hiring across seasons",
+      features: ['6 active listings at any time','Bronze level listing on every post','Every listing runs for 30 days','Save $12.50 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions, including custom questions','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'],
     },
     {
-      key: "pro",
-      name: "Pro",
-      icon: "🥇",
-      price: 350,
-      limit: 10,
-      color: "#FFD700",
-      colorL: "#FFFBEB",
-      border: "#D4A017",
-      features: [
-        "10 active listings at any time",
-        "All Growth features",
-        "Instagram & Facebook promotion",
-        "Custom screening questions",
-        "Priority application inbox",
-        "Bulk application management",
-        "Analytics dashboard",
-        "Custom venue landing page",
-        "Cancel anytime",
-      ],
+      key: "pro", name: "Pro", limit: 10, price: 350, popular: false,
+      tagline: "Built for hotels, resorts & large venues with ongoing needs",
+      features: ['10 active listings at any time','Bronze level listing on every post','Every listing runs for 30 days','Save $15 per listing vs pay-per-post','Applications land in your dashboard in real time','One-tap applications with résumé & cover letter','Up to 5 screening questions, including custom questions','Listings go live instantly — no approval wait','No recruiter fees — direct applications only','Reaches candidates across Australia, New Zealand & beyond','Upgrade any listing to Silver (+$20) or Gold (+$50)','Cancel anytime — no lock-in'],
     },
   ];
 
-  const IS = { width:"100%", background:"#fff", border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
-
   return (
-    <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
-      <div>
-        <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:3 }}>Subscription Plans</div>
-        <div style={{ color:C.textSoft, fontSize:13 }}>Post multiple jobs every month for one flat fee. Cancel anytime.</div>
+    <div style={{ display:"flex", flexDirection:"column", gap:18, maxWidth:1000, margin:"0 auto", width:"100%" }}>
+      <div style={{ textAlign:"center" }}>
+        <div style={{ fontFamily:"'Fraunces',serif", fontSize:24, fontWeight:700, color:C.textDark, marginBottom:4 }}>Subscription Plans</div>
+        <div style={{ color:C.textSoft, fontSize:13 }}>Post multiple jobs every month for one flat fee. Cancel anytime — no lock-in.</div>
       </div>
 
-      {/* Current plan badge */}
       {active && sub && (
-        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 14px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40` }}>
-          <span style={{ fontSize:22 }}>✅</span>
+        <div style={{ display:"flex", alignItems:"center", gap:10, padding:"12px 16px", background:C.sageL, borderRadius:12, border:`1px solid ${C.sage}40`, maxWidth:560, margin:"0 auto", width:"100%" }}>
+          <span style={{ fontSize:20 }}>✅</span>
           <div>
-            <div style={{ color:C.sage, fontWeight:700, fontSize:14 }}>
-              Active: {sub.charAt(0).toUpperCase()+sub.slice(1)} Plan
-            </div>
+            <div style={{ color:C.sageDark, fontWeight:700, fontSize:14 }}>Active: {sub.charAt(0).toUpperCase()+sub.slice(1)} Plan</div>
             <div style={{ color:C.textSoft, fontSize:12 }}>Your subscription is active and renews monthly via Stripe.</div>
           </div>
         </div>
       )}
 
-      {/* Plan cards */}
-      {plans.map(plan => {
-        const isCurrent = active && sub === plan.key;
-        const total = plan.price;
-        return (
-          <div key={plan.key} style={{ background:isCurrent?"#ECFDF5":"#fff", borderRadius:16, border:`1.5px solid ${isCurrent?C.sage:plan.popular?plan.border:C.border}`, padding:"18px 16px", position:"relative", boxShadow:plan.popular?"0 4px 20px rgba(0,0,0,0.08)":"none" }}>
-            {plan.popular && !isCurrent && (
-              <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:`linear-gradient(135deg,${plan.border},${plan.color})`, color:C.ink, fontSize:10, fontWeight:800, letterSpacing:1.5, textTransform:"uppercase", padding:"4px 14px", borderRadius:100, whiteSpace:"nowrap" }}>⭐ Most Popular</div>
-            )}
-            {isCurrent && (
-              <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:C.sage, color:"#fff", fontSize:10, fontWeight:800, letterSpacing:1.5, textTransform:"uppercase", padding:"4px 14px", borderRadius:100, whiteSpace:"nowrap" }}>✓ Current Plan</div>
-            )}
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(250px,1fr))", gap:16, alignItems:"stretch" }}>
+        {plans.map(plan => {
+          const isCurrent = active && sub === plan.key;
+          const accent = isCurrent ? C.sage : C.terracotta;
+          return (
+            <div key={plan.key} style={{ background:"#fff", border:`${(plan.popular||isCurrent)?"2px":"1px"} solid ${isCurrent?C.sage:plan.popular?C.terracotta:C.border}`, borderRadius:18, padding:"30px 24px", position:"relative", display:"flex", flexDirection:"column", textAlign:"center", boxShadow:(plan.popular||isCurrent)?"0 12px 32px rgba(196,98,58,0.12)":"0 2px 10px rgba(0,0,0,0.04)" }}>
+              {isCurrent
+                ? <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:C.sage, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"4px 16px", borderRadius:100, whiteSpace:"nowrap" }}>✓ Current Plan</div>
+                : plan.popular && <div style={{ position:"absolute", top:-12, left:"50%", transform:"translateX(-50%)", background:C.terracotta, color:"#fff", fontSize:10, fontWeight:700, letterSpacing:1, textTransform:"uppercase", padding:"4px 16px", borderRadius:100, whiteSpace:"nowrap" }}>Most Popular</div>}
 
-            <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:12 }}>
-              <span style={{ fontSize:28 }}>{plan.icon}</span>
-              <div>
-                <div style={{ fontWeight:700, fontSize:16, color:C.textDark }}>{plan.name}</div>
-                <div style={{ color:C.textSoft, fontSize:12 }}>{plan.limit} active listings/month</div>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:8, marginBottom:6 }}>
+                <span style={{ width:9, height:9, borderRadius:"50%", background:accent, flexShrink:0 }}/>
+                <div style={{ color:accent, fontSize:11, fontWeight:700, letterSpacing:1.2, textTransform:"uppercase" }}>{plan.name}</div>
               </div>
-              <div style={{ marginLeft:"auto", textAlign:"right" }}>
-                <div style={{ fontFamily:"'Fraunces',serif", fontSize:28, fontWeight:900, color:plan.color, lineHeight:1 }}>${plan.price}</div>
-                
+              <div style={{ color:C.textFaint, fontSize:11, marginBottom:4 }}>{plan.limit} active listings/month</div>
+              <div style={{ color:C.textSoft, fontSize:11, lineHeight:1.45, marginBottom:14, fontStyle:"italic", minHeight:30 }}>{plan.tagline}</div>
+
+              <div style={{ display:"flex", alignItems:"baseline", justifyContent:"center", gap:6 }}>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:44, fontWeight:800, color:C.textDark, lineHeight:1, letterSpacing:-1 }}>${plan.price}</div>
+                <div style={{ color:C.textFaint, fontSize:13 }}>/mo</div>
               </div>
+              <div style={{ fontSize:12, color:C.textFaint, margin:"5px 0 20px" }}>AUD per month · incl. GST</div>
+
+              <ul style={{ listStyle:"none", padding:0, display:"flex", flexDirection:"column", gap:8, marginBottom:24, flex:"1 1 auto", textAlign:"left" }}>
+                {plan.features.map(f=>(
+                  <li key={f} style={{ fontSize:13, color:C.textMid, display:"flex", alignItems:"flex-start", gap:8, lineHeight:1.45 }}>
+                    <span style={{ color:accent, fontWeight:700, flexShrink:0 }}>✓</span>{f}
+                  </li>
+                ))}
+              </ul>
+
+              <button className="tap" disabled={isCurrent||loading===plan.key}
+                onClick={async()=>{ setLoading(plan.key); await onSubscribe(plan.key); setLoading(null); }}
+                style={{ marginTop:"auto", width:"100%", textAlign:"center", background:isCurrent?C.sageL:plan.popular?C.terracotta:"#fff", border:`1px solid ${isCurrent?C.sage:C.terracotta}`, color:isCurrent?C.sageDark:plan.popular?"#fff":C.terracotta, padding:"12px 0", borderRadius:100, fontSize:14, fontWeight:700, cursor:isCurrent?"default":"pointer", opacity:loading===plan.key?0.7:1 }}>
+                {(() => {
+                  if (isCurrent) return "✓ Your current plan";
+                  if (loading===plan.key) return "Working…";
+                  if (active && sub) {
+                    const cur = plans.find(p=>p.key===sub);
+                    return plan.price > (cur?.price||0) ? `Upgrade to ${plan.name} →` : `Switch to ${plan.name}`;
+                  }
+                  return `Subscribe — $${plan.price}/mo`;
+                })()}
+              </button>
             </div>
-
-            <ul style={{ listStyle:"none", display:"flex", flexDirection:"column", gap:6, marginBottom:14 }}>
-              {plan.features.map(f=>(
-                <li key={f} style={{ display:"flex", alignItems:"flex-start", gap:7, fontSize:13, color:C.textMid }}>
-                  <span style={{ color:plan.color, fontWeight:700, flexShrink:0, marginTop:1 }}>✓</span>{f}
-                </li>
-              ))}
-            </ul>
-
-            <button className="btn-cta tap" disabled={isCurrent||loading===plan.key}
-              onClick={async()=>{
-                setLoading(plan.key);
-                await onSubscribe(plan.key);
-                setLoading(null);
-              }}
-              style={{ width:"100%", background:isCurrent?C.sage:loading===plan.key?"#ccc":`linear-gradient(135deg,${plan.color},${plan.border})`, border:"none", borderRadius:10, padding:"13px 0", color:plan.key==="starter"?"#1A1000":"#fff", fontWeight:700, fontSize:14, opacity:isCurrent?0.7:1 }}>
-              {isCurrent ? "Current Plan" : loading===plan.key ? "Redirecting…" : `Subscribe — $${total}/mo`}
-            </button>
-          </div>
-        );
-      })}
-
-      {/* Compare to pay per listing */}
-      <div style={{ background:C.bgSoft, borderRadius:12, padding:"13px 15px", border:`1px solid ${C.border}` }}>
-        <div style={{ color:C.textMid, fontSize:12, fontWeight:600, marginBottom:6 }}>💡 Compare to pay-per-listing</div>
-        <div style={{ color:C.textSoft, fontSize:12, lineHeight:1.6 }}>
-          Posting 3 Bronze listings individually = $165 AUD.<br/>
-          Starter plan = $108.90/mo for the same 3 slots, every month.<br/>
-          <span style={{ color:C.terracotta, fontWeight:600 }}>Save over 30% with a subscription.</span>
-        </div>
+          );
+        })}
       </div>
 
-      <div style={{ textAlign:"center", color:C.textFaint, fontSize:11 }}>
-        Billed monthly · Cancel anytime in Stripe
+      <div style={{ maxWidth:660, margin:"0 auto", textAlign:"center", fontSize:11, color:C.textFaint, lineHeight:1.7, padding:"0 16px" }}>
+        Cancel anytime from your dashboard. No refunds are issued on the current billing period — to avoid renewal charges, cancel before your next billing date. All listings run for 30 days. Upgrade any listing to Silver or Gold (+$20/$50) for featured placement and priority visibility.
       </div>
     </div>
   );
@@ -6117,6 +6059,26 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
         {/* Analytics */}
         {tab==="subscribe" && (
           <SubscribePlans user={user} onSubscribe={async(plan)=>{
+            // Existing subscriber changing plans → switch with proration (no new
+            // subscription). They pay the difference now, new rate next cycle.
+            if (user.subscription_active && user.subscription_tier) {
+              try {
+                const res = await fetch('/api/change-plan', {
+                  method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ userId: user.id, plan }),
+                });
+                const data = await res.json().catch(()=>({}));
+                if (!res.ok) throw new Error(data.detail || data.error || 'change failed');
+                const name = plan.charAt(0).toUpperCase()+plan.slice(1);
+                alert(`You're now on the ${name} plan. Any price difference has been prorated to your card, and you'll be billed the new rate each month.`);
+                window.location.reload();
+              } catch(e) {
+                console.error('Plan change failed:', e);
+                alert("Could not change your plan. Please try again, or contact support if it persists.");
+              }
+              return;
+            }
+            // New subscriber → Stripe Checkout
             try {
               // Save current post form draft so it survives the redirect
               if (nj.title.trim()) {
