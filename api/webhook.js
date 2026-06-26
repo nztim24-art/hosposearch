@@ -6,7 +6,7 @@ export const config = { api: { bodyParser: false } }; // CRITICAL: must read raw
 
 const LISTING_PRICE_IDS = {
   'price_1TYxkgGgUkBXedj25MHNk2OX':    'bronze',
-  'price_1TYxkbGgUkBXedj23615jbeg':    'silver',
+  'price_1TYxkbGgUkBXedj236i5jbeg':    'silver',
   'price_1TYxkdGgUkBXedj2pS9j0zcZ':      'gold',
   'price_1TkLi1GgUkBXedj2rGk7CBC1': 'silver', // silver upgrade from subscription
   'price_1TkLhDGgUkBXedj21S867prY':   'gold',   // gold upgrade from subscription

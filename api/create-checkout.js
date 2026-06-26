@@ -12,7 +12,7 @@ const BASE_PRICES = {
 
 const PRICE_IDS = {
   bronze:         'price_1TYxkgGgUkBXedj25MHNk2OX',
-  silver:         'price_1TYxkbGgUkBXedj23615jbeg',
+  silver:         'price_1TYxkbGgUkBXedj236i5jbeg',
   gold:           'price_1TYxkdGgUkBXedj2pS9j0zcZ',
   silver_upgrade: 'price_1TkLi1GgUkBXedj2rGk7CBC1',
   gold_upgrade:   'price_1TkLhDGgUkBXedj21S867prY',
