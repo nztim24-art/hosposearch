@@ -12,7 +12,9 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const { plan, userEmail, userId, priceId } = req.body || {};
-  const resolvedPriceId = priceId || PRICE_IDS[plan?.toLowerCase()];
+  // Always resolve from the server-side live map when the plan is known, so a
+  // stale/test priceId sent by the client can never override the real price.
+  const resolvedPriceId = PRICE_IDS[plan?.toLowerCase()] || priceId;
   if (!resolvedPriceId) return res.status(400).json({ error: `Unknown plan: ${plan}` });
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;

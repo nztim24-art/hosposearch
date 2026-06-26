@@ -5585,6 +5585,15 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 );
               })()}
 
+              {/* Subscribe path — visible to non-subscribers right under the post card */}
+              {!(user.subscription_active && (user.subscription_limit||0) > 0) && (
+                <button className="tap" onClick={()=>setTab("subscribe")}
+                  style={{ width:"100%", background:C.sageL, border:`1px solid ${C.sage}55`, borderRadius:14, padding:"13px 16px", marginBottom:20, display:"flex", alignItems:"center", justifyContent:"center", gap:8, cursor:"pointer" }}>
+                  <span style={{ fontSize:16 }}>💡</span>
+                  <span style={{ color:C.sage, fontSize:13, fontWeight:700 }}>Hiring regularly? See subscription plans →</span>
+                </button>
+              )}
+
               {/* Completed / expired listings */}
               {expiredMine.length>0 && (
                 <div style={{ marginTop:24 }}>
@@ -6348,7 +6357,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   </ul>
                   <button className="tap" onClick={async ()=>{
                     try {
-                      const res = await fetch('/api/create-subscription', { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ plan:plan.name.toLowerCase(), userEmail:user.email, userId:user.id, priceId:plan.priceId }) });
+                      const res = await fetch('/api/create-subscription', { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ plan:plan.name.toLowerCase(), userEmail:user.email, userId:user.id }) });
                       const { url } = await res.json();
                       if (url) window.location.href = url;
                     } catch(e) { alert("Couldn't connect to checkout — please try again."); }
