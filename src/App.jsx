@@ -5764,13 +5764,43 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               const _lim  = user.subscription_limit || 0;
               const _rem  = Math.max(0, _lim - _used);
               const planName = (user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1);
-              if (_rem <= 0) return (
-                <div style={{ background:"#FFF8EE", border:"1px solid #F5A62355", borderRadius:12, padding:"14px 16px", marginBottom:16 }}>
-                  <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:3 }}>You've used all {_lim} listings on your {planName} plan this month</div>
-                  <div style={{ color:C.textSoft, fontSize:12, marginBottom:10 }}>Upgrade your plan for more, or post this one as a paid listing below.</div>
-                  <button className="tap" onClick={()=>setShowSubModal(true)} style={{ background:C.terracotta, border:"none", borderRadius:20, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>Upgrade Plan →</button>
-                </div>
-              );
+              if (_rem <= 0) {
+                const payTiers = [
+                  { key:"bronze", label:"🥉 Bronze — Standard", price:50,  priceId:"price_1TYxkgGgUkBXedj25MHNk2OX", perks:["Listed in the feed","Candidates can apply","30-day listing"], missing:["Not featured","No priority placement"] },
+                  { key:"silver", label:"🥈 Silver — Featured", price:70,  priceId:"price_1TYxkbGgUkBXedj23615jbeg", perks:["Everything in Bronze","⭐ Pinned to top of feed","30-day listing","Featured badge on listing"], missing:[] },
+                  { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
+                ];
+                return (
+                  <div style={{ marginBottom:16 }}>
+                    <div style={{ background:"#FFF8EE", border:"1px solid #F5A62355", borderRadius:12, padding:"14px 16px", marginBottom:14 }}>
+                      <div style={{ fontWeight:700, fontSize:13, color:C.textDark, marginBottom:3 }}>You've used all {_lim} listings on your {planName} plan this month</div>
+                      <div style={{ color:C.textSoft, fontSize:12, marginBottom:10 }}>Post this one as a one-off paid listing below, or upgrade your plan for more included listings each month.</div>
+                      <button className="tap" onClick={()=>setShowSubModal(true)} style={{ background:C.terracotta, border:"none", borderRadius:20, padding:"6px 14px", color:"#fff", fontSize:12, fontWeight:700, cursor:"pointer" }}>Upgrade Plan →</button>
+                    </div>
+                    <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Or post this one as a paid listing</div>
+                    <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
+                      {payTiers.map(tier=>(
+                        <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
+                          style={{ border:`2px solid ${nj.tier===tier.key?C.terracotta:C.border}`, borderRadius:13, padding:"14px 15px", background:nj.tier===tier.key?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                              <div style={{ width:22, height:22, borderRadius:"50%", background:nj.tier===tier.key?C.terracotta:C.border, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                                {nj.tier===tier.key && <Icon name="check" size={13} color="#fff"/>}
+                              </div>
+                              <span style={{ fontWeight:700, fontSize:14, color:nj.tier===tier.key?C.terracotta:C.textDark }}>{tier.label}</span>
+                            </div>
+                            <div style={{ fontFamily:"'Fraunces',serif", fontSize:22, fontWeight:700, color:nj.tier===tier.key?C.terracotta:C.textDark }}>${tier.price}</div>
+                          </div>
+                          <div style={{ display:"flex", flexWrap:"wrap", gap:5 }}>
+                            {tier.perks.map(p=><span key={p} style={{ background:nj.tier===tier.key?"rgba(196,98,58,0.12)":C.bgSoft, color:nj.tier===tier.key?C.terracotta:C.textSoft, fontSize:11, padding:"2px 8px", borderRadius:20, border:`1px solid ${nj.tier===tier.key?C.terracottaM:C.border}` }}>{p}</span>)}
+                            {tier.missing.map(p=><span key={p} style={{ background:"#f5f5f5", color:C.textFaint, fontSize:11, padding:"2px 8px", borderRadius:20, border:"1px solid #eee", textDecoration:"line-through" }}>{p}</span>)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
               const opts = [
                 { key:null,     label:"🥉 Bronze", sub:"Included in your plan", price:0,  perks:["Listed in the feed","Candidates can apply","30-day listing"] },
                 { key:"silver", label:"🥈 Silver", sub:"Featured + pinned",     price:20, perks:["⭐ Pinned to top","Featured badge","30-day listing"] },
