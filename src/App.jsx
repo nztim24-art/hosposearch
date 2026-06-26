@@ -5110,16 +5110,28 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     if (!deleteConfirmJob) return;
     setDeleting(true);
     const id = deleteConfirmJob.id;
+    // An already-inactive listing (expired or an unpublished draft) is removed
+    // permanently. A live listing is only archived (kept with its applications).
+    const isInactive = deleteConfirmJob.active === false;
     try {
-      // Soft delete: archive the listing (remove from the live board) but keep
-      // the row + its applications so the employer can still see who applied.
-      const { error } = await supabase.from('jobs').update({ active:false })
-        .eq('id', id)
-        .eq('emp_id', user.id); // safety: can only archive own jobs
-      if (error) throw error;
-      // Reflect locally: drop from the live feed, keep in Mine as inactive.
-      setJobs(prev => prev.filter(j => j.id !== id));
-      if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).map(j => j.id===id ? {...j, active:false} : j));
+      if (isInactive) {
+        // Hard delete: remove the row entirely. Safety: only own jobs.
+        const { error } = await supabase.from('jobs').delete()
+          .eq('id', id)
+          .eq('emp_id', user.id);
+        if (error) throw error;
+        setJobs(prev => prev.filter(j => j.id !== id));
+        if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).filter(j => j.id !== id));
+      } else {
+        // Soft delete: archive the listing (remove from the live board) but keep
+        // the row + its applications so the employer can still see who applied.
+        const { error } = await supabase.from('jobs').update({ active:false })
+          .eq('id', id)
+          .eq('emp_id', user.id); // safety: can only archive own jobs
+        if (error) throw error;
+        setJobs(prev => prev.filter(j => j.id !== id));
+        if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).map(j => j.id===id ? {...j, active:false} : j));
+      }
       setDeleteConfirmJob(null);
     } catch(e) {
       console.error('Delete listing error:', e);
@@ -5129,6 +5141,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   }; // when set, the Post form is editing this job id
   const [formKey, setFormKey] = useState(0); // increments on every load/reset so RichTextEditor remounts
   const [reactivateJob, setReactivateJob] = useState(null); // expired job being re-activated
+  const [draftJobId, setDraftJobId] = useState(null); // unpaid draft being completed through the full post form
   const [myJobs, setMyJobs] = useState(null); // all of employer's jobs incl. expired; null until loaded
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
@@ -5185,6 +5198,33 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     (j.photos||[]).slice(0,5).forEach((p,i)=>{ ph[i] = p; });
     setPhotos(ph);
     setEditId(j.id);
+    setDraftJobId(null);
+    setFormKey(k=>k+1);
+    setTab("post");
+    setPosted(false);
+  };
+
+  // Open an unpaid draft in the full Post form so the employer can edit it AND
+  // pick a tier before paying. Unlike startEdit it does NOT set editId (so the
+  // tier picker shows and submit routes to payment); instead it remembers the
+  // draft id so post() updates that row rather than creating a new one.
+  const openDraftForCompletion = (j) => {
+    const _tier = j.tier||"bronze";
+    const _tp = { bronze:50, silver:70, gold:100 }[_tier] || 50;
+    setNj({
+      title: j.title||"", short: j.short||"", full: j.full||j.short||"",
+      salary: j.salary||"", salaryBand: j.salaryBand||"$70–90k", type: j.type||"Full-time",
+      country: j.country||"Australia", state: j.state||"", city: j.city||"",
+      sector: j.sector||"", roleType: j.roleType||"", link: (j.link&&j.link!=="#")?j.link:"",
+      applyEmail: j.applyEmail||"", venueName: j.venue||"", address: j.address||"", tags: j.tags||[],
+      featured: j.featured||(_tier!=="bronze"), tier: _tier, tierPrice: _tp,
+      sellingPoints: j.sellingPoints||["","",""], screeningQ: j.screeningQ||{},
+    });
+    const ph = [null,null,null,null,null];
+    (j.photos||[]).slice(0,5).forEach((p,i)=>{ ph[i] = p; });
+    setPhotos(ph);
+    setEditId(null);
+    setDraftJobId(j.id);
     setFormKey(k=>k+1);
     setTab("post");
     setPosted(false);
@@ -5205,6 +5245,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     setFormKey(k=>k+1);
     setPhotos([null,null,null,null,null]);
     setEditId(null);
+    setDraftJobId(null);
   };
 
   // Save edits to an existing listing (no payment — already paid)
@@ -5237,8 +5278,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
     // ---- Subscription Bronze (included) or trial: post immediately, consume a slot.
     // (Skipped when an upgrade is chosen — that goes through the paid draft path below
-    // so nothing goes live until the upgrade payment clears.)
-    if((user.isTrial || _subCovers) && !wantsUpgrade) {
+    // so nothing goes live until the upgrade payment clears. Also skipped when
+    // completing an existing unpaid draft, which always goes through payment.)
+    if((user.isTrial || _subCovers) && !wantsUpgrade && !draftJobId) {
       setPosting(true);
       let savedJob = null;
       try {
@@ -5286,11 +5328,15 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       setSubUpgrade(null);
     }
     try {
-      const saved = await sbCreateJob(user.id, draftData);
+      // Completing an existing draft → update that row; otherwise create a new draft.
+      const saved = draftJobId
+        ? { ...(await sbUpdateJobFull(draftJobId, draftData)), id: draftJobId }
+        : await sbCreateJob(user.id, draftData);
       setCheckoutJob(upMeta ? { ...saved, ...upMeta } : saved);
     } catch(e) {
       console.error('Draft job save failed, proceeding without persisted id:', e);
-      setCheckoutJob(upMeta ? { ...draftData, ...upMeta } : draftData);
+      const fb = draftJobId ? { ...draftData, id: draftJobId } : draftData;
+      setCheckoutJob(upMeta ? { ...fb, ...upMeta } : fb);
     } finally {
       setPosting(false);
     }
@@ -5585,11 +5631,15 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                           ↻ Re-activate listing
                         </button>
                       ) : (
-                        <button className="tap" onClick={()=>setCheckoutJob(j)}
+                        <button className="tap" onClick={()=>openDraftForCompletion(j)}
                           style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:7, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700, cursor:"pointer" }}>
                           💳 Complete checkout to publish
                         </button>
                       )}
+                      <button className="tap" onClick={()=>setDeleteConfirmJob(j)}
+                        style={{ width:"100%", display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:"#fff", border:"none", borderTop:`1px solid ${C.border}`, padding:"9px 0", color:C.textSoft, fontSize:12, fontWeight:600, cursor:"pointer" }}>
+                        🗑️ Delete listing
+                      </button>
                     </div>
                   ); })}
                 </div>
@@ -5759,7 +5809,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               </div>
             </div>
             {/* Subscription listing — Bronze included, optional paid upgrade for this listing */}
-            {!user.isTrial && !editId && user.subscription_active && (user.subscription_limit||0) > 0 && (()=>{
+            {!user.isTrial && !editId && !draftJobId && user.subscription_active && (user.subscription_limit||0) > 0 && (()=>{
               const _used = user.subscription_used || 0;
               const _lim  = user.subscription_limit || 0;
               const _rem  = Math.max(0, _lim - _used);
@@ -5841,12 +5891,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               );
             })()}
 
-            {!user.isTrial && !editId && !(user.subscription_active && (user.subscription_limit||0) > 0) && (()=>{
+            {!user.isTrial && !editId && (draftJobId || !(user.subscription_active && (user.subscription_limit||0) > 0)) && (()=>{
               const _activeCnt = mine.filter(j=>j.active!==false).length;
               const _subLim = user.subscription_limit || 0;
               const _hasSub = user.subscription_active && _subLim > 0;
               const _rem = Math.max(0, _subLim - _activeCnt);
-              if (_hasSub && _rem > 0) return (
+              if (_hasSub && _rem > 0 && !draftJobId) return (
                 <div style={{ background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:12, padding:"12px 14px", marginBottom:16, display:"flex", alignItems:"center", gap:10 }}>
                   <span style={{ fontSize:18 }}>✅</span>
                   <div style={{ flex:1 }}>
@@ -6036,7 +6086,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
               return (
                 <>
-                  {hasActiveSub && (
+                  {hasActiveSub && !draftJobId && (
                     <div style={{ display:"flex", alignItems:"center", gap:8, padding:"9px 12px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40`, marginBottom:8 }}>
                       <span style={{ fontSize:14 }}>📊</span>
                       <span style={{ color:C.sage, fontSize:12 }}>
@@ -6056,7 +6106,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                       const _used = user.subscription_used || 0;
                       const _sl = user.subscription_limit||0;
                       const _hs = user.subscription_active && _sl > 0;
-                      if (user.isTrial || (_hs && _used < _sl) || editId) return "🚀 Post Listing";
+                      if (!draftJobId && (user.isTrial || (_hs && _used < _sl) || editId)) return "🚀 Post Listing";
                       return "Continue to Payment →";
                     })()}
                   </button>
@@ -6169,24 +6219,26 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <div onClick={e=>e.stopPropagation()} style={{ width:"100%", maxWidth:480, background:"#fff", borderRadius:"20px 20px 0 0", padding:"24px 20px 36px" }}>
             <div style={{ width:40, height:4, background:C.border, borderRadius:2, margin:"0 auto 20px" }}/>
             <div style={{ textAlign:"center", marginBottom:20 }}>
-              <div style={{ fontSize:40, marginBottom:12 }}>📥</div>
-              <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>Remove this listing?</div>
+              <div style={{ fontSize:40, marginBottom:12 }}>{deleteConfirmJob.active===false ? "🗑️" : "📥"}</div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>{deleteConfirmJob.active===false ? "Delete this listing?" : "Remove this listing?"}</div>
               <div style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 16px", marginBottom:12, textAlign:"left" }}>
                 <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:4 }}>{deleteConfirmJob.title}</div>
                 <div style={{ fontSize:12, color:C.textSoft }}>{deleteConfirmJob.loc} · {deleteConfirmJob.type}</div>
               </div>
               <div style={{ fontSize:13, color:C.textSoft, lineHeight:1.6 }}>
-                This will take the listing off the live jobs board. It moves to your <strong>inactive listings</strong>, where you can still see everyone who applied — and re-activate it anytime.
+                {deleteConfirmJob.active===false
+                  ? <>This permanently deletes the listing and can’t be undone. {(deleteConfirmJob.apps?.length||deleteConfirmJob.applicants?.length||0)>0 ? "Any applicants attached to it will be removed too." : "It has no applicants."}</>
+                  : <>This will take the listing off the live jobs board. It moves to your <strong>inactive listings</strong>, where you can still see everyone who applied — and re-activate it anytime.</>}
               </div>
             </div>
             <div style={{ display:"flex", gap:10 }}>
               <button className="tap" onClick={()=>setDeleteConfirmJob(null)} disabled={deleting}
                 style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:12, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:600, cursor:"pointer" }}>
-                Keep it live
+                {deleteConfirmJob.active===false ? "Cancel" : "Keep it live"}
               </button>
               <button className="tap" onClick={handleDeleteJob} disabled={deleting}
                 style={{ flex:1, background:deleting?"#ccc":C.terracotta, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontSize:14, fontWeight:700, cursor:deleting?"default":"pointer", boxShadow:deleting?"none":"0 4px 12px rgba(196,98,58,0.3)" }}>
-                {deleting ? "Removing…" : "Remove listing"}
+                {deleting ? (deleteConfirmJob.active===false?"Deleting…":"Removing…") : (deleteConfirmJob.active===false?"Delete permanently":"Remove listing")}
               </button>
             </div>
           </div>
