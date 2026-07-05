@@ -69,6 +69,38 @@ export async function createOAuthProfile(type) {
   return profile
 }
 
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+// Full admin dataset via the service-role endpoint (bypasses RLS). Returns every
+// job — normalised and with its applications attached as `apps` — plus stats.
+// The admin panel has no Supabase auth session, so this is the only way it can
+// see inactive jobs, real view counts, and applications.
+export async function fetchAdminData(secret) {
+  const res = await fetch('/api/admin-data', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret }),
+  });
+  if (!res.ok) throw new Error(`admin-data failed: ${res.status}`);
+  const { jobs = [], applications = [], stats = {} } = await res.json();
+
+  // Group applications by job so each listing shows its real applicant count/list.
+  const appsByJob = {};
+  for (const a of applications) {
+    (appsByJob[a.job_id] = appsByJob[a.job_id] || []).push({
+      ...a,
+      ts: a.created_at ? new Date(a.created_at).getTime() : Date.now(),
+    });
+  }
+
+  const normJobs = (jobs || []).map(row => {
+    const j = normaliseJob(row);
+    return { ...j, apps: appsByJob[j.id] || [] };
+  });
+
+  return { jobs: normJobs, applications, stats };
+}
+
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
 export async function fetchJobs() {

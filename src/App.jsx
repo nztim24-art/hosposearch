@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob } from './supabase.js';
+import { supabase, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -7037,6 +7037,18 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [emailSent, setEmailSent] = useState(false);
   const [sentEmails, setSentEmails] = useState([]);
   const [previewEmail, setPreviewEmail] = useState(null);
+  const [adminStats, setAdminStats] = useState(null);
+  // Load the full dataset (all jobs + their applications + real view counts) via
+  // the service-role endpoint. The admin login has no Supabase session, so the
+  // RLS-limited `jobs` prop alone would hide inactive jobs and every application.
+  const loadAdminData = async () => {
+    try {
+      const res = await fetchAdminData(ADMIN_SECRET);
+      if (res && Array.isArray(res.jobs)) setJobs(res.jobs);
+      if (res && res.stats) setAdminStats(res.stats);
+    } catch(e) { console.warn('Load admin data error:', e); }
+  };
+  useEffect(()=>{ loadAdminData(); }, []);
   const loadSentEmails = async () => {
     try {
       const { data } = await supabase.from('sent_emails').select('*').order('sent_at', { ascending:false }).limit(50);
@@ -7187,6 +7199,21 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
       <div style={{ flex:1, overflowY:"auto", padding:14 }}>
         {tab==="listings" && (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {adminStats && (
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8, marginBottom:4 }}>
+                {[
+                  { label:"Views", value:(adminStats.totalViews||0).toLocaleString() },
+                  { label:"Applications", value:adminStats.totalApplications||0 },
+                  { label:"Listings", value:`${adminStats.activeJobs||0}/${adminStats.totalJobs||0}` },
+                  { label:"Users", value:adminStats.totalProfiles||0 },
+                ].map(s=>(
+                  <div key={s.label} style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:11, padding:"10px 8px", textAlign:"center", boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.terracotta, lineHeight:1 }}>{s.value}</div>
+                    <div style={{ color:C.textSoft, fontSize:10, textTransform:"uppercase", letterSpacing:0.5, marginTop:4, fontWeight:600 }}>{s.label}</div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>{jobs.length} total listing{jobs.length!==1?"s":""}</div>
             {jobs.filter(j=>j&&j.id).map(j=>{ const emp=getEmp(j); const first=(j.photos||[0])[0]; const isd=isData(first); return (
               <div key={j.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
