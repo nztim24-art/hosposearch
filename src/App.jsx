@@ -2943,7 +2943,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             <span style={{ width:3, height:3, borderRadius:"50%", background:C.textFaint, display:"inline-block" }}/>
             <TypeChip type={job.type}/>
             <span style={{ color:C.textFaint, fontSize:12 }}>· {job.loc}</span>
-            <CountdownBadge expiresAt={job.expiresAt} style={{ marginLeft:"auto" }}/>
+            <CountdownBadge expiresAt={job.expiresAt} paid={job.paid} style={{ marginLeft:"auto" }}/>
           </div>
           {(job.tags||[]).length>0 && (
             <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:16 }}>

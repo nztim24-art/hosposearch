@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { fetchJobs } from './supabase.js'
+import { fetchJobs, getSession } from './supabase.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -296,7 +296,18 @@ function JobDetail({ jobs, loading }) {
       <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
       {job.link && job.link.trim() && job.link.trim()!=="#"
         ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
-        : <Link to="/app" className="jb-apply">Apply via HospoSearch →</Link>}
+        : <Link
+            to="/app"
+            className="jb-apply"
+            onClick={() => {
+              // Whether or not the visitor is logged in, stash which job they
+              // meant to apply to. If they're already signed in, /app's init
+              // picks this up on mount and opens the apply flow immediately —
+              // if not, it survives login the same way. Without this, /app
+              // always just lands on the generic feed with no job selected.
+              try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {}
+            }}
+          >Apply via HospoSearch →</Link>}
     </div>
   )
 }
@@ -305,12 +316,16 @@ function JobDetail({ jobs, loading }) {
 export default function Jobs({ detail=false }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
+  const [signedIn, setSignedIn] = useState(false)
 
   useEffect(() => {
     let alive = true
     fetchJobs()
       .then(data => { if (alive) { setJobs(data); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
+    getSession()
+      .then(profile => { if (alive) setSignedIn(!!profile) })
+      .catch(() => { if (alive) setSignedIn(false) })
     return () => { alive = false }
   }, [])
 
@@ -319,7 +334,7 @@ export default function Jobs({ detail=false }) {
       <style>{styles}</style>
       <nav className="jb-nav">
         <Link to="/" className="jb-logo"><span>Hospo</span>Search</Link>
-        <Link to="/app" className="jb-nav-cta">Sign in</Link>
+        <Link to="/app" className="jb-nav-cta">{signedIn ? "Go to my account →" : "Sign in"}</Link>
       </nav>
       {detail ? <JobDetail jobs={jobs} loading={loading} /> : <JobsList jobs={jobs} loading={loading} />}
     </div>
