@@ -105,12 +105,30 @@ export default async function handler(req, res) {
   const rawBody = await getRawBody(req);
   let event;
 
-  // Parse event — signature verification disabled temporarily
-  // (Stripe Workbench Event Destinations use a different signing scheme)
   try {
     event = JSON.parse(rawBody);
   } catch(e) {
     return res.status(400).json({ error: 'Invalid JSON' });
+  }
+
+  // Verify this actually came from Stripe. Without this, anyone who knows the
+  // webhook URL could POST a fake checkout.session.completed and mark any
+  // job paid+active with no real charge. If STRIPE_WEBHOOK_SECRET isn't set
+  // yet, we log loudly and proceed rather than break payments outright —
+  // but this must be set in Vercel env vars as soon as possible.
+  const sig = req.headers['stripe-signature'];
+  if (webhookSecret) {
+    if (!sig) {
+      console.error('Webhook rejected: missing stripe-signature header');
+      return res.status(400).json({ error: 'Missing signature' });
+    }
+    const valid = await verifySignature(rawBody, sig, webhookSecret);
+    if (!valid) {
+      console.error('Webhook rejected: signature verification failed');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+  } else {
+    console.error('WARNING: STRIPE_WEBHOOK_SECRET not set — webhook is UNVERIFIED. Set this in Vercel env vars immediately.');
   }
 
   console.log('Webhook event:', event.type);
@@ -147,29 +165,33 @@ export default async function handler(req, res) {
             await supabaseRpc('consume_slot_for_job', { p_job_id: jobId });
           }
 
-          // Notify admin when a Gold listing is purchased so they can reach out
-          if (tier === 'gold') {
-            try {
-              const resendKey = process.env.RESEND_API_KEY;
-              const buyerEmail = session.customer_details?.email || session.customer_email || 'unknown';
-              if (resendKey) {
-                await fetch('https://api.resend.com/emails', {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    from: 'HospoSearch <noreply@hosposearch.com>',
-                    to: ['tim@hosposearch.com.au'],
-                    subject: '🥇 Gold listing purchased — reach out to help',
-                    html: `<h2>Gold listing purchased</h2>
-                      <p><strong>Buyer:</strong> ${buyerEmail}</p>
-                      <p><strong>Job ID:</strong> ${jobId}</p>
-                      <p><strong>Amount:</strong> $${(session.amount_total/100).toFixed(2)} AUD</p>
-                      <p>Reach out to offer photo assistance and concierge onboarding.</p>`,
-                  }),
-                });
-              }
-            } catch(e) { console.warn('Gold notification email failed:', e.message); }
-          }
+          // Notify admin on EVERY paid listing, regardless of tier — previously
+          // this only fired for Gold, so Silver/Bronze purchases (like this one)
+          // never sent anything and went unnoticed until found manually.
+          try {
+            const resendKey = process.env.RESEND_API_KEY;
+            const buyerEmail = session.customer_details?.email || session.customer_email || 'unknown';
+            const tierEmoji = { gold: '🥇', silver: '🥈', bronze: '🥉' }[tier] || '💳';
+            const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+            if (resendKey) {
+              await fetch('https://api.resend.com/emails', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  from: 'HospoSearch <noreply@hosposearch.com>',
+                  to: ['tim@hosposearch.com.au'],
+                  subject: `${tierEmoji} ${tierLabel} listing purchased`,
+                  html: `<h2>${tierLabel} listing purchased</h2>
+                    <p><strong>Buyer:</strong> ${buyerEmail}</p>
+                    <p><strong>Job ID:</strong> ${jobId}</p>
+                    <p><strong>Amount:</strong> $${(session.amount_total/100).toFixed(2)} AUD</p>
+                    ${tier === 'gold' ? '<p>Reach out to offer photo assistance and concierge onboarding.</p>' : ''}`,
+                }),
+              });
+            } else {
+              console.warn('RESEND_API_KEY not set — admin notification email skipped');
+            }
+          } catch(e) { console.warn('Admin notification email failed:', e.message); }
         }
 
       } else if (mode === 'subscription') {
