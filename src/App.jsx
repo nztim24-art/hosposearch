@@ -570,7 +570,7 @@ function sanitizeHtml(html) {
   }
 }
 
-const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
+const Icon = ({ name, size=24, color="currentColor", fill="none", style }) => {
   const p = {
     home:     <><path d="M3 9.5L12 3l9 6.5V20a1 1 0 01-1 1H14v-5h-4v5H4a1 1 0 01-1-1V9.5z" stroke={color} strokeWidth="1.6" fill={fill}/></>,
     search:   <><circle cx="11" cy="11" r="7" stroke={color} strokeWidth="1.6"/><path d="M16.5 16.5L21 21" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
@@ -608,8 +608,9 @@ const Icon = ({ name, size=24, color="currentColor", fill="none" }) => {
     clock:    <><circle cx="12" cy="12" r="9" stroke={color} strokeWidth="1.6"/><path d="M12 7v5l3 2" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
     mail:     <><rect x="2" y="4" width="20" height="16" rx="2" stroke={color} strokeWidth="1.6"/><path d="M3 6.5l9 6 9-6" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></>,
     chevron:  <><path d="M9 6l6 6-6 6" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></>,
+    refresh:  <><path d="M23 4v6h-6" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 20v-6h6" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"/></>,
   };
-  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none">{p[name]||null}</svg>;
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={style}>{p[name]||null}</svg>;
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
@@ -7150,28 +7151,60 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   const [allUsers, setAllUsers] = useState([]);
   const [usersLoading, setUsersLoading] = useState(true);
 
-  useEffect(()=>{
-    const loadUsers = async () => {
-      try {
-        const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
-        if (data && !error) setAllUsers(data.map(u=>({
-          id: u.id,
-          authId: u.auth_id,
-          name: u.name || u.email,
-          email: u.email,
-          handle: u.handle || u.email?.split('@')[0],
-          avatar: u.avatar || (u.type==='employer'?'🍽️':'👨‍🍳'),
-          type: u.type || 'employee',
-          verified: u.verified || false,
-          subscription_tier: u.subscription_tier,
-          subscription_active: u.subscription_active,
-          created_at: u.created_at,
-        })));
-      } catch(e) { console.warn('Load users error:', e); }
-      setUsersLoading(false);
-    };
-    loadUsers();
-  }, []);
+  const loadUsers = async () => {
+    try {
+      const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
+      if (data && !error) setAllUsers(data.map(u=>({
+        id: u.id,
+        authId: u.auth_id,
+        name: u.name || u.email,
+        email: u.email,
+        handle: u.handle || u.email?.split('@')[0],
+        avatar: u.avatar || (u.type==='employer'?'🍽️':'👨‍🍳'),
+        type: u.type || 'employee',
+        verified: u.verified || false,
+        subscription_tier: u.subscription_tier,
+        subscription_active: u.subscription_active,
+        created_at: u.created_at,
+      })));
+    } catch(e) { console.warn('Load users error:', e); }
+    setUsersLoading(false);
+  };
+  useEffect(()=>{ loadUsers(); }, []);
+
+  // Single refresh entry point for everything the admin panel shows — new
+  // signups, new/updated listings, stats, and sent-email log — so checking
+  // for new activity no longer requires signing out and back in.
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshAll = async () => {
+    setRefreshing(true);
+    try { await Promise.all([loadAdminData(), loadUsers(), loadSentEmails()]); }
+    finally { setTimeout(()=>setRefreshing(false), 400); } // keep spinner visible briefly so it registers as feedback
+  };
+
+  // Pull-to-refresh for touch devices: track a downward drag starting from
+  // the very top of the scrollable panel and trigger refreshAll() past a
+  // threshold. Desktop gets the header button instead (see pullY usage below).
+  const scrollRef = useRef(null);
+  const [pullY, setPullY] = useState(0);
+  const pullState = useRef({ startY:0, active:false });
+  const onTouchStart = (e) => {
+    if (scrollRef.current && scrollRef.current.scrollTop <= 0) {
+      pullState.current = { startY: e.touches[0].clientY, active: true };
+    } else {
+      pullState.current.active = false;
+    }
+  };
+  const onTouchMove = (e) => {
+    if (!pullState.current.active || refreshing) return;
+    const dy = e.touches[0].clientY - pullState.current.startY;
+    if (dy > 0) setPullY(Math.min(dy * 0.5, 80));
+  };
+  const onTouchEnd = () => {
+    if (pullY > 55) refreshAll();
+    setPullY(0);
+    pullState.current.active = false;
+  };
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
@@ -7187,6 +7220,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
           </button>
         )}
         <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:19, color:C.textDark, flex:1 }}>🛡️ Admin Panel</div>
+        <button className="tap" onClick={refreshAll} disabled={refreshing} style={{ background:"none", border:"none", marginRight:10, padding:2, opacity:refreshing?0.5:1 }} title="Refresh (new signups, listings, stats)">
+          <Icon name="refresh" size={20} color={C.textSoft} style={refreshing?{ animation:"spin 0.8s linear infinite" }:undefined}/>
+        </button>
         <button className="tap" onClick={()=>window.location.href='/'} style={{ background:"none", border:"none", marginRight:10, padding:2 }} title="Home"><Icon name="home" size={20} color={C.textSoft}/></button>
         <span style={{ background:"#FEF2F0", color:C.error, fontSize:11, fontWeight:700, padding:"3px 9px", borderRadius:20, border:`1px solid ${C.error}30`, marginRight:10 }}>ADMIN</span>
         <button className="tap" onClick={onLogout} style={{ background:"none", border:"none", color:C.textSoft, fontSize:13, fontWeight:500 }}>Sign out</button>
@@ -7196,7 +7232,13 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
           <button key={t} className="tap" onClick={()=>setTab(t)} style={{ flex:1, padding:"13px 0", border:"none", background:"transparent", color:tab===t?C.terracotta:C.textSoft, fontWeight:tab===t?600:400, fontSize:12, borderBottom:tab===t?`2.5px solid ${C.terracotta}`:"2.5px solid transparent" }}>{l}</button>
         ))}
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:14 }}>
+      <div ref={scrollRef} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd} style={{ flex:1, overflowY:"auto", padding:14, position:"relative" }}>
+        {(pullY > 0 || refreshing) && (
+          <div style={{ position:"absolute", top:0, left:0, right:0, display:"flex", justifyContent:"center", alignItems:"center", height:Math.max(pullY,refreshing?40:0), overflow:"hidden", transition:refreshing?"height 0.2s":"none", color:C.textSoft, fontSize:12 }}>
+            <Icon name="refresh" size={18} color={C.terracotta} style={{ animation: (refreshing||pullY>55) ? "spin 0.8s linear infinite" : "none" }}/>
+            <span style={{ marginLeft:6 }}>{refreshing ? "Refreshing…" : pullY>55 ? "Release to refresh" : "Pull to refresh"}</span>
+          </div>
+        )}
         {tab==="listings" && (
           <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
             {adminStats && (
@@ -7255,10 +7297,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
             ); })}
             {jobs.length===0 && <div style={{ textAlign:"center", padding:"50px 20px", color:C.textFaint }}><div style={{ fontSize:36, marginBottom:10 }}>📋</div>No listings yet</div>}
             <div style={{ textAlign:"center", padding:"12px 0 4px" }}>
-              <button className="tap" onClick={async ()=>{
-                try { const j = await fetchJobs(); if(Array.isArray(j)) setJobs(j); } catch(e) {}
-              }} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 16px", color:C.textMid, fontSize:12, fontWeight:600, cursor:"pointer" }}>
-                ↻ Refresh stats
+              <button className="tap" onClick={refreshAll} disabled={refreshing} style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:8, padding:"7px 16px", color:C.textMid, fontSize:12, fontWeight:600, cursor:"pointer", opacity:refreshing?0.6:1 }}>
+                {refreshing ? "Refreshing…" : "↻ Refresh"}
               </button>
             </div>
           </div>
