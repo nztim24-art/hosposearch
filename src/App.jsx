@@ -7205,6 +7205,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     setPullY(0);
     pullState.current.active = false;
   };
+  const [userFilter, setUserFilter] = useState("all");
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:9, padding:"10px 12px", color:C.textDark, fontSize:13 };
   return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", background:"#fff", overflow:"hidden" }}>
@@ -7784,11 +7785,16 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
         {tab==="users" && (
           <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
+            <div style={{ display:"flex", gap:6, marginBottom:2 }}>
+              {[["all",`All (${allUsers.length})`],["employer",`Employers (${allUsers.filter(u=>u.type==="employer").length})`],["employee",`Job Seekers (${allUsers.filter(u=>u.type==="employee").length})`]].map(([f,l])=>(
+                <button key={f} className="tap" onClick={()=>setUserFilter(f)} style={{ flex:1, background:userFilter===f?C.terracotta:C.bgSoft, border:`1px solid ${userFilter===f?C.terracotta:C.border}`, borderRadius:8, padding:"8px 6px", color:userFilter===f?"#fff":C.textMid, fontSize:11.5, fontWeight:600, cursor:"pointer" }}>{l}</button>
+              ))}
+            </div>
             <div style={{ color:C.textFaint, fontSize:12, marginBottom:4 }}>
-              {usersLoading ? "Loading users…" : `${allUsers.length} registered users`}
+              {usersLoading ? "Loading users…" : `${allUsers.filter(u=>userFilter==="all"||u.type===userFilter).length} ${userFilter==="all"?"registered users":userFilter==="employer"?"employers":"job seekers"}`}
             </div>
             {usersLoading && <div style={{ textAlign:"center", padding:"30px", color:C.textSoft, fontSize:13 }}>⏳ Loading…</div>}
-            {allUsers.map(u=>(
+            {allUsers.filter(u=>userFilter==="all"||u.type===userFilter).map(u=>(
               <div key={u.id} style={{ background:"#fff", borderRadius:13, border:`1px solid ${C.border}`, padding:"12px 14px", boxShadow:"0 1px 5px rgba(0,0,0,0.04)" }}>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <div style={{ width:40, height:40, borderRadius:"50%", background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20, flexShrink:0 }}>{u.avatar}</div>
