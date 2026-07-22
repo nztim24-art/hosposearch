@@ -45,21 +45,16 @@ export default function GiveawayTerms() {
         <p style={eyebrow}>Giveaway</p>
         <h1 style={h1}>Sign-Up Giveaway — Terms &amp; Conditions</h1>
         <p style={{ ...p, color:MUTE, marginBottom:24 }}>
-          Promoter: HospoSearch, [full legal entity name], [ABN], [registered address],
-          Gold Coast, QLD, Australia · tim@hosposearch.com
+          Promoter: HospoSearch (ABN 46 820 962 502), Gold Coast, QLD,
+          Australia · tim@hosposearch.com
         </p>
-
-        <div style={note}>
-          Draft — before this goes live, fill the bracketed items: legal entity name, ABN,
-          registered address, the opening date, and the draw date, time and location.
-        </div>
 
         <S n="1" title="Agreement to terms">
           <p style={p}>Entry into this promotion constitutes acceptance of these Terms &amp; Conditions. These terms form part of the entry conditions and cannot be varied once the promotion has commenced.</p>
         </S>
 
         <S n="2" title="Promotional period">
-          <p style={p}>The promotion opens at [12:00am AEST, opening date] and closes at <strong>11:59pm AEST, 31 August 2026</strong> (the “Promotional Period”). Entries received outside the Promotional Period will not be accepted.</p>
+          <p style={p}>The promotion opens on the date these terms are published and closes at <strong>11:59pm AEST, 31 August 2026</strong> (the “Promotional Period”). Entries received outside the Promotional Period will not be accepted.</p>
         </S>
 
         <S n="3" title="Eligibility">
@@ -93,7 +88,7 @@ export default function GiveawayTerms() {
         </S>
 
         <S n="6" title="Draw">
-          <p style={p}>6.1 The winners will be determined by random electronic draw conducted at [draw location] on [draw date] at [time] AEST.</p>
+          <p style={p}>6.1 The winners will be determined by random electronic draw conducted at the Promoter’s premises in Gold Coast, Queensland, within seven (7) days after the close of the Promotional Period.</p>
           <p style={p}>6.2 Each valid entry has an equal chance of winning within its respective draw. Candidate entries are eligible for Draws A–B; employer entries are eligible for Draw C. A single entrant cannot win more than one prize.</p>
           <p style={p}>6.3 The draw is a game of chance. Skill plays no part in determining winners.</p>
         </S>
