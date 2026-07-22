@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -2034,10 +2034,11 @@ function CandidateProfile({ user, profile, setProfile, following, setFollowing, 
     reader.onload = async ev => {
       try {
         const res = await fetch(ev.target.result);
-        const blob = await res.blob();
+        let blob = await res.blob();
+        blob = await compressImage(blob);
         // Avatars go in the PUBLIC job-photos bucket so they display everywhere
-        const path = `avatars/${user.id}/avatar-${Date.now()}.jpg`;
-        await supabase.storage.from('job-photos').upload(path, blob, { upsert:true, contentType:'image/jpeg' });
+        const path = `avatars/${user.id}/avatar-${Date.now()}.webp`;
+        await supabase.storage.from('job-photos').upload(path, blob, { upsert:true, contentType:blob.type });
         const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
         setAvatarUrl(urlData.publicUrl);
         await supabase.from('profiles').update({ avatar_url: urlData.publicUrl }).eq('id', user.id);
@@ -4424,9 +4425,10 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
     if (!pendingAvatar) return;
     setAvatarSaving(true);
     try {
-      const ext = pendingAvatar.file.name.split(".").pop();
+      const cblob = await compressImage(pendingAvatar.file);
+      const ext = cblob.type.includes("webp") ? "webp" : (cblob.type.includes("png") ? "png" : "jpg");
       const path = `avatars/${user.id}/avatar-${Date.now()}.${ext}`;
-      await supabase.storage.from("job-photos").upload(path, pendingAvatar.file, { upsert:true, contentType:pendingAvatar.file.type });
+      await supabase.storage.from("job-photos").upload(path, cblob, { upsert:true, contentType:cblob.type });
       const { data: urlData } = supabase.storage.from("job-photos").getPublicUrl(path);
       const url = urlData.publicUrl;
       await supabase.from("profiles").update({ avatar_url: url }).eq("id", user.id);
@@ -8078,8 +8080,9 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     if (typeof p === 'string' && p.startsWith('data:')) {
                       try {
                         const res = await fetch(p);
-                        const blob = await res.blob();
-                        const ext = blob.type.includes('png') ? 'png' : 'jpg';
+                        let blob = await res.blob();
+                        blob = await compressImage(blob);
+                        const ext = blob.type.includes('webp') ? 'webp' : (blob.type.includes('png') ? 'png' : 'jpg');
                         const path = `jobs/${editJob.id}/${Date.now()}_${i}.${ext}`;
                         const { error } = await supabase.storage.from('job-photos').upload(path, blob, { upsert:true, contentType:blob.type });
                         if (!error) {

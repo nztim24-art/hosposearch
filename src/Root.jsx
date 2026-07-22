@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import Landing from './Landing.jsx'
 import App from './App.jsx'
 import Jobs from './Jobs.jsx'
+import GiveawayTerms from './GiveawayTerms.jsx'
 
 export default function Root() {
   return (
@@ -13,6 +14,7 @@ export default function Root() {
       <Route path="/jobs/:id"  element={<Jobs detail />} />
       <Route path="/login"     element={<Navigate to="/app" replace />} />
       <Route path="/signup"    element={<Navigate to="/app" replace />} />
+      <Route path="/giveaway-terms" element={<GiveawayTerms />} />
       <Route path="*"          element={<Navigate to="/"    replace />} />
     </Routes>
   )

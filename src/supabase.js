@@ -5,6 +5,49 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 
+// ─── Image helpers ────────────────────────────────────────────────────────────
+// Rewrite a Supabase public-storage URL to the on-the-fly image transformation
+// endpoint so we serve small, CDN-cached images instead of multi-MB originals.
+// (Image Transformation is enabled on the Pro plan.) Non-image URLs, data: URLs
+// and numeric placeholders pass through untouched.
+export function sbImg(url, opts = {}) {
+  const { width = 1000, quality = 72 } = opts
+  if (typeof url !== 'string') return url
+  if (!url.includes('/storage/v1/object/public/')) return url
+  if (/\.(pdf|docx?|txt|mp4|mov|webm)(\?|$)/i.test(url)) return url
+  const [base, qs] = url.split('?')
+  const path = base.replace('/storage/v1/object/public/', '/storage/v1/render/image/public/')
+  const params = new URLSearchParams(qs || '')
+  params.set('width', String(width))
+  params.set('quality', String(quality))
+  return `${path}?${params.toString()}`
+}
+
+// Downscale + re-encode an image Blob/File in the browser before upload.
+// Turns 5–27MB phone photos into ~100–300kB WebP. Falls back to the original
+// if it isn't an image or anything goes wrong.
+export async function compressImage(blob, opts = {}) {
+  const { maxEdge = 1600, quality = 0.8, type = 'image/webp' } = opts
+  try {
+    if (!blob || !blob.type || !blob.type.startsWith('image/')) return blob
+    const bmp = await createImageBitmap(blob)
+    let width = bmp.width, height = bmp.height
+    if (Math.max(width, height) > maxEdge) {
+      const s = maxEdge / Math.max(width, height)
+      width = Math.round(width * s); height = Math.round(height * s)
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = width; canvas.height = height
+    canvas.getContext('2d').drawImage(bmp, 0, 0, width, height)
+    const out = await new Promise(res => canvas.toBlob(res, type, quality))
+    if (out && out.size > 0 && out.size < blob.size) return out
+    return blob
+  } catch (e) {
+    console.warn('compressImage fallback:', e)
+    return blob
+  }
+}
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export async function signUp(email, password, name, type) {
@@ -153,8 +196,9 @@ async function uploadPhoto(base64, jobId, index) {
   try {
     // Convert base64 to blob
     const res = await fetch(base64)
-    const blob = await res.blob()
-    const ext = blob.type.includes('png') ? 'png' : 'jpg'
+    let blob = await res.blob()
+    blob = await compressImage(blob)
+    const ext = blob.type.includes('webp') ? 'webp' : (blob.type.includes('png') ? 'png' : 'jpg')
     const path = `jobs/${jobId}/${index}.${ext}`
     
     const { data, error } = await supabase.storage
@@ -504,7 +548,7 @@ function normaliseProfile(row) {
     name:        row.name || '',
     handle:      row.handle || '',
     avatar:      row.avatar || '👨‍🍳',
-    avatarUrl:   row.avatar_url || null,
+    avatarUrl:   sbImg(row.avatar_url, { width: 400 }) || null,
     role:        row.role || row.headline || 'Hospitality Professional',
     experience:  row.experience || '',
     location:    row.location || '',
@@ -532,7 +576,7 @@ function normaliseProfile(row) {
     instagram:   row.instagram || '',
     resumeUrl:   row.resume_url || null,
     resumeName:  row.resume_name || null,
-    photos:      Array.isArray(row.work_photos) ? row.work_photos : [],
+    photos:      Array.isArray(row.work_photos) ? row.work_photos.map(p => sbImg(p, { width: 900 })) : [],
     sector:      row.sector || '',
   }
 }
@@ -562,13 +606,13 @@ function normaliseJob(row) {
     full:       row.full_desc || row.short || '',
     link:       row.link || '#',
     applyEmail: row.apply_email || '',
-    photos:     Array.isArray(row.photos) && row.photos.length > 0 ? row.photos : [0, 1, 2],
+    photos:     Array.isArray(row.photos) && row.photos.length > 0 ? row.photos.map(p => typeof p === 'string' ? sbImg(p, { width: 1200 }) : p) : [0, 1, 2],
     video:      row.video_url || null,
     verified:   row.verified || false,
     featured:   row.featured || false,
     views:      row.views || 0,
     apps:       [],
-    avatar_url: row.avatar_url || null,
+    avatar_url: sbImg(row.avatar_url, { width: 400 }) || null,
     address:    row.address || '',
     screeningQ: row.screening_q || {},
     ts:         row.created_at ? new Date(row.created_at).getTime() : Date.now(),
