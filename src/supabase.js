@@ -20,6 +20,7 @@ export function sbImg(url, opts = {}) {
   const params = new URLSearchParams(qs || '')
   params.set('width', String(width))
   params.set('quality', String(quality))
+  params.set('resize', 'contain')
   return `${path}?${params.toString()}`
 }
 
