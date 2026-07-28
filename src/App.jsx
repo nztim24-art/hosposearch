@@ -7287,6 +7287,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                         {j.featured ? "📌 Unpin" : "📌 Pin to top"}
                       </button>
                       <span style={{ background:C.bgSoft, borderRadius:7, padding:"4px 9px", color:C.textSoft, fontSize:11 }}>👁 {j.views||0} view{j.views!==1?"s":""}</span>
+                      <span style={{ background:(j.shareCount||0)>0?C.sandL:C.bgSoft, borderRadius:7, padding:"4px 9px", color:(j.shareCount||0)>0?C.sand:C.textSoft, fontSize:11, fontWeight:(j.shareCount||0)>0?700:400 }} title={j.lastShared?("Last shared "+new Date(j.lastShared).toLocaleDateString()):"Not shared yet"}>🔗 {j.shareCount||0} share{j.shareCount!==1?"s":""}</span>
                       <span style={{ background:(j.apps?.length||0)>0?C.terracottaL:C.bgSoft, borderRadius:7, padding:"4px 9px", color:(j.apps?.length||0)>0?C.terracotta:C.textSoft, fontSize:11, fontWeight:(j.apps?.length||0)>0?700:400 }}>📋 {j.apps?.length||0} app{j.apps?.length!==1?"s":""}</span>
                       {j.featured && <span style={{ background:C.featuredL, borderRadius:7, padding:"4px 9px", color:C.featured, fontSize:11, fontWeight:600 }}>⭐ Featured</span>}
                       <button className="tap" onClick={()=>toggleWeekly(j.id)} title={weeklyIds.includes(j.id)?"Remove from weekly email":"Add to weekly email"}

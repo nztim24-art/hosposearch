@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
-import { fetchJobs, getSession } from './supabase.js'
+import { fetchJobs, getSession, recordJobShare } from './supabase.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -13,6 +13,25 @@ const C = {
 
 const PBG = ["#E8CFBF","#EBF2EC","#FDF6E8","#F5EDE7","#EAE4DA"]
 const isData = (v) => typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))
+
+// Share a job: native share sheet on mobile, copy-link fallback on desktop.
+// Records the share in the DB either way.
+async function shareJob(job, onCopied) {
+  const url = `https://www.hosposearch.com/jobs/${job.id}`
+  recordJobShare(job.id)
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: `${job.title} — ${job.venue}`, text: `${job.title} at ${job.venue}`, url })
+      return
+    }
+  } catch (e) { /* user dismissed the share sheet, or unsupported */ }
+  try {
+    await navigator.clipboard.writeText(url)
+    onCopied && onCopied()
+  } catch (e) {
+    window.prompt("Copy this link:", url)
+  }
+}
 
 // Strips scripts/event handlers/unsafe tags from user rich text before rendering
 function sanitizeHtml(html) {
@@ -136,10 +155,16 @@ const styles = `
   .jb-detail-body li{margin-bottom:5px;}
   .jb-apply{background:linear-gradient(135deg,${C.terracotta},${C.terracottaD});color:#fff;padding:16px 36px;border-radius:100px;font-size:16px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:8px;box-shadow:0 6px 20px rgba(196,98,58,0.3);transition:transform 0.2s;}
   .jb-apply:hover{transform:translateY(-2px);}
+  .jb-actions{display:flex;gap:12px;flex-wrap:wrap;align-items:center;}
+  .jb-share{background:#fff;border:1.5px solid ${C.border};color:${C.textMid};padding:15px 26px;border-radius:100px;font-size:15px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.15s;font-family:inherit;}
+  .jb-share:hover{border-color:${C.terracotta};color:${C.terracotta};}
+  .jb-card-share{position:absolute;top:10px;right:10px;background:rgba(255,255,255,0.92);border:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.14);font-size:14px;font-weight:700;color:${C.textMid};z-index:2;line-height:1;}
+  .jb-card-share:hover{background:#fff;color:${C.terracotta};}
   @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:14px 16px;}}
 `
 
 function JobCard({ job }) {
+  const [copied, setCopied] = useState(false)
   const first = job.photos?.[0]
   const hasImg = isData(first)
   const pbg = PBG[typeof job.photos?.[0]==="number" ? job.photos[0]%PBG.length : 0]
@@ -161,6 +186,11 @@ function JobCard({ job }) {
               <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
             </div>}
         {job.featured && <div className="jb-badge">★ Featured</div>}
+        <button
+          className="jb-card-share"
+          title="Share this role"
+          onClick={(e) => { e.preventDefault(); e.stopPropagation(); shareJob(job, () => { setCopied(true); setTimeout(()=>setCopied(false), 1500) }) }}
+        >{copied ? "✓" : "↗"}</button>
       </div>
       <div className="jb-card-body">
         <div className="jb-venue">{job.venue}</div>
@@ -250,6 +280,7 @@ function JobsList({ jobs, loading }) {
 function JobDetail({ jobs, loading }) {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [copied, setCopied] = useState(false)
   const job = jobs.find(j => String(j.id)===String(id))
 
   useSEO({
@@ -294,20 +325,25 @@ function JobDetail({ jobs, loading }) {
         ))}
       </div>
       <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
-      {job.link && job.link.trim() && job.link.trim()!=="#"
-        ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
-        : <Link
-            to="/app"
-            className="jb-apply"
-            onClick={() => {
-              // Whether or not the visitor is logged in, stash which job they
-              // meant to apply to. If they're already signed in, /app's init
-              // picks this up on mount and opens the apply flow immediately —
-              // if not, it survives login the same way. Without this, /app
-              // always just lands on the generic feed with no job selected.
-              try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {}
-            }}
-          >Apply via HospoSearch →</Link>}
+      <div className="jb-actions">
+        {job.link && job.link.trim() && job.link.trim()!=="#"
+          ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
+          : <Link
+              to="/app"
+              className="jb-apply"
+              onClick={() => {
+                // Whether or not the visitor is logged in, stash which job they
+                // meant to apply to. If they're already signed in, /app's init
+                // picks this up on mount and opens the apply flow immediately —
+                // if not, it survives login the same way. Without this, /app
+                // always just lands on the generic feed with no job selected.
+                try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {}
+              }}
+            >Apply via HospoSearch →</Link>}
+        <button className="jb-share" onClick={() => shareJob(job, () => { setCopied(true); setTimeout(()=>setCopied(false), 2000) })}>
+          {copied ? "✓ Link copied" : "↗ Share role"}
+        </button>
+      </div>
     </div>
   )
 }

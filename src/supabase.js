@@ -171,6 +171,16 @@ export async function fetchJobs() {
   return data.map(normaliseJob)
 }
 
+// Record a share of a job (fire-and-forget). Increments jobs.share_count and
+// stamps last_shared_at via the increment_job_share RPC.
+export async function recordJobShare(jobId) {
+  try {
+    await supabase.rpc('increment_job_share', { p_job_id: String(jobId) })
+  } catch (e) {
+    console.warn('recordJobShare failed:', e)
+  }
+}
+
 // Fetch ALL of an employer's jobs including expired/inactive ones (for the Mine tab)
 export async function fetchMyJobs(empId) {
   // Run the same expiry sweep so statuses are current
@@ -612,6 +622,8 @@ function normaliseJob(row) {
     verified:   row.verified || false,
     featured:   row.featured || false,
     views:      row.views || 0,
+    shareCount: row.share_count || 0,
+    lastShared: row.last_shared_at ? new Date(row.last_shared_at).getTime() : null,
     apps:       [],
     avatar_url: row.avatar_url || null,
     address:    row.address || '',
