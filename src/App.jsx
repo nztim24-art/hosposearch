@@ -3499,8 +3499,8 @@ function ChangePasswordCard() {
     <div style={{ marginBottom:12 }}>
       <button className="tap" onClick={()=>setOpen(!open)}
         style={{ width:"100%", background:open?C.terracottaL:"#fff", border:"1px solid #E8E3DC", borderRadius:11, padding:"12px 16px", color:C.textDark, fontSize:14, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-        <span>\ud83d\udd12 Change Password</span>
-        <span style={{ color:C.textSoft, fontSize:12 }}>{open?"\u25b2":"\u25bc"}</span>
+        <span>🔒 Change Password</span>
+        <span style={{ color:C.textSoft, fontSize:12 }}>{open?"▲":"▼"}</span>
       </button>
       {open && (
         <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
@@ -3508,7 +3508,7 @@ function ChangePasswordCard() {
           <input value={pass2} onChange={e=>setPass2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
           <button className="tap" onClick={submit} disabled={saving}
             style={{ width:"100%", background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
-            {saving ? "Updating\u2026" : "Update Password"}
+            {saving ? "Updating…" : "Update Password"}
           </button>
           {msg && <div style={{ color:msg.includes("updated")?"#6B8F71":"#C4623A", fontSize:12 }}>{msg}</div>}
         </div>
@@ -3540,14 +3540,14 @@ function ResetPasswordScreen({ onDone }) {
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
       <div style={{ width:"100%", maxWidth:380 }}>
         <div style={{ textAlign:"center", marginBottom:24 }}>
-          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px" }}>\ud83d\udd12</div>
+          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px" }}>🔒</div>
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark }}>Set a new password</div>
         </div>
         {done ? (
           <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}`, textAlign:"center" }}>
-            <div style={{ fontSize:40, marginBottom:10 }}>\u2705</div>
+            <div style={{ fontSize:40, marginBottom:10 }}>✅</div>
             <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:6 }}>Password updated</div>
-            <div style={{ color:C.textSoft, fontSize:14 }}>Taking you to HospoSearch\u2026</div>
+            <div style={{ color:C.textSoft, fontSize:14 }}>Taking you to HospoSearch…</div>
           </div>
         ) : (
           <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
@@ -3555,7 +3555,7 @@ function ResetPasswordScreen({ onDone }) {
               <input value={p1} onChange={e=>setP1(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={IS}/>
               <input value={p2} onChange={e=>setP2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
               {msg && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{msg}</div>}
-              <button className="btn-cta tap" onClick={submit} disabled={busy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{busy ? "Saving\u2026" : "Update password"}</button>
+              <button className="btn-cta tap" onClick={submit} disabled={busy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{busy ? "Saving…" : "Update password"}</button>
             </div>
           </div>
         )}
@@ -3804,14 +3804,14 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
         </div>
         </>}
 
-        {/* \u2500\u2500 Forgot Password Screen \u2500\u2500 */}
+        {/* ── Forgot Password Screen ── */}
         {screen==="forgot" && (
           <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
             {rSent ? (
               <div style={{ textAlign:"center", padding:"12px 0" }}>
-                <div style={{ width:60, height:60, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, margin:"0 auto 14px", border:`2px solid ${C.sage}` }}>\u2709\ufe0f</div>
+                <div style={{ width:60, height:60, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, margin:"0 auto 14px", border:`2px solid ${C.sage}` }}>✉️</div>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>Check your inbox</div>
-                <div style={{ color:C.textSoft, fontSize:13.5, lineHeight:1.6, marginBottom:18 }}>If an account exists for <strong>{rEmail}</strong>, we've sent a link to reset your password. It can take a minute \u2014 check your spam folder too.</div>
+                <div style={{ color:C.textSoft, fontSize:13.5, lineHeight:1.6, marginBottom:18 }}>If an account exists for <strong>{rEmail}</strong>, we've sent a link to reset your password. It can take a minute — check your spam folder too.</div>
                 <button className="tap" onClick={()=>{ setScreen("login"); setRSent(false); }} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15 }}>Back to log in</button>
               </div>
             ) : (
@@ -3821,7 +3821,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
                 <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
                   <input value={rEmail} onChange={e=>setREmail(e.target.value)} placeholder="Email address" type="email" onKeyDown={e=>e.key==="Enter"&&sendReset()} style={IS}/>
                   {rErr && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{rErr}</div>}
-                  <button className="btn-cta tap" onClick={sendReset} disabled={rBusy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{rBusy ? "Sending\u2026" : "Send reset link"}</button>
+                  <button className="btn-cta tap" onClick={sendReset} disabled={rBusy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{rBusy ? "Sending…" : "Send reset link"}</button>
                 </div>
                 <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:13 }}>
                   Remembered it? <span onClick={()=>{ setScreen("login"); setRErr(""); }} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Log in</span>
