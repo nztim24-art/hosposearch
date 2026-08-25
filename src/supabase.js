@@ -74,6 +74,23 @@ export async function signOut() {
   await supabase.auth.signOut()
 }
 
+// Send a password reset email (recovery link) to the given address. The link
+// returns the user to redirectTo, where App.jsx intercepts the PASSWORD_RECOVERY
+// auth event and shows a set-new-password screen. The domain must be listed in
+// Supabase -> Auth -> URL Configuration -> Redirect URLs.
+export async function sendPasswordReset(email) {
+  const redirectTo = window.location.origin + '/app'
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) throw error
+}
+
+// Set a new password for the currently-authenticated (or recovery-session) user.
+// Used by the in-profile change-password cards and the post-recovery screen.
+export async function updatePassword(newPassword) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  if (error) throw error
+}
+
 export async function getSession() {
   const { data } = await supabase.auth.getSession()
   if (!data.session) return null

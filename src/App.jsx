@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -3477,6 +3477,93 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
   );
 }
 
+// Self-contained change-password card for the employer profile. Mirrors the
+// candidate AccountSettings password field. Operates on the logged-in session.
+function ChangePasswordCard() {
+  const [open, setOpen] = useState(false);
+  const [newPass, setNewPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [msg, setMsg] = useState("");
+  const [saving, setSaving] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:10, padding:"11px 13px", color:C.textDark, fontSize:14 };
+  const submit = async () => {
+    if (newPass.length < 6) { setMsg("Password must be at least 6 characters"); return; }
+    if (newPass !== pass2) { setMsg("Passwords don't match"); return; }
+    setSaving(true);
+    try { await updatePassword(newPass); setMsg("Password updated!"); setNewPass(""); setPass2(""); }
+    catch(e) { setMsg(e.message || "Failed to update password"); }
+    setSaving(false);
+    setTimeout(()=>setMsg(""), 3000);
+  };
+  return (
+    <div style={{ marginBottom:12 }}>
+      <button className="tap" onClick={()=>setOpen(!open)}
+        style={{ width:"100%", background:open?C.terracottaL:"#fff", border:"1px solid #E8E3DC", borderRadius:11, padding:"12px 16px", color:C.textDark, fontSize:14, fontWeight:600, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <span>\ud83d\udd12 Change Password</span>
+        <span style={{ color:C.textSoft, fontSize:12 }}>{open?"\u25b2":"\u25bc"}</span>
+      </button>
+      {open && (
+        <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
+          <input value={newPass} onChange={e=>setNewPass(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={IS}/>
+          <input value={pass2} onChange={e=>setPass2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
+          <button className="tap" onClick={submit} disabled={saving}
+            style={{ width:"100%", background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
+            {saving ? "Updating\u2026" : "Update Password"}
+          </button>
+          {msg && <div style={{ color:msg.includes("updated")?"#6B8F71":"#C4623A", fontSize:12 }}>{msg}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Full-screen "set a new password" step shown after a user clicks the recovery
+// link in their reset email. App intercepts the PASSWORD_RECOVERY auth event and
+// renders this before any normal screen.
+function ResetPasswordScreen({ onDone }) {
+  const [p1, setP1] = useState("");
+  const [p2, setP2] = useState("");
+  const [msg, setMsg] = useState("");
+  const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"13px 14px", color:C.textDark, fontSize:15 };
+  const submit = async () => {
+    setMsg("");
+    if (p1.length < 6) { setMsg("Password must be at least 6 characters."); return; }
+    if (p1 !== p2) { setMsg("Passwords don't match."); return; }
+    setBusy(true);
+    try { await updatePassword(p1); setDone(true); setTimeout(()=>onDone && onDone(), 1600); }
+    catch(e) { setMsg(e.message || "Could not update password."); setBusy(false); }
+  };
+  return (
+    <div style={{ minHeight:"100vh", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"24px 20px" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
+      <div style={{ width:"100%", maxWidth:380 }}>
+        <div style={{ textAlign:"center", marginBottom:24 }}>
+          <div style={{ width:56, height:56, borderRadius:16, background:`linear-gradient(135deg,${C.terracotta},${C.sand})`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, margin:"0 auto 14px" }}>\ud83d\udd12</div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark }}>Set a new password</div>
+        </div>
+        {done ? (
+          <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}`, textAlign:"center" }}>
+            <div style={{ fontSize:40, marginBottom:10 }}>\u2705</div>
+            <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:6 }}>Password updated</div>
+            <div style={{ color:C.textSoft, fontSize:14 }}>Taking you to HospoSearch\u2026</div>
+          </div>
+        ) : (
+          <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
+            <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+              <input value={p1} onChange={e=>setP1(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={IS}/>
+              <input value={p2} onChange={e=>setP2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
+              {msg && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{msg}</div>}
+              <button className="btn-cta tap" onClick={submit} disabled={busy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{busy ? "Saving\u2026" : "Update password"}</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee" }) {
   useEffect(()=>{
     const handler = () => {};
@@ -3491,6 +3578,18 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
   const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:defaultMode });
   const [suErr, setSuErr] = useState("");
   const [suDone, setSuDone] = useState(false);
+  const [rEmail, setREmail] = useState("");
+  const [rSent, setRSent] = useState(false);
+  const [rErr, setRErr] = useState("");
+  const [rBusy, setRBusy] = useState(false);
+  const sendReset = async () => {
+    setRErr("");
+    if (!rEmail.includes("@")) { setRErr("Please enter a valid email."); return; }
+    setRBusy(true);
+    try { await sendPasswordReset(rEmail.trim()); setRSent(true); }
+    catch(e) { setRErr(e.message || "Could not send reset email."); }
+    setRBusy(false);
+  };
 
   const _saveStayLoggedInImmediate = (val) => {
     localStorage.setItem('hs_stay_logged_in', val ? '1' : '0');
@@ -3671,6 +3770,9 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
             <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" style={IS}/>
             <input value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" type="password" onKeyDown={e=>e.key==="Enter"&&go()} style={IS}/>
             {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{err}</div>}
+            <div style={{ textAlign:"right", marginTop:-2 }}>
+              <span onClick={()=>{ setErr(""); setScreen("forgot"); }} style={{ color:C.terracotta, fontSize:12.5, fontWeight:600, cursor:"pointer" }}>Forgot password?</span>
+            </div>
             <div className="tap" onClick={()=>setStayLoggedIn(v=>!v)} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", userSelect:"none" }}>
               <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${stayLoggedIn?C.terracotta:C.border}`, background:stayLoggedIn?C.terracotta:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
                 {stayLoggedIn && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
@@ -3701,6 +3803,33 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
           Don't have an account? <span onClick={()=>setScreen("signup")} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Sign up</span>
         </div>
         </>}
+
+        {/* \u2500\u2500 Forgot Password Screen \u2500\u2500 */}
+        {screen==="forgot" && (
+          <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
+            {rSent ? (
+              <div style={{ textAlign:"center", padding:"12px 0" }}>
+                <div style={{ width:60, height:60, borderRadius:"50%", background:C.sageL, display:"flex", alignItems:"center", justifyContent:"center", fontSize:30, margin:"0 auto 14px", border:`2px solid ${C.sage}` }}>\u2709\ufe0f</div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:8 }}>Check your inbox</div>
+                <div style={{ color:C.textSoft, fontSize:13.5, lineHeight:1.6, marginBottom:18 }}>If an account exists for <strong>{rEmail}</strong>, we've sent a link to reset your password. It can take a minute \u2014 check your spam folder too.</div>
+                <button className="tap" onClick={()=>{ setScreen("login"); setRSent(false); }} style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15 }}>Back to log in</button>
+              </div>
+            ) : (
+              <div>
+                <div style={{ fontFamily:"'Fraunces',serif", fontSize:20, fontWeight:700, color:C.textDark, marginBottom:6 }}>Reset your password</div>
+                <div style={{ color:C.textSoft, fontSize:13.5, lineHeight:1.6, marginBottom:16 }}>Enter your account email and we'll send you a link to set a new password.</div>
+                <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
+                  <input value={rEmail} onChange={e=>setREmail(e.target.value)} placeholder="Email address" type="email" onKeyDown={e=>e.key==="Enter"&&sendReset()} style={IS}/>
+                  {rErr && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{rErr}</div>}
+                  <button className="btn-cta tap" onClick={sendReset} disabled={rBusy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{rBusy ? "Sending\u2026" : "Send reset link"}</button>
+                </div>
+                <div style={{ textAlign:"center", marginTop:16, color:C.textFaint, fontSize:13 }}>
+                  Remembered it? <span onClick={()=>{ setScreen("login"); setRErr(""); }} style={{ color:C.terracotta, fontWeight:600, cursor:"pointer" }}>Log in</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       </div>
     </div>
@@ -4285,8 +4414,6 @@ function AccountSettings({ user, onLogout }) {
       {open && (
         <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:14 }}>
 
-)}
-
           <div>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Username</div>
             <div style={{ display:"flex", gap:8 }}>
@@ -4676,6 +4803,7 @@ function EmployerProfileTab({ user, mine, apps, emailNotifs, toggleEmailNotifs, 
           Switch to {altAccount.type === 'employer' ? 'Employer' : 'Job Seeker'} Account
         </button>
       )}
+      <ChangePasswordCard />
       <button className="tap" onClick={onLogout} style={{ width:"100%", background:C.bgSoft, border:"1px solid #E8E3DC", borderRadius:11, padding:"13px 0", color:C.textMid, fontSize:14, fontWeight:500 }}>Sign Out</button>
     </div>
   );
@@ -8158,6 +8286,7 @@ export default function App() {
   const [needsAccountType, setNeedsAccountType] = useState(null);
   const [altAccount, setAltAccount] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [recovering, setRecovering] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
   const [jobs, setJobs]     = useState(INIT_JOBS);
@@ -8284,6 +8413,7 @@ export default function App() {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') { setUser(null); setType(null); }
+      if (event === 'PASSWORD_RECOVERY') { setRecovering(true); setLoading(false); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -8349,6 +8479,8 @@ export default function App() {
     setType(altAccount.type);
     setAltAccount({ profile: prev.profile, type: prev.type });
   };
+
+  if (recovering) return <ResetPasswordScreen onDone={()=>{ setRecovering(false); window.location.replace('/app'); }} />;
 
   if (loading) return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FAF8F4", fontFamily:"'DM Sans',sans-serif" }}>
