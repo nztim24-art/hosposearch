@@ -103,8 +103,7 @@ begin
   end if;
   return new;
 end $$;
-drop trigger if exists protect_job_fields on public.jobs;
-create trigger protect_job_fields before insert or update on public.jobs
+create or replace trigger protect_job_fields before insert or update on public.jobs
   for each row execute function public.protect_job_fields();
 
 -- The website used to take the plan slot with a separate call. The rule above
