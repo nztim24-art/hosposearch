@@ -5,6 +5,7 @@
 //   /jobs/chef-jobs-sydney         → role + location landing page
 //   /jobs/chef-jobs                → role landing page
 //   /jobs/hospitality-jobs-sydney  → location landing page
+//   /sitemap.xml                   → XML sitemap (same function: Hobby plan caps us at 12)
 //
 // It takes the normal built index.html, fills in <title>, meta tags and JSON-LD,
 // and puts readable content inside <div id="root">. The React app then loads and
@@ -247,7 +248,29 @@ function render(template, page) {
     .replace(/<div id="root"><\/div>/, `<div id="root">${page.body}</div>`)
 }
 
+// ─── /sitemap.xml ─────────────────────────────────────────────────────────────
+async function sitemap(req, res) {
+  let jobs = []
+  try { jobs = await getLiveJobs() } catch (e) { console.warn('Sitemap fetch error:', e) }
+  const day = (ts) => new Date(ts).toISOString().split('T')[0]
+  const newest = jobs.length ? day(Math.max(...jobs.map(j => j.updatedTs || j.ts))) : day(Date.now())
+  const url = (loc, lastmod, changefreq, priority) =>
+    `<url><loc>${SITE}${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
+  const idx = landingIndex(jobs)
+  const urls = [
+    url('/', newest, 'weekly', '1.0'),
+    url('/jobs', newest, 'daily', '0.9'),
+    ...[...idx.roles, ...idx.places, ...idx.combos].map(l => url(l.path, newest, 'daily', '0.7')),
+    ...jobs.map(j => url(`/jobs/${j.id}`, day(j.updatedTs || j.ts), 'weekly', '0.8')),
+  ]
+  res.statusCode = 200
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=900, stale-while-revalidate=3600')
+  return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`)
+}
+
 export default async function handler(req, res) {
+  if (req.query.sitemap) return sitemap(req, res)
   const slug = String(req.query.slug || '').replace(/\/+$/, '')
   let template
   try {

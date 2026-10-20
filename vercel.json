@@ -9,7 +9,7 @@
     "api/seo.js": { "includeFiles": "dist/index.html" }
   },
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/sitemap.xml", "destination": "/api/seo?sitemap=1" },
     { "source": "/jobs", "destination": "/api/seo" },
     { "source": "/jobs/:slug", "destination": "/api/seo?slug=:slug" },
     {
