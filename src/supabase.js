@@ -66,12 +66,30 @@ export async function getMyAltProfile(type) {
   return Array.isArray(data) ? (data[0] || null) : (data || null)
 }
 
-// True when the signed-in Supabase account is a HospoSearch admin
+// True when the signed-in Supabase account is a HospoSearch admin.
+// Remembers the answer locally so a momentary network problem doesn't log an
+// admin out on refresh. The flag alone grants nothing: the database and every
+// admin endpoint check the account independently on each request.
+const ADMIN_HINT = 'hs_is_admin'
 export async function isAdminSession() {
   const { data: sess } = await supabase.auth.getSession()
-  if (!sess?.session) return false
-  const { data, error } = await supabase.rpc('is_admin')
-  return !error && data === true
+  if (!sess?.session) { try { localStorage.removeItem(ADMIN_HINT) } catch (e) {} ; return false }
+  const uid = sess.session.user?.id
+  let hinted = false
+  try { hinted = localStorage.getItem(ADMIN_HINT) === uid } catch (e) {}
+  try {
+    const { data, error } = await supabase.rpc('is_admin')
+    if (error) throw error
+    try {
+      if (data === true) localStorage.setItem(ADMIN_HINT, uid)
+      else localStorage.removeItem(ADMIN_HINT)
+    } catch (e) {}
+    return data === true
+  } catch (e) {
+    // Couldn't reach the check — trust the remembered answer for this session
+    console.warn('is_admin check failed, using remembered value:', e)
+    return hinted
+  }
 }
 
 export async function getAccessToken() {
@@ -183,11 +201,44 @@ export async function createOAuthProfile(type) {
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
-// Full admin dataset via the service-role endpoint. Returns every job — normalised
-// and with its applications attached as `apps` — plus stats. The endpoint checks
-// the caller is signed in with an admin account.
+// Full admin dataset: every job (normalised, with its applications attached as
+// `apps`) plus headline stats. Read straight from the database with the admin's
+// own login — the admin policies allow it — and fall back to the service-role
+// endpoint if that read fails for any reason.
+async function adminDataDirect() {
+  const [jobsRes, appsRes, countRes] = await Promise.all([
+    supabase.from('jobs').select('*').order('created_at', { ascending: false }),
+    supabase.from('applications').select('*').order('created_at', { ascending: false }),
+    supabase.from('profiles').select('id', { count: 'exact', head: true }),
+  ])
+  if (jobsRes.error) throw jobsRes.error
+  if (appsRes.error) throw appsRes.error
+  const jobs = jobsRes.data || []
+  const applications = appsRes.data || []
+  const activeJobs = jobs.filter(j => j.active !== false).length
+  return {
+    jobs,
+    applications,
+    stats: {
+      totalJobs: jobs.length,
+      activeJobs,
+      inactiveJobs: jobs.length - activeJobs,
+      totalViews: jobs.reduce((n, j) => n + (Number(j.views) || 0), 0),
+      totalApplications: applications.length,
+      totalProfiles: countRes.count ?? 0,
+    },
+  }
+}
+
 export async function fetchAdminData() {
-  const { jobs = [], applications = [], stats = {} } = await apiPost('/api/admin-data', {});
+  let raw
+  try {
+    raw = await adminDataDirect()
+  } catch (e) {
+    console.warn('Direct admin read failed, falling back to admin API:', e)
+    raw = await apiPost('/api/admin-data', {})
+  }
+  const { jobs = [], applications = [], stats = {} } = raw;
 
   // Group applications by job so each listing shows its real applicant count/list.
   const appsByJob = {};

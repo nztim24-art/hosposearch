@@ -7228,7 +7228,12 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase.rpc('admin_list_profiles');
+      let { data, error } = await supabase.rpc('admin_list_profiles');
+      if (error || !data) {
+        console.warn('admin_list_profiles failed, falling back:', error);
+        const fb = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
+        data = fb.data; error = fb.error;
+      }
       if (data && !error) setAllUsers(data.map(u=>({
         id: u.id,
         authId: u.auth_id,
@@ -8317,7 +8322,9 @@ export default function App() {
         } else {
           // Old builds kept a fake admin flag in the browser — clear it
           try { localStorage.removeItem('hs_admin_session'); sessionStorage.removeItem('hs_admin_session'); } catch(e) {}
-          if (await isAdminSession()) {
+          let _isAdmin = false;
+          try { _isAdmin = await isAdminSession(); } catch(e) { console.warn('admin check failed:', e); }
+          if (_isAdmin) {
             setUser(ADMIN);
             setType('admin');
           } else {
@@ -8336,7 +8343,11 @@ export default function App() {
             } else {
               // Active auth session but no profile yet — a brand-new Google
               // sign-in. Ask whether they're an employer or a job seeker.
-              const pending = await getAuthSessionWithoutProfile();
+              // An admin account has no employer/job-seeker profile, so never
+              // ask them to pick one.
+              let _hinted = false;
+              try { _hinted = !!localStorage.getItem('hs_is_admin'); } catch(e) {}
+              const pending = _hinted ? null : await getAuthSessionWithoutProfile();
               if (pending) setNeedsAccountType(pending);
             }
           }
