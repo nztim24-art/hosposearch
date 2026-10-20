@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -89,18 +89,14 @@ const G = `
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const EMPLOYERS = [];
 const EMPLOYEES = [];
-const ADMIN = { id:"admin", email:"admin@hosposearch.com.au", password:"hospo2024!", name:"HospoSearch Admin", handle:"admin", avatar:"🛡️" };
+// Admin is a normal Supabase login whose account is listed in the private
+// `admins` table. No passwords or secrets live in this code any more.
+const ADMIN = { id:"admin", name:"HospoSearch Admin", handle:"admin", avatar:"🛡️" };
 
-// Admin job actions run through a service-role API endpoint (bypasses RLS safely)
-const ADMIN_SECRET = "LXqDinIuU7kZrPST5dhELfFGxqBboDsk";
+// Admin job actions run through a service-role API endpoint that checks the
+// caller is signed in as an admin.
 async function adminJobAction(action, jobId, fields) {
-  const res = await fetch("/api/admin-job", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ secret: ADMIN_SECRET, action, jobId, fields }),
-  });
-  if (!res.ok) throw new Error(`admin-job ${action} failed: ${res.status}`);
-  return res.json();
+  return apiPost("/api/admin-job", { action, jobId, fields });
 }
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
 
@@ -3599,13 +3595,6 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
 
   const go = async () => {
     setErr("");
-    // Check hardcoded admin first
-    if (email===ADMIN.email&&pass===ADMIN.password) {
-      _saveStayLoggedInImmediate(stayLoggedIn);
-      if (stayLoggedIn) localStorage.setItem('hs_admin_session', '1');
-      else sessionStorage.setItem('hs_admin_session', '1');
-      onLogin(ADMIN,"admin"); return;
-    }
     // Check hardcoded trial account
     const trial = EMPLOYERS.find(e=>e.isTrial&&e.email===email&&e.password===pass);
     if (trial) { _saveStayLoggedInImmediate(stayLoggedIn); onLogin(trial,"employer"); return; }
@@ -3623,6 +3612,12 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
     // Try Supabase auth — logs in regardless of mode toggle, uses account's actual type
     try {
       const { profile } = await signIn(email, pass);
+      // Admin accounts are listed in the private admins table
+      if (await isAdminSession()) {
+        _saveStayLoggedIn(stayLoggedIn);
+        onLogin(ADMIN, "admin");
+        return;
+      }
       if (profile) {
         const accountType = profile.type === 'employer' ? 'employer' : 'employee';
         // If they picked the wrong toggle, show helpful message
@@ -3867,14 +3862,11 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
   const subtotal   = basePrice - discount;
   const total      = subtotal;
 
-  const applyCode = () => {
+  const applyCode = async () => {
     const code = codeInput.trim().toUpperCase();
     if (!code) return;
-    const found = codes?.[code];
-    if (!found) { setCodeErr("Code not found."); return; }
-    if (!found.active) { setCodeErr("This code is no longer active."); return; }
-    if (found.used >= found.uses) { setCodeErr("This code has reached its usage limit."); return; }
-    if (new Date(found.expires) < new Date()) { setCodeErr("This code has expired."); return; }
+    const found = await checkDiscountCode(code);
+    if (!found) { setCodeErr("This code isn't valid or has expired."); return; }
     setAppliedCode({ ...found, code });
     setCodeErr("");
   };
@@ -6300,12 +6292,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
             // subscription). They pay the difference now, new rate next cycle.
             if (user.subscription_active && user.subscription_tier) {
               try {
-                const res = await fetch('/api/change-plan', {
-                  method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({ userId: user.id, plan }),
-                });
-                const data = await res.json().catch(()=>({}));
-                if (!res.ok) throw new Error(data.detail || data.error || 'change failed');
+                await apiPost('/api/change-plan', { userId: user.id, plan });
                 const name = plan.charAt(0).toUpperCase()+plan.slice(1);
                 alert(`You're now on the ${name} plan. Any price difference has been prorated to your card, and you'll be billed the new rate each month.`);
                 window.location.reload();
@@ -6760,46 +6747,10 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     } catch(e) {
       console.warn('Application save failed:', e);
     }
-    // Send email notification to employer (job's applyEmail takes priority, then profile email)
+    // Email the employer. The server looks up the application, the job and the
+    // employer's address itself, so this can only notify the right venue.
     try {
-      let profileEmail = null, profileName = null, notifsOff = false;
-      try {
-        const empProfile = await supabase.from('profiles').select('email,name,email_notifications').eq('id', job.empId).single();
-        if (empProfile.data) {
-          profileEmail = empProfile.data.email;
-          profileName = empProfile.data.name;
-          notifsOff = empProfile.data.email_notifications === false;
-        }
-      } catch(_) { /* admin or no profile row — fall back to job.applyEmail */ }
-
-      const targetEmail = job.applyEmail || profileEmail;
-      if (targetEmail && !notifsOff) {
-        await fetch('/api/notify-application', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            employerEmail: targetEmail,
-            employerName: profileName || job.venue,
-            applicantName: fd.name,
-            applicantEmail: fd.email || '',
-            applicantPhone: fd.phone || '',
-            applicantMessage: fd.msg || '',
-            jobTitle: job.title,
-            venueName: job.venue || profileName || '',
-            jobId: job.id,
-            dashboardUrl: `https://www.hosposearch.com.au/app?view=apps&jobId=${job.id}`,
-            resumeUrl: savedApp?.resume_url || null,
-            resumeName: fd.resume?.name || null,
-            coverUrl: savedApp?.cover_url || null,
-            coverName: fd.cover?.name || null,
-            visa: fd.visa || '',
-            availability: fd.availability || [],
-            hours: fd.hours || [],
-            notice: fd.notice || '',
-            screeningAnswers: fd.screeningAnswers || {},
-          }),
-        });
-      }
+      if (savedApp?.id) await apiPost('/api/notify-application', { applicationId: savedApp.id });
     } catch(e) { console.warn('Email notify error:', e); }
 
     // Update local state
@@ -7174,7 +7125,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
   // RLS-limited `jobs` prop alone would hide inactive jobs and every application.
   const loadAdminData = async () => {
     try {
-      const res = await fetchAdminData(ADMIN_SECRET);
+      const res = await fetchAdminData();
       if (res && Array.isArray(res.jobs)) setJobs(res.jobs);
       if (res && res.stats) setAdminStats(res.stats);
     } catch(e) { console.warn('Load admin data error:', e); }
@@ -7198,13 +7149,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     if (weeklyIds.length === 0) return;
     setEmailSending(true);
     try {
-      const res = await fetch('/api/send-weekly-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: ADMIN_SECRET, adminSecret: ADMIN_SECRET, jobIds: weeklyIds }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Send failed');
+      await apiPost('/api/send-weekly-email', { jobIds: weeklyIds });
       setEmailSent(true);
       setWeeklyIds([]);
       localStorage.removeItem('hs_weekly_email');
@@ -7264,7 +7209,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
     };
     // Save to Supabase via admin API (service role — admin has no auth session)
     try {
-      const saved = await sbAdminCreateJob(ADMIN_SECRET, newJob);
+      const saved = await sbAdminCreateJob(newJob);
       setJobs(p => [saved, ...p]);
     } catch(e) {
       console.warn('Admin job save failed:', e);
@@ -7283,7 +7228,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
 
   const loadUsers = async () => {
     try {
-      const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending:false });
+      const { data, error } = await supabase.rpc('admin_list_profiles');
       if (data && !error) setAllUsers(data.map(u=>({
         id: u.id,
         authId: u.auth_id,
@@ -7942,15 +7887,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     <button className="tap" onClick={async ()=>{
                       if(!window.confirm(`Delete ${u.name} (${u.email})? This removes their account, profile and listings permanently.`)) return;
                       try {
-                        // AdminDash has no Supabase session — always use admin secret
-                        const adminSecret = import.meta.env.VITE_ADMIN_SECRET;
-                        const r = await fetch('/api/admin-delete-user', {
-                          method:'POST',
-                          headers:{'Content-Type':'application/json'},
-                          body: JSON.stringify({ adminSecret, userId: u.id, authUserId: u.authId }),
-                        });
-                        const data = await r.json();
-                        if (!r.ok) { alert('Delete failed: ' + (data.error||r.status)); return; }
+                        await apiPost('/api/admin-delete-user', { userId: u.id, authUserId: u.authId });
                         setAllUsers(p=>p.filter(x=>x.id!==u.id));
                       } catch(e) { alert('Delete failed: ' + e.message); }
                     }} style={{ background:"#FEF2F0", border:`1px solid ${C.error}30`, borderRadius:8, padding:"6px 12px", color:C.error, fontSize:12, fontWeight:600 }}>Delete</button>
@@ -8168,7 +8105,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     const email = document.getElementById('transfer-email-input').value.trim();
                     if (!email) return;
                     // Find user by email in Supabase
-                    const { data } = await supabase.from('profiles').select('id,name,handle').eq('email', email).single();
+                    const { data: found } = await supabase.rpc('admin_find_profile', { p_email: email });
+                    const data = Array.isArray(found) ? found[0] : found;
                     if (!data) { alert('No account found with that email. Ask them to sign up first.'); return; }
                     if (window.confirm(`Transfer this listing to ${data.name} (@${data.handle})?`)) {
                       setEditJob(j=>({...j, empId:data.id, venue:data.name}));
@@ -8293,6 +8231,26 @@ export default function App() {
   const [profile, setProfile] = useState({ resume:null, coverLetter:null });
   const [following, setFollowing] = useState([]);
 
+  // CVs saved on profiles are private. Any link to one opens through a
+  // short-lived signed link, and only for people allowed to see it.
+  useEffect(() => {
+    const onDocClick = (e) => {
+      const a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      const href = a.getAttribute('href');
+      if (!isPrivateDocUrl(href)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const w = window.open('about:blank', '_blank');
+      signDocUrl(href).then(url => {
+        if (url) { if (w) w.location.href = url; else window.location.href = url; }
+        else { if (w) w.close(); alert("You don't have access to this document, or it has been removed."); }
+      });
+    };
+    document.addEventListener('click', onDocClick, true);
+    return () => document.removeEventListener('click', onDocClick, true);
+  }, []);
+
   // Populate profile docs from the saved user record so they auto-attach to applications
   useEffect(()=>{
     if (!user) return;
@@ -8357,10 +8315,9 @@ export default function App() {
           // User chose not to stay logged in and browser was closed — clear session
           try { await signOut(); } catch(e) {}
         } else {
-          // Check for hardcoded admin session first
-          const _adminSaved = localStorage.getItem('hs_admin_session') === '1'
-            || sessionStorage.getItem('hs_admin_session') === '1';
-          if (_adminSaved) {
+          // Old builds kept a fake admin flag in the browser — clear it
+          try { localStorage.removeItem('hs_admin_session'); sessionStorage.removeItem('hs_admin_session'); } catch(e) {}
+          if (await isAdminSession()) {
             setUser(ADMIN);
             setType('admin');
           } else {
@@ -8461,7 +8418,7 @@ export default function App() {
     if (u?.email && t !== 'admin') {
       try {
         const otherType = t === 'employer' ? 'employee' : 'employer';
-        const { data } = await supabase.from('profiles').select('*').eq('email', u.email).eq('type', otherType).single();
+        const data = await getMyAltProfile(otherType);
         if (data) setAltAccount({ profile: data, type: otherType });
         else setAltAccount(null);
       } catch(e) { setAltAccount(null); }

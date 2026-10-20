@@ -67,7 +67,7 @@ export default async function handler(req, res) {
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) return res.status(500).json({ error: 'Payment service not configured' });
 
-  const origin = req.headers.origin || 'https://www.hosposearch.com.au';
+  const origin = 'https://www.hosposearch.com';
 
   // Validate discount code server-side
   let discountPct = 0;
@@ -135,8 +135,7 @@ export default async function handler(req, res) {
       return res.status(502).json({ error: 'Stripe error', detail: session.error?.message });
     }
 
-    // Increment code usage after successful session creation
-    if (validCode) await incrementCodeUsage(discountCode);
+    // Code usage is counted by the Stripe webhook once payment completes.
 
     return res.status(200).json({ url: session.url, sessionId: session.id });
   } catch (err) {

@@ -51,22 +51,78 @@ export async function compressImage(blob, opts = {}) {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
+// The signed-in user's own full profile. Private fields (email, phone, CV links,
+// plan details) can only be read this way — not with a direct table select.
+export async function getMyProfile() {
+  const { data, error } = await supabase.rpc('get_my_profile')
+  if (error) { console.warn('getMyProfile error:', error); return null }
+  return Array.isArray(data) ? (data[0] || null) : (data || null)
+}
+
+// The user's other profile (employer ↔ job seeker) for the account switcher
+export async function getMyAltProfile(type) {
+  const { data, error } = await supabase.rpc('get_my_alt_profile', { p_type: type })
+  if (error) return null
+  return Array.isArray(data) ? (data[0] || null) : (data || null)
+}
+
+// True when the signed-in Supabase account is a HospoSearch admin
+export async function isAdminSession() {
+  const { data: sess } = await supabase.auth.getSession()
+  if (!sess?.session) return false
+  const { data, error } = await supabase.rpc('is_admin')
+  return !error && data === true
+}
+
+export async function getAccessToken() {
+  const { data } = await supabase.auth.getSession()
+  return data?.session?.access_token || null
+}
+
+// POST to one of our /api endpoints as the signed-in user (admin tools etc.)
+export async function apiPost(path, body) {
+  const token = await getAccessToken()
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body || {}),
+  })
+  let data = null
+  try { data = await res.json() } catch (e) { /* empty body */ }
+  if (!res.ok) throw new Error((data && data.error) || `${path} failed: ${res.status}`)
+  return data
+}
+
+// CVs saved on profiles live in the private 'documents' bucket. Turn a stored
+// link into a short-lived one the viewer is allowed to open. Other links pass through.
+const DOCS_PUBLIC = '/storage/v1/object/public/documents/'
+export function isPrivateDocUrl(url) {
+  return typeof url === 'string' && url.includes(DOCS_PUBLIC)
+}
+export async function signDocUrl(url, seconds = 3600) {
+  if (!isPrivateDocUrl(url)) return url
+  const path = decodeURIComponent(url.split(DOCS_PUBLIC)[1].split('?')[0])
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, seconds)
+  if (error || !data?.signedUrl) { console.warn('signDocUrl failed:', error); return null }
+  return data.signedUrl
+}
+
 export async function signUp(email, password, name, type) {
   const { data, error } = await supabase.auth.signUp({ email, password })
   if (error) throw error
   const handle = name.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now().toString().slice(-4)
-  const { data: profile, error: profileError } = await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .insert({ auth_id: data.user.id, email, name, handle, type, avatar: type === 'employer' ? '🍽️' : '👨‍🍳' })
-    .select().single()
   if (profileError) throw profileError
+  const profile = await getMyProfile()
   return { user: data.user, profile }
 }
 
 export async function signIn(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) throw error
-  const { data: profile } = await supabase.from('profiles').select('*').eq('auth_id', data.user.id).single()
+  const profile = await getMyProfile()
   return { user: data.user, profile }
 }
 
@@ -94,11 +150,7 @@ export async function updatePassword(newPassword) {
 export async function getSession() {
   const { data } = await supabase.auth.getSession()
   if (!data.session) return null
-  const { data: profile } = await supabase.from('profiles')
-    .select('*, subscription_tier, subscription_active, subscription_limit, stripe_customer_id, stripe_subscription_id')
-    .eq('auth_id', data.session.user.id)
-    .single()
-  return profile
+  return await getMyProfile()
 }
 
 // True when there's an active auth session (e.g. just signed in with Google)
@@ -119,31 +171,23 @@ export async function createOAuthProfile(type) {
   const { data: sess } = await supabase.auth.getSession()
   if (!sess.session) throw new Error('No active session')
   const u = sess.session.user
-  const existing = await supabase.from('profiles').select('*').eq('auth_id', u.id).maybeSingle()
-  if (existing.data) return existing.data
+  const existing = await getMyProfile()
+  if (existing) return existing
   const name = u.user_metadata?.full_name || u.user_metadata?.name || (u.email ? u.email.split('@')[0] : 'New User')
   const handle = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '') + '_' + Date.now().toString().slice(-4)
-  const { data: profile, error } = await supabase.from('profiles')
+  const { error } = await supabase.from('profiles')
     .insert({ auth_id: u.id, email: u.email, name, handle, type, avatar: type === 'employer' ? '🍽️' : '👨‍🍳' })
-    .select().single()
   if (error) throw error
-  return profile
+  return await getMyProfile()
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 
-// Full admin dataset via the service-role endpoint (bypasses RLS). Returns every
-// job — normalised and with its applications attached as `apps` — plus stats.
-// The admin panel has no Supabase auth session, so this is the only way it can
-// see inactive jobs, real view counts, and applications.
-export async function fetchAdminData(secret) {
-  const res = await fetch('/api/admin-data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret }),
-  });
-  if (!res.ok) throw new Error(`admin-data failed: ${res.status}`);
-  const { jobs = [], applications = [], stats = {} } = await res.json();
+// Full admin dataset via the service-role endpoint. Returns every job — normalised
+// and with its applications attached as `apps` — plus stats. The endpoint checks
+// the caller is signed in with an admin account.
+export async function fetchAdminData() {
+  const { jobs = [], applications = [], stats = {} } = await apiPost('/api/admin-data', {});
 
   // Group applications by job so each listing shows its real applicant count/list.
   const appsByJob = {};
@@ -537,6 +581,7 @@ export async function toggleBookmark(userId, jobId, isBookmarked) {
 
 // ─── Discount Codes ───────────────────────────────────────────────────────────
 
+// Admin only — codes are no longer publicly listable (returns {} for everyone else).
 export async function fetchCodes() {
   const { data, error } = await supabase.from('discount_codes').select('*').order('created_at')
   if (error) throw error
@@ -554,14 +599,18 @@ export async function updateProfile(profileId, updates) {
   if (error) throw error
 }
 
-// Fetch all job-seeker profiles that have opted into being discoverable by employers
+// Check one discount code at checkout. Returns { code, pct } or null.
+export async function checkDiscountCode(code) {
+  const { data, error } = await supabase.rpc('check_discount_code', { p_code: code })
+  if (error) { console.warn('checkDiscountCode error:', error); return null }
+  return Array.isArray(data) ? (data[0] || null) : (data || null)
+}
+
+// Fetch all job-seeker profiles that have opted into being discoverable by employers.
+// Contact details and CV links only come back for signed-in employers, and only
+// the ones each candidate chose to share.
 export async function fetchPublicProfiles() {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('type', 'employee')
-    .eq('is_public', true)
-    .order('updated_at', { ascending: false })
+  const { data, error } = await supabase.rpc('discoverable_profiles')
   if (error) {
     console.error('fetchPublicProfiles error:', error)
     return []
@@ -711,7 +760,7 @@ export async function toggleAlertActive(alertId, active) {
 // ─── Admin create job (via service-role API, bypasses RLS) ────────────────────
 // Admin has no Supabase auth session, so direct inserts are blocked by RLS.
 // This uploads photos then posts to /api/admin-job which inserts as service role.
-export async function adminCreateJob(adminSecret, jobData) {
+export async function adminCreateJob(jobData) {
   const tempId = 'j' + Date.now()
   const photoUrls = []
   const photos = jobData.photos || []
@@ -758,12 +807,6 @@ export async function adminCreateJob(adminSecret, jobData) {
     active:      true,
   }
 
-  const res = await fetch('/api/admin-job', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret: adminSecret, action: 'create', fields }),
-  })
-  if (!res.ok) throw new Error(`adminCreateJob failed: ${res.status}`)
-  const { job } = await res.json()
+  const { job } = await apiPost('/api/admin-job', { action: 'create', fields })
   return normaliseJob(job)
 }

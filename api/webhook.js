@@ -165,6 +165,12 @@ export default async function handler(req, res) {
             await supabaseRpc('consume_slot_for_job', { p_job_id: jobId });
           }
 
+          // Count the discount code as used now the payment has gone through
+          if (metadata?.discountCode) {
+            try { await supabaseRpc('increment_code_usage', { code_val: String(metadata.discountCode).toUpperCase() }); }
+            catch (e) { console.warn('Code usage count failed:', e.message); }
+          }
+
           // Notify admin on EVERY paid listing, regardless of tier — previously
           // this only fired for Gold, so Silver/Bronze purchases (like this one)
           // never sent anything and went unnoticed until found manually.

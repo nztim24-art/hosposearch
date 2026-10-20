@@ -17,9 +17,14 @@ async function sb(path, options = {}) {
       ...(options.headers || {}),
     },
   });
-  if (!res.ok) throw new Error(`Supabase ${path} → ${res.status}: ${await res.text()}`);
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`Supabase ${path} → ${res.status}: ${text}`);
+  // PATCH with return=minimal comes back empty — that used to crash the whole
+  // run after the first email, so everyone got the same jobs again next day.
+  return text ? JSON.parse(text) : null;
 }
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 // Does a job match an alert? Loose, forgiving matching.
 function jobMatchesAlert(job, alert) {
@@ -150,18 +155,22 @@ export default async function handler(req, res) {
         ? `New role: ${matches[0].title} on HospoSearch`
         : `${matches.length} new roles matching "${alert.label || alert.role}"`;
 
-      const ok = await sendEmail(profile.email, subject, buildEmail(profile.name, matches));
-      if (ok) { emailsSent++; notifiedAlertIds.push(alert.id); }
-    }
-
-    // 5. Update last_notified_at on alerts we emailed
-    const now = new Date().toISOString();
-    for (const id of notifiedAlertIds) {
-      await sb(`job_alerts?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: { Prefer: 'return=minimal' },
-        body: JSON.stringify({ last_notified_at: now }),
-      });
+      let ok = false;
+      try { ok = await sendEmail(profile.email, subject, buildEmail(profile.name, matches)); }
+      catch (e) { console.warn('Alert email failed:', alert.id, e.message); }
+      if (ok) {
+        emailsSent++;
+        notifiedAlertIds.push(alert.id);
+        // Mark this alert as sent straight away, so a later failure can't cause repeats
+        try {
+          await sb(`job_alerts?id=eq.${alert.id}`, {
+            method: 'PATCH',
+            headers: { Prefer: 'return=minimal' },
+            body: JSON.stringify({ last_notified_at: new Date().toISOString() }),
+          });
+        } catch (e) { console.warn('Could not mark alert sent:', alert.id, e.message); }
+      }
+      await sleep(600); // stay under Resend's 2-emails-per-second limit
     }
 
     return res.status(200).json({ sent: emailsSent, alertsChecked: alerts.length, jobsPool: jobs.length });

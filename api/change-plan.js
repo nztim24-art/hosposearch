@@ -4,6 +4,8 @@
 // each cycle thereafter. New (not-yet-subscribed) users still go through
 // /api/create-subscription (a normal Checkout session) instead.
 
+import { getCaller, profileIdsFor } from '../src/server/auth.js';
+
 const PRICE_IDS = {
   starter: 'price_1TYyDFGgUkBXedj2J0cf9bjG',  // $125/mo AUD
   growth:  'price_1TYyHMGgUkBXedj2SFs5zNUI',  // $225/mo AUD
@@ -30,6 +32,12 @@ export default async function handler(req, res) {
   const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
   const sbKey = process.env.SUPABASE_SERVICE_KEY;
   if (!stripeKey || !sbUrl || !sbKey) return res.status(500).json({ error: 'Service not configured' });
+
+  // Only the account owner can change their own plan (it charges their card)
+  const caller = await getCaller(req);
+  if (!caller) return res.status(401).json({ error: 'Please sign in again' });
+  const mine = await profileIdsFor(caller).catch(() => []);
+  if (!mine.includes(userId)) return res.status(403).json({ error: 'Not your account' });
 
   try {
     // 1. Find the subscriber's Stripe subscription id.

@@ -1,10 +1,11 @@
 // /api/send-weekly-email.js
 // Admin-triggered weekly curated job listings email sent to all job seekers.
 
+import { requireAdmin } from '../src/server/auth.js';
+
 const SUPABASE_URL         = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const RESEND_API_KEY       = process.env.RESEND_API_KEY;
-const ADMIN_SECRET         = process.env.ADMIN_SECRET;
 
 const sb = async (path, opts = {}) => {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -41,11 +42,10 @@ const coverPhoto = (j) => {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Accept either field name for the admin secret.
-  const { adminSecret, secret, jobIds } = req.body || {};
-  const provided = adminSecret || secret;
-  if (!provided || provided !== ADMIN_SECRET)
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!(await requireAdmin(req, res))) return;
+  const { jobIds } = req.body || {};
+  if (!Array.isArray(jobIds) || jobIds.some(id => !/^[0-9a-f-]{36}$/i.test(String(id))))
+    return res.status(400).json({ error: 'Bad job IDs' });
   if (!jobIds?.length)
     return res.status(400).json({ error: 'No job IDs provided' });
 

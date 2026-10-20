@@ -1,13 +1,11 @@
 // /api/admin-data.js
-// Admin-only read endpoint. The admin panel is a client-side login with no
-// Supabase auth session, so direct queries are blocked by RLS (applications
-// return nothing, jobs are limited to active-only). This endpoint uses the
-// service role to return the COMPLETE picture — every job (with its views and
-// its applications) plus headline stats — guarded by the shared admin secret.
+// Admin-only read endpoint. Uses the service role to return the COMPLETE
+// picture — every job (with its views and its applications) plus headline
+// stats. The caller must be signed in with an account in the `admins` table.
+import { requireAdmin } from '../src/server/auth.js';
 
 const SUPABASE_URL         = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const ADMIN_SECRET         = process.env.ADMIN_SECRET;
 
 const sb = async (path, opts = {}) => {
   const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
@@ -26,11 +24,7 @@ const sb = async (path, opts = {}) => {
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Accept either field name for the admin secret (matches other admin endpoints).
-  const { adminSecret, secret } = req.body || {};
-  const provided = adminSecret || secret;
-  if (!ADMIN_SECRET || !provided || provided !== ADMIN_SECRET)
-    return res.status(401).json({ error: 'Unauthorized' });
+  if (!(await requireAdmin(req, res))) return;
 
   try {
     // Pull everything the panel needs, in parallel, via the service role (no RLS).

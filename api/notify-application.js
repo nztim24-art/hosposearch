@@ -1,21 +1,84 @@
 // /api/notify-application.js
 // Sends emails to employer + candidate when someone applies.
 // From: applications@hosposearch.com via Resend
+//
+// The caller only sends the id of the application they just made. Everything
+// in the email (who it goes to, the job, the applicant's details) is read from
+// the database here, so this can't be used to email arbitrary addresses.
+import { getCaller, profileIdsFor, sbService, esc } from '../src/server/auth.js';
+
+const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+const SERVICE_KEY  = process.env.SUPABASE_SERVICE_KEY;
+const DOCS_PUBLIC  = '/storage/v1/object/public/documents/';
+
+// CVs saved on profiles are private: give the employer a 14-day link instead
+async function shareableDocUrl(url) {
+  if (!url || !String(url).includes(DOCS_PUBLIC)) return url || null;
+  try {
+    const path = decodeURIComponent(String(url).split(DOCS_PUBLIC)[1].split('?')[0]);
+    const r = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/documents/${path.split('/').map(encodeURIComponent).join('/')}`, {
+      method: 'POST',
+      headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: 60 * 60 * 24 * 14 }),
+    });
+    const d = await r.json();
+    const signed = d.signedURL || d.signedUrl;
+    return signed ? `${SUPABASE_URL}/storage/v1${signed.startsWith('/') ? '' : '/'}${signed}` : null;
+  } catch (e) { return null; }
+}
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const {
-    employerEmail, employerName,
-    applicantName, applicantEmail, applicantPhone, applicantMessage,
-    jobTitle, venueName, jobId, dashboardUrl,
-    resumeUrl, resumeName, coverUrl, coverName,
-    visa, availability, hours, notice,
-    screeningAnswers,
-  } = req.body || {};
+  const { applicationId } = req.body || {};
+  if (!/^[0-9a-f-]{36}$/i.test(String(applicationId || ''))) return res.status(400).json({ error: 'Missing application' });
 
-  if (!employerEmail || !applicantName || !jobTitle)
-    return res.status(400).json({ error: 'Missing required fields' });
+  const caller = await getCaller(req);
+  if (!caller) return res.status(401).json({ error: 'Unauthorized' });
+
+  let app, job, emp = null;
+  try {
+    [app] = await sbService(`applications?id=eq.${applicationId}&select=*`) || [];
+    if (!app) return res.status(404).json({ error: 'Application not found' });
+    const mine = await profileIdsFor(caller);
+    if (!mine.includes(app.applicant_id)) return res.status(403).json({ error: 'Not your application' });
+    // One email per new application — not a way to re-send later
+    if (Date.now() - new Date(app.created_at).getTime() > 15 * 60 * 1000)
+      return res.status(409).json({ error: 'Too late to notify' });
+    [job] = await sbService(`jobs?id=eq.${app.job_id}&select=id,title,venue,apply_email,emp_id`) || [];
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+    if (/^[0-9a-f-]{36}$/i.test(String(job.emp_id || ''))) {
+      [emp] = await sbService(`profiles?id=eq.${job.emp_id}&select=email,name,email_notifications`) || [];
+    }
+  } catch (e) {
+    console.error('notify-application lookup failed:', e.message);
+    return res.status(500).json({ error: 'Lookup failed' });
+  }
+
+  const employerEmail = (job.apply_email && job.apply_email.includes('@')) ? job.apply_email.trim() : emp?.email;
+  if (!employerEmail) return res.status(200).json({ ok: true, skipped: 'no employer email' });
+  if (emp && emp.email_notifications === false && !job.apply_email) return res.status(200).json({ ok: true, skipped: 'notifications off' });
+
+  // Everything below goes into HTML, so escape it
+  const applicantEmailRaw = (app.email || '').trim();
+  const employerName     = esc(emp?.name || job.venue);
+  const applicantName    = esc(app.name || 'A candidate');
+  const applicantEmail   = esc(applicantEmailRaw);
+  const applicantPhone   = esc(app.phone || '');
+  const applicantMessage = esc(app.message || '');
+  const jobTitle         = esc(job.title || 'your role');
+  const venueName        = esc(job.venue || emp?.name || '');
+  const jobId            = job.id;
+  const dashboardUrl     = `https://www.hosposearch.com/app?view=apps&jobId=${jobId}`;
+  const resumeUrl        = esc(await shareableDocUrl(app.resume_url));
+  const resumeName       = esc(app.resume_name || '');
+  const coverUrl         = esc(await shareableDocUrl(app.cover_url));
+  const coverName        = esc(app.cover_name || '');
+  const visa             = esc(app.visa || '');
+  const availability     = (Array.isArray(app.availability) ? app.availability : []).map(esc);
+  const hours            = (Array.isArray(app.hours) ? app.hours : []).map(esc);
+  const notice           = esc(app.notice || '');
+  const screeningAnswers = Object.fromEntries(Object.entries(app.screening_answers || {}).map(([k, v]) => [k, esc(v)]));
 
   const RESEND_API_KEY = process.env.RESEND_API_KEY;
   if (!RESEND_API_KEY) return res.status(500).json({ error: 'Email service not configured' });
@@ -151,8 +214,8 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         from: 'HospoSearch Applications <applications@hosposearch.com>',
         to: [employerEmail],
-        reply_to: applicantEmail || 'applications@hosposearch.com',
-        subject: `New application — ${applicantName} for ${jobTitle}`,
+        reply_to: applicantEmailRaw || 'applications@hosposearch.com',
+        subject: `New application — ${app.name || 'A candidate'} for ${job.title || 'your role'}`,
         html,
       }),
     });
@@ -163,15 +226,16 @@ export default async function handler(req, res) {
     }
 
     // 2. Confirmation to candidate (non-blocking)
-    if (applicantEmail) {
+    // Confirmation goes to the applicant's own login email only
+    if (caller.email) {
       fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
           from: 'HospoSearch <applications@hosposearch.com>',
-          to: [applicantEmail],
+          to: [caller.email],
           reply_to: 'hello@hosposearch.com',
-          subject: `Application sent — ${jobTitle}`,
+          subject: `Application sent — ${job.title || 'your application'}`,
           html: candidateHtml,
         }),
       }).catch(e => console.warn('Candidate email failed:', e));

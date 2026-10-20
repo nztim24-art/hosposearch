@@ -6,15 +6,108 @@
     }
   ],
   "functions": {
-    "api/seo.js": { "includeFiles": "dist/index.html" }
+    "api/seo.js": {
+      "includeFiles": "dist/index.html"
+    },
+    "api/send-job-alerts.js": {
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/sitemap.xml", "destination": "/api/seo?sitemap=1" },
-    { "source": "/jobs", "destination": "/api/seo" },
-    { "source": "/jobs/:slug", "destination": "/api/seo?slug=:slug" },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/api/seo?sitemap=1"
+    },
+    {
+      "source": "/jobs",
+      "destination": "/api/seo"
+    },
+    {
+      "source": "/jobs/:slug",
+      "destination": "/api/seo?slug=:slug"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "hosposearch.com.au"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hosposearch.com.au"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "hosposearch.co.nz"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hosposearch.co.nz"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "hosposearch.co.uk"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "www.hosposearch.co.uk"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "hosposearch.com"
+        }
+      ],
+      "destination": "https://www.hosposearch.com/:path*",
+      "permanent": true
     }
   ]
 }

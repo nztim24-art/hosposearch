@@ -3,38 +3,23 @@
 // userId     = profiles.id  (used to delete profile row + jobs)
 // authUserId = auth.users.id (used to delete the Supabase auth account)
 
+import { requireAdmin } from '../src/server/auth.js';
+
 const SUPABASE_URL         = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const ADMIN_SECRET         = process.env.ADMIN_SECRET;
-const ADMIN_EMAIL          = 'admin@hosposearch.com.au';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { token, adminSecret, userId, authUserId } = req.body || {};
+  if (!(await requireAdmin(req, res))) return;
+  const { userId, authUserId } = req.body || {};
 
   if (!userId) return res.status(400).json({ error: 'Missing userId' });
   if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY)
     return res.status(500).json({ error: 'Service not configured' });
 
-  // Auth check: admin secret OR valid Supabase JWT for admin email
-  let authorised = false;
-
-  if (adminSecret && ADMIN_SECRET && adminSecret === ADMIN_SECRET) {
-    authorised = true;
-  } else if (token) {
-    try {
-      const r = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-        headers: { apikey: SUPABASE_SERVICE_KEY, Authorization: `Bearer ${token}` },
-      });
-      if (r.ok) {
-        const caller = await r.json();
-        if (caller.email === ADMIN_EMAIL) authorised = true;
-      }
-    } catch(e) { /* fall through */ }
-  }
-
-  if (!authorised) return res.status(401).json({ error: 'Unauthorized' });
+  const isUuid = (v) => /^[0-9a-f-]{36}$/i.test(String(v || ''));
+  if (!isUuid(userId) || (authUserId && !isUuid(authUserId))) return res.status(400).json({ error: 'Bad id' });
 
   const sbHeaders = {
     apikey:         SUPABASE_SERVICE_KEY,

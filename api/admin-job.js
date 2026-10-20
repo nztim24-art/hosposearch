@@ -1,10 +1,10 @@
 // /api/admin-job.js
-// Admin-only job actions (delete / update) that run with the service role,
-// bypassing RLS. Protected by an admin secret so only the admin app can call it.
+// Admin-only job actions (create / delete / update) that run with the service
+// role. The caller must be signed in with an account in the `admins` table.
+import { requireAdmin } from '../src/server/auth.js';
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
-const ADMIN_SECRET = process.env.ADMIN_SECRET;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,12 +14,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'Service not configured' });
   }
 
-  const { secret, action, jobId, fields } = req.body || {};
-
-  // Authenticate the admin
-  if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
+  if (!(await requireAdmin(req, res))) return;
+  const { action, jobId, fields } = req.body || {};
+  if (jobId && !/^[0-9a-f-]{36}$/i.test(String(jobId))) return res.status(400).json({ error: 'Bad jobId' });
 
   const headers = {
     apikey: SUPABASE_SERVICE_KEY,
