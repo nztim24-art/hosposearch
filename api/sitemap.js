@@ -1,40 +1,37 @@
 // /api/sitemap.js — dynamic XML sitemap served at /sitemap.xml
-// Lists the landing page, /jobs index, and each individual job listing
+// Lists the home page, /jobs, every live job, and every role/location landing
+// page that currently has jobs. Expired jobs drop out automatically.
 
-const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
-const BASE = 'https://www.hosposearch.com';
+import { getLiveJobs } from '../src/seo/server-data.js'
+import { SITE, landingIndex } from '../src/seo/shared.js'
+
+const day = (ts) => new Date(ts).toISOString().split('T')[0]
 
 export default async function handler(req, res) {
-  // Fetch all active, paid job IDs and their updated_at dates
-  let jobs = [];
-  try {
-    const r = await fetch(
-      `${SUPABASE_URL}/rest/v1/jobs?select=id,created_at&active=eq.true&paid=eq.true&order=created_at.desc`,
-      { headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` } }
-    );
-    if (r.ok) jobs = await r.json();
-  } catch(e) { console.warn('Sitemap fetch error:', e); }
+  let jobs = []
+  try { jobs = await getLiveJobs() } catch (e) { console.warn('Sitemap fetch error:', e) }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = day(Date.now())
+  const newest = jobs.length ? day(Math.max(...jobs.map(j => j.updatedTs || j.ts))) : today
+  const url = (loc, lastmod, changefreq, priority) =>
+    `<url><loc>${SITE}${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
+
+  const idx = landingIndex(jobs)
+  const landings = [...idx.roles, ...idx.places, ...idx.combos]
 
   const urls = [
-    // Static pages
-    `<url><loc>${BASE}/</loc><changefreq>weekly</changefreq><priority>1.0</priority><lastmod>${today}</lastmod></url>`,
-    `<url><loc>${BASE}/jobs</loc><changefreq>daily</changefreq><priority>0.9</priority><lastmod>${today}</lastmod></url>`,
-    // Dynamic job pages
-    ...jobs.map(j => {
-      const lastmod = j.created_at ? j.created_at.split('T')[0] : today;
-      return `<url><loc>${BASE}/jobs/${j.id}</loc><changefreq>weekly</changefreq><priority>0.8</priority><lastmod>${lastmod}</lastmod></url>`;
-    }),
-  ];
+    url('/', newest, 'weekly', '1.0'),
+    url('/jobs', newest, 'daily', '0.9'),
+    ...landings.map(l => url(l.path, newest, 'daily', '0.7')),
+    ...jobs.map(j => url(`/jobs/${j.id}`, day(j.updatedTs || j.ts), 'weekly', '0.8')),
+  ]
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.join('\n')}
-</urlset>`;
+</urlset>`
 
-  res.setHeader('Content-Type', 'application/xml');
-  res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate'); // cache 1hr
-  res.status(200).send(xml);
+  res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=900, stale-while-revalidate=3600')
+  res.status(200).send(xml)
 }

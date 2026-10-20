@@ -5,8 +5,13 @@
       "schedule": "0 8 * * *"
     }
   ],
+  "functions": {
+    "api/seo.js": { "includeFiles": "dist/index.html" }
+  },
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "/api/sitemap" },
+    { "source": "/jobs", "destination": "/api/seo" },
+    { "source": "/jobs/:slug", "destination": "/api/seo?slug=:slug" },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"

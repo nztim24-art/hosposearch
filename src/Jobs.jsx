@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { fetchJobs, getSession, recordJobShare } from './supabase.js'
+import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -160,6 +161,11 @@ const styles = `
   .jb-share:hover{border-color:${C.terracotta};color:${C.terracotta};}
   .jb-card-share{position:absolute;top:10px;right:10px;background:rgba(255,255,255,0.92);border:none;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.14);font-size:14px;font-weight:700;color:${C.textMid};z-index:2;line-height:1;}
   .jb-card-share:hover{background:#fff;color:${C.terracotta};}
+  .jb-browse{max-width:1120px;margin:0 auto;padding:0 24px 40px;}
+  .jb-browse h2{font-family:'Fraunces','Playfair Display',serif;font-size:20px;font-weight:700;margin:24px 0 12px;}
+  .jb-browse ul{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;}
+  .jb-browse a{display:inline-block;background:#fff;border:1px solid ${C.border};color:${C.textMid};font-size:13px;font-weight:600;padding:7px 14px;border-radius:100px;text-decoration:none;}
+  .jb-browse a:hover{border-color:${C.terracotta};color:${C.terracotta};}
   @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:14px 16px;}}
 `
 
@@ -207,7 +213,29 @@ function JobCard({ job }) {
 }
 
 // ─── List view ────────────────────────────────────────────────────────────────
-function JobsList({ jobs, loading }) {
+// Internal links to role / location pages — helps Google find them, helps people browse
+function BrowseLinks({ jobs, only }) {
+  const idx = useMemo(() => landingIndex(jobs), [jobs])
+  const sections = only ? [["Related searches", only]] : [
+    ["Browse by role", idx.roles],
+    ["Browse by location", idx.places],
+    ["Popular searches", idx.combos.slice(0, 40)],
+  ]
+  return (
+    <div className="jb-browse">
+      {sections.filter(([,arr]) => arr.length).map(([h, arr]) => (
+        <section key={h}>
+          <h2>{h}</h2>
+          <ul>{arr.map(l => <li key={l.path}><Link to={l.path}>{l.label}{l.count ? ` (${l.count})` : ""}</Link></li>)}</ul>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function JobsList({ jobs: allJobs, loading, landing }) {
+  const jobs = useMemo(() => landing ? allJobs.filter(j => jobMatchesLanding(j, landing)) : allJobs, [allJobs, landing])
+  const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
   const [q, setQ] = useState("")
   const [country, setCountry] = useState("All")
 
@@ -225,26 +253,23 @@ function JobsList({ jobs, loading }) {
     })
   }, [jobs, q, country])
 
+  // Structured data for these pages is rendered server-side (api/seo.js)
   useSEO({
-    title: "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
-    description: "Browse chef, sommelier, venue manager and front-of-house roles across Australia, New Zealand and the world's best restaurants. Updated daily on HospoSearch.",
-    canonical: "https://www.hosposearch.com/jobs",
-    jsonLd: {
-      "@context":"https://schema.org",
-      "@type":"ItemList",
-      "itemListElement": filtered.slice(0,20).map((j,i)=>({
-        "@type":"ListItem","position":i+1,
-        "url":`https://www.hosposearch.com/jobs/${j.id}`,
-        "name":`${j.title} — ${j.venue}`,
-      })),
-    },
+    title: copy ? copy.title : "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
+    description: copy ? copy.description : "Browse chef, sommelier, venue manager and front-of-house roles across Australia, New Zealand and the world's best restaurants. Updated daily on HospoSearch.",
+    canonical: landing
+      ? `https://www.hosposearch.com/jobs/${landing.group}-jobs${landing.place ? "-"+landing.place : ""}`
+      : "https://www.hosposearch.com/jobs",
+    jsonLd: null,
   })
 
   return (
     <>
       <div className="jb-hero">
-        <h1 className="jb-serif">Find your next great <em>hospitality role</em></h1>
-        <p>{loading ? "Loading roles…" : `${jobs.length} role${jobs.length!==1?"s":""} across Australia, New Zealand & beyond`}</p>
+        {copy
+          ? <h1 className="jb-serif">{copy.h1}</h1>
+          : <h1 className="jb-serif">Find your next great <em>hospitality role</em></h1>}
+        <p>{loading ? "Loading roles…" : copy ? copy.intro : `${jobs.length} role${jobs.length!==1?"s":""} across Australia, New Zealand & beyond`}</p>
         <div className="jb-search">
           <span style={{ color:C.textSoft }}>🔍</span>
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" />
@@ -269,6 +294,8 @@ function JobsList({ jobs, loading }) {
           {filtered.map(j => <JobCard key={j.id} job={j} />)}
         </div>
       )}
+      {landing && <div style={{ textAlign:"center", paddingBottom:8 }}><Link to="/jobs" className="jb-nav-cta">See all hospitality jobs</Link></div>}
+      {!loading && <BrowseLinks jobs={allJobs} />}
       <div className="jb-footer">
         Are you hiring? <Link to="/app">Post a role on HospoSearch →</Link>
       </div>
@@ -277,8 +304,7 @@ function JobsList({ jobs, loading }) {
 }
 
 // ─── Detail view ──────────────────────────────────────────────────────────────
-function JobDetail({ jobs, loading }) {
-  const { id } = useParams()
+function JobDetail({ jobs, loading, id }) {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const job = jobs.find(j => String(j.id)===String(id))
@@ -287,17 +313,7 @@ function JobDetail({ jobs, loading }) {
     title: job ? `${job.title} — ${job.venue} | HospoSearch` : "Hospitality Role | HospoSearch",
     description: job ? `${job.title} at ${job.venue}, ${job.loc}. ${stripTags(job.short||"").slice(0,140)}` : "View this hospitality role on HospoSearch.",
     canonical: job ? `https://www.hosposearch.com/jobs/${job.id}` : undefined,
-    jsonLd: job ? {
-      "@context":"https://schema.org",
-      "@type":"JobPosting",
-      "title":job.title,
-      "description":stripTags(job.full||job.short),
-      "datePosted":new Date(job.ts).toISOString(),
-      "employmentType":(job.type||"FULL_TIME").toUpperCase().replace("-","_"),
-      "hiringOrganization":{ "@type":"Organization","name":job.venue },
-      "jobLocation":{ "@type":"Place","address":{ "@type":"PostalAddress","addressLocality":job.city||job.loc,"addressRegion":job.state,"addressCountry":job.country } },
-      ...(job.salaryBand ? { "estimatedSalary":{ "@type":"MonetaryAmount","currency":"AUD","value":{ "@type":"QuantitativeValue","value":job.salaryBand } } } : {}),
-    } : null,
+    jsonLd: null, // JobPosting is rendered server-side in api/seo.js
   })
 
   if (loading) return <div className="jb-empty">Loading role…</div>
@@ -344,12 +360,15 @@ function JobDetail({ jobs, loading }) {
           {copied ? "✓ Link copied" : "↗ Share role"}
         </button>
       </div>
+      <div style={{ margin:"32px -24px 0" }}><BrowseLinks jobs={jobs} only={relatedLandings(job)} /></div>
     </div>
   )
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
 export default function Jobs({ detail=false }) {
+  const { id } = useParams()
+  const landing = detail ? parseLandingSlug(id) : null
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [signedIn, setSignedIn] = useState(false)
@@ -357,7 +376,7 @@ export default function Jobs({ detail=false }) {
   useEffect(() => {
     let alive = true
     fetchJobs()
-      .then(data => { if (alive) { setJobs(data); setLoading(false) } })
+      .then(data => { if (alive) { setJobs(data.filter(j => isLive(j))); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
     getSession()
       .then(profile => { if (alive) setSignedIn(!!profile) })
@@ -372,7 +391,9 @@ export default function Jobs({ detail=false }) {
         <Link to="/" className="jb-logo"><span>Hospo</span>Search</Link>
         <Link to="/app" className="jb-nav-cta">{signedIn ? "Go to my account →" : "Sign in"}</Link>
       </nav>
-      {detail ? <JobDetail jobs={jobs} loading={loading} /> : <JobsList jobs={jobs} loading={loading} />}
+      {detail && !landing
+        ? <JobDetail jobs={jobs} loading={loading} id={id} />
+        : <JobsList key={id || "all"} jobs={jobs} loading={loading} landing={landing} />}
     </div>
   )
 }
