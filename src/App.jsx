@@ -35,7 +35,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare } from './supabase.js';
 
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
@@ -610,6 +610,45 @@ const Icon = ({ name, size=24, color="currentColor", fill="none", style }) => {
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+// ─── Job sharing ──────────────────────────────────────────────────────────────
+// Public link for a role. Uses the .com domain so links look the same wherever shared.
+const jobShareUrl = (job) => `https://www.hosposearch.com/jobs/${job.id}`;
+
+// Native share sheet on phones (WhatsApp, Messages, Instagram, Copy…),
+// falls back to copying the link on desktop. Records the share either way.
+async function shareJobLink(job, onCopied) {
+  if (!job?.id || job.id === "preview") return;
+  const url = jobShareUrl(job);
+  recordJobShare(job.id);
+  try {
+    if (navigator.share) {
+      await navigator.share({ title: `${job.title} — ${job.venue||""}`.trim(), text: `${job.title} at ${job.venue||"a top venue"} on HospoSearch`, url });
+      return;
+    }
+  } catch (e) {
+    if (e?.name === "AbortError") return; // user closed the sheet
+  }
+  await copyJobLink(job, onCopied);
+}
+
+async function copyJobLink(job, onCopied) {
+  if (!job?.id || job.id === "preview") return;
+  const url = jobShareUrl(job);
+  try {
+    await navigator.clipboard.writeText(url);
+    onCopied && onCopied();
+  } catch (e) {
+    window.prompt("Copy this link:", url);
+  }
+}
+
+// Small "Link copied" pill shown after copying
+function useCopiedFlag(ms = 1800) {
+  const [copied, setCopied] = useState(false);
+  const flag = () => { setCopied(true); setTimeout(() => setCopied(false), ms); };
+  return [copied, flag];
+}
+
 // ─── ImageCropper ─────────────────────────────────────────────────────────────
 // Instagram-style crop modal: drag to reposition, wheel/pinch to zoom,
 // toggle 4:5 / 1:1. Outputs a cropped JPEG data URL via canvas.
@@ -2584,6 +2623,7 @@ function MineJobCard({ job, onEdit, onApps, onExpand, onDelete }) {
   const first = job.photos?.[0];
   const isd = isData(first);
   const appsCount = job.apps?.length || 0;
+  const [copied, flagCopied] = useCopiedFlag();
   return (
     <div style={{ background:"#fff", border:`1px solid ${C.border}`, borderRadius:14, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)", marginBottom:12 }}>
       <div className="tap" onClick={()=>onExpand(job)} style={{ display:"flex", gap:12, padding:12, cursor:"pointer", alignItems:"center" }}>
@@ -2620,6 +2660,10 @@ function MineJobCard({ job, onEdit, onApps, onExpand, onDelete }) {
         <button className="tap" onClick={onApps}
           style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:appsCount>0?C.terracottaL:"#fff", border:"none", borderRight:`1px solid ${C.border}`, padding:"10px 0", color:appsCount>0?C.terracotta:C.textSoft, fontSize:13, fontWeight:appsCount>0?700:500, cursor:"pointer" }}>
           <Icon name="briefcase" size={13} color={appsCount>0?C.terracotta:C.textSoft}/> {appsCount} app{appsCount!==1?"s":""}
+        </button>
+        <button className="tap" onClick={()=>shareJobLink(job, flagCopied)}
+          style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", gap:6, background:copied?C.sageL:"#fff", border:"none", borderRight:`1px solid ${C.border}`, padding:"10px 0", color:copied?C.sage:C.textDark, fontSize:13, fontWeight:600, cursor:"pointer" }}>
+          <Icon name="send" size={13} color={copied?C.sage:C.textMid}/> {copied ? "Copied" : "Share"}
         </button>
         <button className="tap" onClick={()=>onDelete&&onDelete(job)}
           style={{ width:44, display:"flex", alignItems:"center", justifyContent:"center", background:"#fff", border:"none", padding:"10px 0", color:"#DC2626", fontSize:18, cursor:"pointer" }}
@@ -2756,6 +2800,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const isNew = job.ts && (Date.now() - job.ts) < 3*24*60*60*1000;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
+  const [copied, flagCopied] = useCopiedFlag();
 
   return (
     <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
@@ -2812,6 +2857,10 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         <div style={{ flex:1 }}/>
         {job.video && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.clay, fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:20, display:"flex", alignItems:"center", gap:3 }}><Icon name="video" size={10} color={C.clay}/>Reel</span>}
         {isOwnListing && <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>}
+        {copied && <span style={{ color:C.sage, fontSize:11, fontWeight:700 }}>✓ Link copied</span>}
+        <button className="tap" title="Share this role" aria-label="Share this role" onClick={e=>{e.stopPropagation(); shareJobLink(job, flagCopied);}} style={{ background:"none", border:"none", padding:2 }}>
+          <Icon name="send" size={21} color={C.textSoft}/>
+        </button>
         <button className="tap" onClick={e=>{e.stopPropagation();onToggleBookmark(job.id);}} style={{ background:"none", border:"none", padding:2 }}>
           <Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/>
         </button>
@@ -2864,6 +2913,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const [cover, setCover] = useState(profile?.coverLetter||null);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [copied, flagCopied] = useCopiedFlag(2200);
 
   // Count the view once per open
   useEffect(() => {
@@ -2919,6 +2969,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             style={{ background:isFollowed?C.sageL:"#fff", border:`1px solid ${isFollowed?C.sage:C.border}`, borderRadius:8, padding:"5px 12px", color:isFollowed?C.sage:C.textDark, fontSize:12, fontWeight:600 }}>
             {isFollowed ? "Following" : "Follow"}
           </button>
+          {job.id !== "preview" && <button className="tap" title="Share this role" aria-label="Share this role" onClick={()=>shareJobLink(job, flagCopied)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="send" size={21} color={C.textSoft}/></button>}
           {onToggleBookmark && <button className="tap" onClick={()=>onToggleBookmark(job.id)} style={{ background:"none", border:"none", marginLeft:8, padding:2 }}><Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/></button>}
           <button className="tap" onClick={guardedClose} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, marginLeft:10, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0 }}>×</button>
         </div>
@@ -2963,6 +3014,18 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
             </div>
           )}
           <div style={{ color:C.textMid, fontSize:14, lineHeight:1.75, borderTop:`1px solid ${C.border}`, paddingTop:16, marginBottom:24 }} dangerouslySetInnerHTML={{ __html: descToHtml(job.full) }}/>
+          {job.id !== "preview" && (
+            <div style={{ display:"flex", gap:10, marginBottom:18 }}>
+              <button className="tap" onClick={()=>shareJobLink(job, flagCopied)}
+                style={{ flex:1, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:11, padding:"11px 0", color:C.textDark, fontWeight:700, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:7, cursor:"pointer" }}>
+                <Icon name="send" size={15} color={C.terracotta}/> Share with a mate
+              </button>
+              <button className="tap" onClick={()=>{ recordJobShare(job.id); copyJobLink(job, flagCopied); }}
+                style={{ flex:1, background:copied?C.sageL:"#fff", border:`1.5px solid ${copied?C.sage:C.border}`, borderRadius:11, padding:"11px 0", color:copied?C.sage:C.textDark, fontWeight:700, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:7, cursor:"pointer" }}>
+                <Icon name="link" size={15} color={copied?C.sage:C.terracotta}/> {copied ? "Link copied" : "Copy link"}
+              </button>
+            </div>
+          )}
           {!showForm && !done && isOwnListing && (
             <div style={{ display:"flex", alignItems:"center", gap:10, padding:"14px 16px", background:C.sandL, borderRadius:13, border:`1px solid ${C.sand}40` }}>
               <Icon name="eye" size={18} color={C.clay}/>
