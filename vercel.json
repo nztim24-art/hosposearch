@@ -33,80 +33,80 @@
   ],
   "redirects": [
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "hosposearch.com.au"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "www.hosposearch.com.au"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "hosposearch.co.nz"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "www.hosposearch.co.nz"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "hosposearch.co.uk"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "www.hosposearch.co.uk"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/).*)",
       "has": [
         {
           "type": "host",
           "value": "hosposearch.com"
         }
       ],
-      "destination": "https://www.hosposearch.com/:path*",
+      "destination": "https://www.hosposearch.com/:path",
       "permanent": true
     }
   ]
