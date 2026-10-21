@@ -3004,12 +3004,15 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
         <div style={{ padding:"18px 18px 50px" }}>
           <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
             <div className="tap" onClick={()=>onVenueClick&&onVenueClick(emp)} style={{ cursor:"pointer" }}><Avatar emp={emp} size={56} fontSize={26}/></div>
-            <div style={{ cursor:"pointer", flex:1 }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
+            <div style={{ cursor:"pointer", flex:1, minWidth:0, overflowWrap:"anywhere" }} onClick={()=>onVenueClick&&onVenueClick(emp)}>
               <div style={{ color:C.textDark, fontWeight:700, fontSize:15, display:"flex", alignItems:"center", gap:5 }}>{job.venue||emp?.name} {job.verified&&<span style={{ color:C.blue, fontSize:12 }}>●</span>}</div>
               <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:20, color:C.textDark, marginTop:2 }}>{job.title}</div>
               <div style={{ color:C.textSoft, fontSize:12, marginTop:2 }}>{emp?.bio}</div>
             </div>
-            {job.verified && <span style={{ marginLeft:"auto", color:C.sage, fontSize:11, border:`1px solid ${C.sage}`, borderRadius:20, padding:"3px 9px", fontWeight:600 }}>Verified</span>}
+            <div style={{ display:"flex", flexDirection:"column", alignItems:"flex-end", gap:6, flexShrink:0, marginLeft:"auto" }}>
+              {job.id !== "preview" && <ShareJobButton job={job}/>}
+              {job.verified && <span style={{ color:C.sage, fontSize:11, border:`1px solid ${C.sage}`, borderRadius:20, padding:"3px 9px", fontWeight:600 }}>Verified</span>}
+            </div>
           </div>
           {job.featured && <div style={{ display:"flex", alignItems:"center", gap:6, background:C.featuredL, border:`1px solid ${C.featured}30`, borderRadius:10, padding:"8px 12px", marginBottom:14 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontWeight:600, fontSize:13 }}>Featured Listing</span></div>}
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark, lineHeight:1.2, marginBottom:6 }}>{job.title}</div>
