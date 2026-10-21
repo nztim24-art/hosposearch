@@ -188,6 +188,34 @@ const VISA_OPTIONS = {
   ],
 };
 
+// Screening keys that aren't "extra" employer questions (don't count toward the 5)
+const NON_EXTRA_Q = ["rightToWork","noticePeriod","availability","localOnly"];
+
+// "Local applicants only" listings: answers that mean full, unrestricted work rights.
+// Based on work rights and current location only — never nationality or origin.
+const FULL_WORK_RIGHTS = {
+  "Australia": [
+    "I'm an Australian citizen",
+    "I'm a permanent resident and/or NZ citizen",
+    "I have a family/partner visa with no restrictions",
+    "I have a temporary visa with no restrictions (e.g. doctoral student)",
+  ],
+  "New Zealand": [
+    "I'm a New Zealand citizen",
+    "I'm an Australian citizen or permanent resident",
+    "I hold a Skilled Migrant resident visa",
+  ],
+  "United Kingdom": [
+    "I'm a UK/Irish citizen",
+    "I hold Indefinite Leave to Remain",
+  ],
+  "default": ["I am legally authorised to work in this country"],
+};
+function hasFullWorkRights(country, visa) {
+  if (!visa) return false;
+  return (FULL_WORK_RIGHTS[country] || FULL_WORK_RIGHTS["default"]).includes(visa);
+}
+
 const DAYS_OF_WEEK = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const NOTICE_PERIODS = ["I can start immediately","1 week","2 weeks","3 weeks","4 weeks","6 weeks","2 months","3 months or more"];
 
@@ -2971,9 +2999,21 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
       alert("Please upload your résumé / CV — every application needs one.");
       return;
     }
+    if (job.screeningQ?.localOnly) {
+      const place = job.country || "this country";
+      if (!fd.visa) { alert(`Please tell us your right to work in ${place}.`); return; }
+      if ((fd.screeningAnswers||{}).currentlyInCountry !== "Yes") {
+        alert(`This role is only open to applicants currently in ${place}.`);
+        return;
+      }
+      if (!hasFullWorkRights(job.country, fd.visa)) {
+        alert(`This role is only open to applicants with full, unrestricted work rights in ${place}.`);
+        return;
+      }
+    }
     // Validate all screening questions are answered
     if (job.screeningQ) {
-      const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!["rightToWork","noticePeriod","availability"].includes(k));
+      const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!NON_EXTRA_Q.includes(k));
       const customQ = job.screeningQ.custom||[];
       const answers = fd.screeningAnswers||{};
       const unanswered = activeQ.filter(k=>!(answers[k]||"").trim());
@@ -3180,8 +3220,22 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                   </div>
                 </div>
 
+                {/* Local applicants only */}
+                {job.screeningQ?.localOnly && (
+                <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
+                  <div style={{ background:"#FFF8EE", border:`1px solid ${C.sand||"#E8D5B5"}`, borderRadius:10, padding:"10px 12px", marginBottom:10, color:C.textMid, fontSize:12, lineHeight:1.45 }}>
+                    📍 <b>Local applicants only.</b> This role is open to people currently in {job.country||"this country"} with full, unrestricted work rights.
+                  </div>
+                  <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>Are you currently in {job.country||"this country"}?</div>
+                  <select value={(fd.screeningAnswers||{}).currentlyInCountry||""} onChange={e=>setFd(f=>({...f, screeningAnswers:{...(f.screeningAnswers||{}), currentlyInCountry:e.target.value}}))} style={IS}>
+                    <option value="">Select…</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>)}
+
                 {/* Right to work */}
-                {job.screeningQ?.rightToWork !== false && (
+                {(job.screeningQ?.rightToWork !== false || job.screeningQ?.localOnly) && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>🛂 Right to Work</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which best describes your right to work in {job.country||"this country"}?</div>
@@ -3222,7 +3276,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 </div>)}
 
                 {/* Screening questions from employer */}
-                {job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
+                {job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&k!=="localOnly"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
                   const SCREENING_LABELS = {
                     rightToWork:        'Right to work in this country?',
                     yearsExperience:    'Years of hospitality experience?',
@@ -3237,7 +3291,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                   };
                   // rightToWork and noticePeriod are always shown as dedicated form sections
                   // below — exclude them here so candidates don't answer them twice
-                  const ALWAYS_SHOWN = ["rightToWork","noticePeriod","availability"];
+                  const ALWAYS_SHOWN = NON_EXTRA_Q;
                   const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!ALWAYS_SHOWN.includes(k));
                   const customQ = job.screeningQ.custom||[];
                   return (
@@ -5015,6 +5069,7 @@ const SCREENING_Q_LABELS = {
   availablePublicHols: 'Available public holidays',
   driverLicence:       "Driver's licence",
   willingToRelocate:   'Willing to relocate',
+  currentlyInCountry:  'Currently in country',
 };
 const PIPELINE_STAGES = ["Sent","Viewed","Shortlisted","Interview","Offer","Not Suitable"];
 const STAGE_BG = { Sent:C.bgSoft, Viewed:C.blueL, Shortlisted:C.sageL, Interview:"#FFF8EE", Offer:"#ECFDF5", "Not Suitable":"#FEF2F0" };
@@ -6239,7 +6294,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
               <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:4, fontWeight:600 }}>Screening Questions <span style={{ color:C.textFaint, fontWeight:400, textTransform:"none", fontSize:11, letterSpacing:0 }}>(optional)</span></div>
               <div style={{ color:C.textFaint, fontSize:11, marginBottom:8 }}>Candidates must answer selected questions when applying</div>
               <div style={{ display:"flex", flexDirection:"column", gap:6 }}>{(()=>{
-                const _sqPre = Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!["rightToWork","availability","noticePeriod"].includes(k)&&(nj.screeningQ||{})[k]).length;
+                const _sqPre = Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!NON_EXTRA_Q.includes(k)&&(nj.screeningQ||{})[k]).length;
                 const _sqCust = ((nj.screeningQ||{}).custom||[]).length;
                 const _sqAtMax = (_sqPre + _sqCust) >= 5;
                 return (<>
@@ -6260,6 +6315,18 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                       </div>
                     );
                   })}
+                  {(()=>{ const _lo = !!(nj.screeningQ||{}).localOnly; return (
+                    <div className="tap" onClick={()=>setNj(j=>({...j, screeningQ:{...(j.screeningQ||{}), localOnly: !(j.screeningQ||{}).localOnly}}))}
+                      style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"9px 12px", background:_lo?C.sageL:C.bgSoft, border:`1px solid ${_lo?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer", marginTop:4 }}>
+                      <div style={{ width:18, height:18, borderRadius:4, background:_lo?C.sage:"#ddd", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, marginTop:1 }}>
+                        {_lo && <Icon name="check" size={11} color="#fff"/>}
+                      </div>
+                      <div>
+                        <div style={{ color:_lo?C.sage:C.textMid, fontSize:13 }}>📍 Local applicants only</div>
+                        <div style={{ color:C.textFaint, fontSize:11, marginTop:2, lineHeight:1.4 }}>Only people currently in {nj.country||"the country"} with full, unrestricted work rights can apply. Doesn't count toward your 5.</div>
+                      </div>
+                    </div>
+                  ); })()}
                   <div style={{ height:1, background:C.border, margin:"10px 0 6px" }}/>
                   <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>Extra questions — optional, count toward your 5</div>
                   <div style={{ color:C.textFaint, fontSize:11, marginBottom:2 }}>{_sqPre+_sqCust}/5 questions selected</div>
@@ -6301,7 +6368,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 ))}
 
                 {/* Add custom question input - hidden at max */}
-                {(Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!["rightToWork","availability","noticePeriod"].includes(k)&&(nj.screeningQ||{})[k]).length + ((nj.screeningQ||{}).custom||[]).length) < 5 && (
+                {(Object.keys(nj.screeningQ||{}).filter(k=>k!=="custom"&&!NON_EXTRA_Q.includes(k)&&(nj.screeningQ||{})[k]).length + ((nj.screeningQ||{}).custom||[]).length) < 5 && (
                   <div style={{ display:"flex", gap:8, marginTop:4 }}>
                     <input
                       id="customQInput"
@@ -7719,6 +7786,7 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                     ["availableWeekends", "Are you available to work weekends?"],
                     ["availablePublicHolidays", "Are you available to work public holidays?"],
                     ["driverLicence", "Do you hold a current driver's licence?"],
+                    ["localOnly", "📍 Local applicants only (currently in country, full work rights)"],
                   ].map(([key, label]) => (
                     <div key={key} className="tap" onClick={()=>setNj(j=>({...j, screeningQ:{...(j.screeningQ||{}), [key]:!(j.screeningQ||{})[key]}}))}
                       style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 12px", background:(nj.screeningQ||{})[key]?C.sageL:C.bgSoft, border:`1px solid ${(nj.screeningQ||{})[key]?C.sage+"50":C.border}`, borderRadius:9, cursor:"pointer", transition:"all 0.15s" }}>
