@@ -649,6 +649,36 @@ function useCopiedFlag(ms = 1800) {
   return [copied, flag];
 }
 
+// Compact share button (icon + label) usable anywhere, logged in or not
+function ShareJobButton({ job, label = "Share", size = 15, style = {} }) {
+  const [copied, flag] = useCopiedFlag();
+  return (
+    <button className="tap" title="Share this role" aria-label="Share this role"
+      onClick={e => { e.stopPropagation(); e.preventDefault(); shareJobLink(job, flag); }}
+      style={{ background:copied?C.sageL:"#fff", border:`1px solid ${copied?C.sage:C.border}`, borderRadius:20, padding:"5px 11px", color:copied?C.sage:C.textDark, fontSize:12, fontWeight:700, display:"inline-flex", alignItems:"center", gap:5, cursor:"pointer", flexShrink:0, ...style }}>
+      <Icon name="send" size={size} color={copied?C.sage:C.terracotta}/>{label && <span>{copied ? "Copied" : label}</span>}
+    </button>
+  );
+}
+
+// Full-width "Share with a mate" + "Copy link" pair for job detail views
+function ShareJobRow({ job }) {
+  const [copied, flag] = useCopiedFlag(2200);
+  if (!job?.id || job.id === "preview") return null;
+  const btn = { flex:1, background:"#fff", border:`1.5px solid ${C.border}`, borderRadius:11, padding:"11px 0", color:C.textDark, fontWeight:700, fontSize:13, display:"flex", alignItems:"center", justifyContent:"center", gap:7, cursor:"pointer" };
+  return (
+    <div style={{ display:"flex", gap:10, marginBottom:18 }}>
+      <button className="tap" onClick={()=>shareJobLink(job, flag)} style={btn}>
+        <Icon name="send" size={15} color={C.terracotta}/> Share with a mate
+      </button>
+      <button className="tap" onClick={()=>{ recordJobShare(job.id); copyJobLink(job, flag); }}
+        style={{ ...btn, background:copied?C.sageL:"#fff", borderColor:copied?C.sage:C.border, color:copied?C.sage:C.textDark }}>
+        <Icon name="link" size={15} color={copied?C.sage:C.terracotta}/> {copied ? "Link copied" : "Copy link"}
+      </button>
+    </div>
+  );
+}
+
 // ─── ImageCropper ─────────────────────────────────────────────────────────────
 // Instagram-style crop modal: drag to reposition, wheel/pinch to zoom,
 // toggle 4:5 / 1:1. Outputs a cropped JPEG data URL via canvas.
@@ -2800,7 +2830,6 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const isNew = job.ts && (Date.now() - job.ts) < 3*24*60*60*1000;
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
-  const [copied, flagCopied] = useCopiedFlag();
 
   return (
     <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
@@ -2857,10 +2886,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
         <div style={{ flex:1 }}/>
         {job.video && <span style={{ background:C.sandL, border:`1px solid ${C.sand}40`, color:C.clay, fontSize:11, fontWeight:600, padding:"3px 8px", borderRadius:20, display:"flex", alignItems:"center", gap:3 }}><Icon name="video" size={10} color={C.clay}/>Reel</span>}
         {isOwnListing && <div style={{ display:"flex", alignItems:"center", gap:4, color:C.textFaint, fontSize:11 }}><Icon name="eye" size={14} color={C.textFaint}/>{job.views||0}</div>}
-        {copied && <span style={{ color:C.sage, fontSize:11, fontWeight:700 }}>✓ Link copied</span>}
-        <button className="tap" title="Share this role" aria-label="Share this role" onClick={e=>{e.stopPropagation(); shareJobLink(job, flagCopied);}} style={{ background:"none", border:"none", padding:2 }}>
-          <Icon name="send" size={21} color={C.textSoft}/>
-        </button>
+        <ShareJobButton job={job}/>
         <button className="tap" onClick={e=>{e.stopPropagation();onToggleBookmark(job.id);}} style={{ background:"none", border:"none", padding:2 }}>
           <Icon name="bookmark" size={22} color={isBookmarked?C.terracotta:C.textSoft} fill={isBookmarked?C.terracotta:"none"}/>
         </button>
@@ -3462,8 +3488,11 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                     <div style={{ color:C.sand, fontWeight:600, fontSize:13, marginBottom:8 }}>{fmtSalary(j)}</div>
                     <div style={{ color:C.textMid, fontSize:13, lineHeight:1.5, display:"-webkit-box", WebkitLineClamp:2, WebkitBoxOrient:"vertical", overflow:"hidden", marginBottom:10 }}>{stripTags(j.short)}</div>
                     <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                      <div style={{ color:C.textFaint, fontSize:11 }}>{j.loc} · {ago(j.ts)} ago</div>
-                      <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+                      <div style={{ color:C.textFaint, fontSize:11, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{j.loc} · {ago(j.ts)} ago</div>
+                      <div style={{ display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
+                        <ShareJobButton job={j}/>
+                        <div style={{ color:C.terracotta, fontSize:12, fontWeight:600 }}>View role →</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -3484,6 +3513,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                 <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{expandedJob.venue}</div>
                 <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{expandedJob.title}</div>
               </div>
+              <ShareJobButton job={expandedJob} style={{ marginLeft:10 }}/>
               <button className="tap" onClick={()=>setExpandedJob(null)} title="Close" style={{ background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:"50%", width:32, height:32, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", fontSize:18, color:C.textMid, lineHeight:1, padding:0, flexShrink:0, marginLeft:10 }}>×</button>
             </div>
 
@@ -3509,6 +3539,7 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                   <div style={{ color:C.textMid, fontSize:14, lineHeight:1.7, marginBottom:20 }} dangerouslySetInnerHTML={{ __html: descToHtml(expandedJob.full) }}/>
                 )}
 
+                <ShareJobRow job={expandedJob}/>
                 {/* Apply gate */}
                 <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
