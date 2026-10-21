@@ -2964,8 +2964,13 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
-  const submit = () => {
+  const submit = async () => {
+    if (submitting) return;
     if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
+    if (!resume) {
+      alert("Please upload your résumé / CV — every application needs one.");
+      return;
+    }
     // Validate all screening questions are answered
     if (job.screeningQ) {
       const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!["rightToWork","noticePeriod","availability"].includes(k));
@@ -2978,7 +2983,16 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
         return;
       }
     }
-    onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}}); setDone(true);
+    setSubmitting(true);
+    try {
+      await onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}});
+    } catch(e) {
+      setSubmitting(false);
+      alert("Sorry, your application couldn't be sent. Please check your résumé uploaded and try again.");
+      return;
+    }
+    setSubmitting(false);
+    setDone(true);
     setTimeout(()=>{ setShowForm(false); onClose(); }, 1800);
   };
   const isDesktopDetail = typeof window !== 'undefined' && window.innerWidth >= 768;
@@ -3160,7 +3174,8 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:9 }}>📎 Documents</div>
                   <div style={{ display:"flex", flexDirection:"column", gap:9 }}>
-                    <FileZone label="Résumé" icon="📋" file={resume} onFile={f=>setResume(f)} onRemove={()=>setResume(null)}/>
+                    <FileZone label="Résumé (required)" icon="📋" file={resume} onFile={f=>setResume(f)} onRemove={()=>setResume(null)}/>
+                    {!resume && <div style={{ color:C.terracotta, fontSize:12, marginTop:-3 }}>Upload your résumé / CV to apply.</div>}
                     <FileZone label="Cover Letter" icon="✉️" file={cover} onFile={f=>setCover(f)} onRemove={()=>setCover(null)}/>
                   </div>
                 </div>
@@ -3311,8 +3326,8 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 <div style={{ display:"flex", gap:9, paddingTop:4 }}>
                   <button className="tap" onClick={()=>setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
                   <button className="btn-cta tap" onClick={submit} disabled={submitting}
-                    style={{ flex:2, background:submitting?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:submitting?"none":"0 3px 10px rgba(196,98,58,0.22)" }}>
-                    {submitting ? "⏳ Uploading…" : "Submit Application"}
+                    style={{ flex:2, background:(submitting||!resume)?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:(submitting||!resume)?"none":"0 3px 10px rgba(196,98,58,0.22)" }}>
+                    {submitting ? "⏳ Uploading…" : !resume ? "Add your CV to apply" : "Submit Application"}
                   </button>
                 </div>
               </div>
@@ -6843,6 +6858,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       savedApp = await sbApplyForJob(job.id, user.id, fd);
     } catch(e) {
       console.warn('Application save failed:', e);
+      throw e; // let the form tell the applicant it didn't go through
     }
     // Email the employer. The server looks up the application, the job and the
     // employer's address itself, so this can only notify the right venue.

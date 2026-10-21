@@ -551,6 +551,8 @@ export async function applyForJob(jobId, applicantId, formData) {
   const resumeUrl  = resumeData?.url || formData.resume?.url || null
   const coverUrl   = coverData?.url  || formData.cover?.url  || null
 
+  if (!resumeUrl) throw new Error('A résumé / CV is required to apply')
+
   const { data, error } = await supabase
     .from('applications')
     .insert({
