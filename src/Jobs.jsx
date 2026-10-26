@@ -180,6 +180,12 @@ const styles = `
   .jb-btn-solid{border:0;background:${C.terracotta};color:#fff;font-weight:700;}
   .jb-btn-solid:hover{background:${C.terracottaD};}
   .jb-menu-btn{display:none;width:44px;height:44px;border:0;background:transparent;align-items:center;justify-content:center;cursor:pointer;margin-right:-8px;}
+  .jb-mlogin{display:none;margin-left:auto;margin-right:4px;min-height:40px;padding:0 16px;font-size:14px;}
+  .jb-menu-auth{display:flex;flex-direction:column;gap:10px;padding:14px 0 6px;}
+  .jb-menu-auth .lbl{font-size:13px;color:${C.textSoft};}
+  .jb-menu .jb-menu-auth a,.jb-menu .jb-menu-auth button{min-height:50px;border:0;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:100px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;}
+  .jb-menu .jb-menu-auth button{border:1.5px solid #DADCE0;background:#fff;color:#1F1F1F;}
+  .jb-menu .jb-menu-auth a{background:${C.textDark};color:#fff;}
   .jb-menu{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border-bottom:1px solid ${C.border};box-shadow:0 12px 24px rgba(0,0,0,0.08);padding:8px 16px 16px;}
   .jb-menu.open{display:block;}
   .jb-menu a{display:flex;align-items:center;min-height:48px;color:${C.textDark};font-size:16px;font-weight:600;text-decoration:none;border-bottom:1px solid ${C.bgSoft};}
@@ -195,6 +201,7 @@ const styles = `
   @media(max-width:860px){
     .jb-links,.jb-acts{display:none;}
     .jb-menu-btn{display:flex;}
+    .jb-mlogin{display:inline-flex;}
     .jb-post{width:100%;max-width:560px;font-size:16px;min-height:52px;padding:0 16px;}
   }
   @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:10px 16px;}.jb-hero{padding:32px 20px 20px;}}
@@ -236,6 +243,7 @@ function SiteHeader({ signedIn, onHome }) {
               <Link to={LINKS.signup} className="jb-btn jb-btn-solid">Sign up free</Link>
             </>}
       </div>
+      <Link to={signedIn ? LINKS.account : LINKS.login} className={`jb-btn jb-mlogin ${signedIn ? 'jb-btn-solid' : 'jb-btn-ghost'}`}>{signedIn ? 'My account' : 'Log in'}</Link>
       <button className="jb-menu-btn" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDark} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
           {open ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
@@ -245,8 +253,18 @@ function SiteHeader({ signedIn, onHome }) {
         <Link to={LINKS.home}>Jobs</Link>
         <Link to={LINKS.pricing}>Pricing</Link>
         <Link to={LINKS.about}>About</Link>
-        {signedIn ? <Link to={LINKS.account}>My account</Link> : <Link to={LINKS.login}>Log in</Link>}
+        {signedIn && <Link to={LINKS.account}>My account</Link>}
         <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
+        {signedIn === false && (
+          <div className="jb-menu-auth">
+            <span className="lbl">Job seekers — log in or sign up free</span>
+            <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
+            <Link to={LINKS.login}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+              Log in with email
+            </Link>
+          </div>
+        )}
       </div>
     </nav>
   )
