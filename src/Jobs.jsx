@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, fetchJobs, getSession, recordJobShare } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
@@ -187,7 +187,7 @@ const styles = `
   /* Hero extras */
   .jb-post{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;min-height:54px;padding:0 30px;border-radius:100px;background:${C.terracotta};color:#fff;font-weight:700;font-size:17px;text-decoration:none;box-shadow:0 6px 18px rgba(196,98,58,0.3);transition:background 0.2s,transform 0.2s;}
   .jb-post:hover{background:${C.terracottaD};transform:translateY(-1px);}
-  .jb-login{display:none;max-width:560px;margin:16px auto 0;background:#fff;border:1px solid ${C.border};border-radius:16px;padding:14px;text-align:left;flex-direction:column;gap:10px;}
+  .jb-login{display:flex;background:${C.terracottaL};border:1px solid ${C.terracottaM};border-radius:16px;padding:24px 20px;text-align:left;flex-direction:column;justify-content:center;gap:12px;}
   .jb-login p{font-size:14px;color:${C.textMid};margin:0;}
   .jb-login button,.jb-login a{min-height:48px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;}
   .jb-login button{border:1px solid #DADCE0;background:#fff;color:#1F1F1F;}
@@ -195,7 +195,6 @@ const styles = `
   @media(max-width:860px){
     .jb-links,.jb-acts{display:none;}
     .jb-menu-btn{display:flex;}
-    .jb-login.show{display:flex;}
     .jb-post{width:100%;max-width:560px;font-size:16px;min-height:52px;padding:0 16px;}
   }
   @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:10px 16px;}.jb-hero{padding:32px 20px 20px;}}
@@ -250,6 +249,22 @@ function SiteHeader({ signedIn, onHome }) {
         <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
       </div>
     </nav>
+  )
+}
+
+// Sign-in prompt that sits in the job list (after the first few jobs) instead of
+// at the top, so people see jobs first. Only shown to logged-out visitors.
+function SignInCard() {
+  return (
+    <div className="jb-login">
+      <div className="jb-serif" style={{ fontSize:22, fontWeight:700, lineHeight:1.2 }}>Save jobs &amp; apply in one tap</div>
+      <p>Free for job seekers. Log in or sign up in seconds.</p>
+      <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
+      <Link to={LINKS.login}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+        Log in with email
+      </Link>
+    </div>
   )
 }
 
@@ -358,16 +373,6 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
           <span style={{ color:C.textSoft }}>🔍</span>
           <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" aria-label="Search roles" />
         </div>
-        {signedIn === false && (
-          <div className="jb-login show">
-            <p>Log in or sign up — free for job seekers</p>
-            <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
-            <Link to={LINKS.login}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-              Log in with email
-            </Link>
-          </div>
-        )}
       </div>
       {countries.length>2 && (
         <div className="jb-filters">
@@ -388,7 +393,12 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
         </div>
       ) : (
         <div className="jb-grid">
-          {filtered.map(j => <JobCard key={j.id} job={j} />)}
+          {filtered.map((j, i) => (
+            <Fragment key={j.id}>
+              <JobCard job={j} />
+              {signedIn === false && i === Math.min(3, filtered.length - 1) && <SignInCard />}
+            </Fragment>
+          ))}
         </div>
       )}
       {landing && <div style={{ textAlign:"center", paddingBottom:8 }}><Link to="/" className="jb-nav-cta">See all hospitality jobs</Link></div>}
