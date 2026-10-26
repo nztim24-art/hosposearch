@@ -180,9 +180,16 @@ const styles = `
   .jb-btn-solid{border:0;background:${C.terracotta};color:#fff;font-weight:700;}
   .jb-btn-solid:hover{background:${C.terracottaD};}
   .jb-menu-btn{display:none;width:44px;height:44px;border:0;background:transparent;align-items:center;justify-content:center;cursor:pointer;margin-right:-8px;}
-  .jb-mlogin{display:none;margin-left:auto;margin-right:4px;min-height:40px;padding:0 16px;font-size:14px;}
+  .jb-mlogin{display:none;margin-left:auto;margin-right:4px;min-height:40px;padding:0 14px;font-size:14px;}
+  .jb-acts button.jb-btn,.jb-mlogin{font-family:inherit;}
   .jb-menu-auth{display:flex;flex-direction:column;gap:10px;padding:14px 0 6px;}
-  .jb-menu-auth .lbl{font-size:13px;color:${C.textSoft};}
+  .jb-menu .lbl{display:block;font-size:14px;color:${C.textSoft};margin-top:4px;}
+  .jb-btn.is-open{border-color:${C.textDark};background:#fff;}
+  .jb-login-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:6px;}
+  .jb-menu .jb-login-foot a{min-height:44px;border:0;font-size:14px;font-weight:600;color:${C.terracotta};}
+  @media(min-width:861px){
+    .jb-menu.jb-login-panel{left:auto;right:24px;width:400px;border:1px solid ${C.border};border-radius:16px;margin-top:6px;padding:16px 18px 10px;}
+  }
   .jb-menu .jb-menu-auth a,.jb-menu .jb-menu-auth button{min-height:50px;border:0;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:100px;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;}
   .jb-menu .jb-menu-auth button{border:1.5px solid #DADCE0;background:#fff;color:#1F1F1F;}
   .jb-menu .jb-menu-auth a{background:${C.textDark};color:#fff;}
@@ -224,8 +231,43 @@ const GoogleG = () => (
 // Where the header / hero buttons go. Post a job opens the existing pricing popup on /about.
 const LINKS = { home: '/', pricing: '/about#pricing', about: '/about', post: '/about?post=1', login: '/app?login=1', signup: '/app?signup=1', account: '/app' }
 
+const MailIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+)
+
+// Google + email sign-in buttons, used in the Log in dropdown.
+function AuthButtons() {
+  return (
+    <div className="jb-menu-auth">
+      <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
+      <Link to={LINKS.login}><MailIcon/> Log in with email</Link>
+    </div>
+  )
+}
+
 function SiteHeader({ signedIn, onHome }) {
-  const [open, setOpen] = useState(false)
+  // Which dropdown is open: null, 'menu' (hamburger) or 'login'
+  const [open, setOpen] = useState(null)
+  const toggle = (which) => setOpen(o => (o === which ? null : which))
+
+  // Close on Escape or a tap outside the header
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(null) }
+    const onDown = (e) => { if (!e.target.closest('.jb-nav')) setOpen(null) }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+  }, [open])
+
+  const loginBtn = (extra) => signedIn
+    ? <Link to={LINKS.account} className={`jb-btn jb-btn-solid ${extra}`}>My account</Link>
+    : <button type="button" className={`jb-btn jb-btn-ghost ${extra} ${open === 'login' ? 'is-open' : ''}`}
+        aria-expanded={open === 'login'} aria-controls="jb-login-panel" onClick={() => toggle('login')}>
+        Log in
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ marginLeft:6, transform: open === 'login' ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}><polyline points="6,9 12,15 18,9"/></svg>
+      </button>
+
   return (
     <nav className="jb-nav">
       <Link to={LINKS.home} className="jb-logo"><span>Hospo</span>Search</Link>
@@ -236,36 +278,37 @@ function SiteHeader({ signedIn, onHome }) {
       </div>
       <div className="jb-acts">
         <Link to={LINKS.post} className="jb-btn jb-btn-outline">+ Post a job</Link>
-        {signedIn
-          ? <Link to={LINKS.account} className="jb-btn jb-btn-solid">My account →</Link>
-          : <>
-              <Link to={LINKS.login} className="jb-btn jb-btn-ghost">Log in</Link>
-              <Link to={LINKS.signup} className="jb-btn jb-btn-solid">Sign up free</Link>
-            </>}
+        {loginBtn('')}
+        {!signedIn && <Link to={LINKS.signup} className="jb-btn jb-btn-solid">Sign up free</Link>}
       </div>
-      <Link to={signedIn ? LINKS.account : LINKS.login} className={`jb-btn jb-mlogin ${signedIn ? 'jb-btn-solid' : 'jb-btn-ghost'}`}>{signedIn ? 'My account' : 'Log in'}</Link>
-      <button className="jb-menu-btn" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+      {loginBtn('jb-mlogin')}
+      <button className="jb-menu-btn" aria-label={open === 'menu' ? 'Close menu' : 'Open menu'} aria-expanded={open === 'menu'} onClick={() => toggle('menu')}>
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDark} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          {open ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
+          {open === 'menu' ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
         </svg>
       </button>
-      <div className={`jb-menu ${open ? 'open' : ''}`} onClick={() => setOpen(false)}>
+
+      {/* Hamburger menu (mobile) */}
+      <div className={`jb-menu ${open === 'menu' ? 'open' : ''}`} onClick={() => setOpen(null)}>
         <Link to={LINKS.home}>Jobs</Link>
         <Link to={LINKS.pricing}>Pricing</Link>
         <Link to={LINKS.about}>About</Link>
         {signedIn && <Link to={LINKS.account}>My account</Link>}
         <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
-        {signedIn === false && (
-          <div className="jb-menu-auth">
-            <span className="lbl">Job seekers — log in or sign up free</span>
-            <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
-            <Link to={LINKS.login}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-              Log in with email
-            </Link>
-          </div>
-        )}
       </div>
+
+      {/* Log in dropdown (mobile: full width like the menu; desktop: under the button) */}
+      {!signedIn && (
+        <div id="jb-login-panel" className={`jb-menu jb-login-panel ${open === 'login' ? 'open' : ''}`}>
+          <div className="jb-serif" style={{ fontSize:20, fontWeight:700, paddingTop:6 }}>Log in or sign up</div>
+          <span className="lbl">Free for job seekers — save jobs and apply in one tap.</span>
+          <AuthButtons/>
+          <div className="jb-login-foot">
+            <Link to={LINKS.signup} onClick={() => setOpen(null)}>New here? Create an account</Link>
+            <Link to="/app?login=1&type=employer" onClick={() => setOpen(null)}>Employer log in →</Link>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
