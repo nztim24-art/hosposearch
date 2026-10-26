@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
-import { fetchJobs, getSession, recordJobShare } from './supabase.js'
+import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
+import { supabase, fetchJobs, getSession, recordJobShare } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -166,8 +166,92 @@ const styles = `
   .jb-browse ul{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0;}
   .jb-browse a{display:inline-block;background:#fff;border:1px solid ${C.border};color:${C.textMid};font-size:13px;font-weight:600;padding:7px 14px;border-radius:100px;text-decoration:none;}
   .jb-browse a:hover{border-color:${C.terracotta};color:${C.terracotta};}
-  @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:14px 16px;}}
+  /* Site header (homepage + jobs pages) */
+  .jb-links{display:flex;align-items:center;gap:26px;margin-left:36px;margin-right:auto;}
+  .jb-links a{color:${C.textSoft};font-size:15px;font-weight:500;text-decoration:none;padding:10px 0;}
+  .jb-links a:hover,.jb-links a.on{color:${C.textDark};}
+  .jb-links a.on{border-bottom:2px solid ${C.textDark};}
+  .jb-acts{display:flex;align-items:center;gap:10px;}
+  .jb-btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 18px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;white-space:nowrap;cursor:pointer;font-family:inherit;}
+  .jb-btn-outline{border:1.5px solid ${C.terracotta};color:${C.terracotta};background:#fff;}
+  .jb-btn-outline:hover{background:${C.terracottaL};}
+  .jb-btn-ghost{border:1px solid ${C.border};background:${C.bgSoft};color:${C.textDark};}
+  .jb-btn-ghost:hover{border-color:${C.borderMid};}
+  .jb-btn-solid{border:0;background:${C.terracotta};color:#fff;font-weight:700;}
+  .jb-btn-solid:hover{background:${C.terracottaD};}
+  .jb-menu-btn{display:none;width:44px;height:44px;border:0;background:transparent;align-items:center;justify-content:center;cursor:pointer;margin-right:-8px;}
+  .jb-menu{display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border-bottom:1px solid ${C.border};box-shadow:0 12px 24px rgba(0,0,0,0.08);padding:8px 16px 16px;}
+  .jb-menu.open{display:block;}
+  .jb-menu a{display:flex;align-items:center;min-height:48px;color:${C.textDark};font-size:16px;font-weight:600;text-decoration:none;border-bottom:1px solid ${C.bgSoft};}
+  .jb-menu a.jb-menu-cta{justify-content:center;margin-top:12px;border:0;border-radius:100px;background:${C.terracotta};color:#fff;}
+  /* Hero extras */
+  .jb-post{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:22px;min-height:54px;padding:0 30px;border-radius:100px;background:${C.terracotta};color:#fff;font-weight:700;font-size:17px;text-decoration:none;box-shadow:0 6px 18px rgba(196,98,58,0.3);transition:background 0.2s,transform 0.2s;}
+  .jb-post:hover{background:${C.terracottaD};transform:translateY(-1px);}
+  .jb-login{display:none;max-width:560px;margin:16px auto 0;background:#fff;border:1px solid ${C.border};border-radius:16px;padding:14px;text-align:left;flex-direction:column;gap:10px;}
+  .jb-login p{font-size:14px;color:${C.textMid};margin:0;}
+  .jb-login button,.jb-login a{min-height:48px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:100px;font-size:15px;font-weight:600;text-decoration:none;cursor:pointer;font-family:inherit;}
+  .jb-login button{border:1px solid #DADCE0;background:#fff;color:#1F1F1F;}
+  .jb-login a{background:${C.textDark};color:#fff;}
+  @media(max-width:860px){
+    .jb-links,.jb-acts{display:none;}
+    .jb-menu-btn{display:flex;}
+    .jb-login.show{display:flex;}
+    .jb-post{width:100%;max-width:560px;font-size:16px;min-height:52px;padding:0 16px;}
+  }
+  @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:10px 16px;}.jb-hero{padding:32px 20px 20px;}}
 `
+
+// Same Google sign-in the /app login screen uses; lands on /app signed in.
+async function signInWithGoogle() {
+  try {
+    await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/app', queryParams: { prompt: 'select_account' } },
+    })
+  } catch (e) { window.location.href = '/app?login=1' }
+}
+
+const GoogleG = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+)
+
+// Where the header / hero buttons go. Post a job opens the existing pricing popup on /about.
+const LINKS = { home: '/', pricing: '/about#pricing', about: '/about', post: '/about?post=1', login: '/app?login=1', signup: '/app?signup=1', account: '/app' }
+
+function SiteHeader({ signedIn, onHome }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <nav className="jb-nav">
+      <Link to={LINKS.home} className="jb-logo"><span>Hospo</span>Search</Link>
+      <div className="jb-links">
+        <Link to={LINKS.home} className={onHome ? 'on' : ''} aria-current={onHome ? 'page' : undefined}>Jobs</Link>
+        <Link to={LINKS.pricing}>Pricing</Link>
+        <Link to={LINKS.about}>About</Link>
+      </div>
+      <div className="jb-acts">
+        <Link to={LINKS.post} className="jb-btn jb-btn-outline">+ Post a job</Link>
+        {signedIn
+          ? <Link to={LINKS.account} className="jb-btn jb-btn-solid">My account →</Link>
+          : <>
+              <Link to={LINKS.login} className="jb-btn jb-btn-ghost">Log in</Link>
+              <Link to={LINKS.signup} className="jb-btn jb-btn-solid">Sign up free</Link>
+            </>}
+      </div>
+      <button className="jb-menu-btn" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDark} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          {open ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
+        </svg>
+      </button>
+      <div className={`jb-menu ${open ? 'open' : ''}`} onClick={() => setOpen(false)}>
+        <Link to={LINKS.home}>Jobs</Link>
+        <Link to={LINKS.pricing}>Pricing</Link>
+        <Link to={LINKS.about}>About</Link>
+        {signedIn ? <Link to={LINKS.account}>My account</Link> : <Link to={LINKS.login}>Log in</Link>}
+        <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
+      </div>
+    </nav>
+  )
+}
 
 function JobCard({ job }) {
   const [copied, setCopied] = useState(false)
@@ -233,7 +317,7 @@ function BrowseLinks({ jobs, only }) {
   )
 }
 
-function JobsList({ jobs: allJobs, loading, landing }) {
+function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
   const jobs = useMemo(() => landing ? allJobs.filter(j => jobMatchesLanding(j, landing)) : allJobs, [allJobs, landing])
   const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
   const [q, setQ] = useState("")
@@ -255,11 +339,11 @@ function JobsList({ jobs: allJobs, loading, landing }) {
 
   // Structured data for these pages is rendered server-side (api/seo.js)
   useSEO({
-    title: copy ? copy.title : "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
+    title: copy ? copy.title : home ? "HospoSearch — Hospitality Jobs in Australia & New Zealand" : "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
     description: copy ? copy.description : "Browse chef, sommelier, venue manager and front-of-house roles across Australia, New Zealand and the world's best restaurants. Updated daily on HospoSearch.",
     canonical: landing
       ? `https://www.hosposearch.com/jobs/${landing.group}-jobs${landing.place ? "-"+landing.place : ""}`
-      : "https://www.hosposearch.com/jobs",
+      : "https://www.hosposearch.com/",
     jsonLd: null,
   })
 
@@ -272,16 +356,29 @@ function JobsList({ jobs: allJobs, loading, landing }) {
         <p>{loading ? "Loading roles…" : copy ? copy.intro : `${jobs.length} role${jobs.length!==1?"s":""} across Australia, New Zealand & beyond`}</p>
         <div className="jb-search">
           <span style={{ color:C.textSoft }}>🔍</span>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" />
+          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" aria-label="Search roles" />
         </div>
+        {signedIn === false && (
+          <div className="jb-login show">
+            <p>Log in or sign up — free for job seekers</p>
+            <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
+            <Link to={LINKS.login}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
+              Log in with email
+            </Link>
+          </div>
+        )}
       </div>
       {countries.length>2 && (
         <div className="jb-filters">
           {countries.map(c => (
-            <button key={c} className={`jb-pill ${country===c?"active":""}`} onClick={()=>setCountry(c)}>{c}</button>
+            <button key={c} className={`jb-pill ${country===c?"active":""}`} aria-pressed={country===c} onClick={()=>setCountry(c)}>{c}</button>
           ))}
         </div>
       )}
+      <div style={{ textAlign:"center", padding:"0 20px" }}>
+        <Link to={LINKS.post} className="jb-post">Hiring? Post a job from $50 →</Link>
+      </div>
       {loading ? (
         <div className="jb-empty">Loading hospitality roles…</div>
       ) : filtered.length===0 ? (
@@ -294,10 +391,10 @@ function JobsList({ jobs: allJobs, loading, landing }) {
           {filtered.map(j => <JobCard key={j.id} job={j} />)}
         </div>
       )}
-      {landing && <div style={{ textAlign:"center", paddingBottom:8 }}><Link to="/jobs" className="jb-nav-cta">See all hospitality jobs</Link></div>}
+      {landing && <div style={{ textAlign:"center", paddingBottom:8 }}><Link to="/" className="jb-nav-cta">See all hospitality jobs</Link></div>}
       {!loading && <BrowseLinks jobs={allJobs} />}
       <div className="jb-footer">
-        Are you hiring? <Link to="/app">Post a role on HospoSearch →</Link>
+        Are you hiring? <Link to={LINKS.post}>Post a role on HospoSearch →</Link> · <Link to={LINKS.about}>About HospoSearch</Link>
       </div>
     </>
   )
@@ -321,7 +418,7 @@ function JobDetail({ jobs, loading, id }) {
     <div className="jb-empty">
       <div style={{ fontSize:40, marginBottom:12 }}>🤷</div>
       <div style={{ marginBottom:16 }}>This role is no longer available.</div>
-      <Link to="/jobs" className="jb-nav-cta">Browse all roles</Link>
+      <Link to="/" className="jb-nav-cta">Browse all roles</Link>
     </div>
   )
 
@@ -330,7 +427,7 @@ function JobDetail({ jobs, loading, id }) {
 
   return (
     <div className="jb-detail">
-      <Link to="/jobs" className="jb-back">← All roles</Link>
+      <Link to="/" className="jb-back">← All roles</Link>
       {hasImg && <div className="jb-detail-hero"><img src={first} alt={`${job.title} at ${job.venue}`} /></div>}
       <div className="jb-detail-venue">{job.venue} · {job.loc}</div>
       <h1 className="jb-serif">{job.title}</h1>
@@ -366,12 +463,21 @@ function JobDetail({ jobs, loading, id }) {
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
-export default function Jobs({ detail=false }) {
+export default function Jobs({ detail=false, home=false }) {
   const { id } = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
   const landing = detail ? parseLandingSlug(id) : null
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
-  const [signedIn, setSignedIn] = useState(false)
+  const [signedIn, setSignedIn] = useState(null) // null = still checking
+
+  // Old homepage links (hosposearch.com/#pricing etc.) now live on /about.
+  useEffect(() => {
+    if (home && /^#(pricing|how-it-works|for-employers|locations)$/.test(location.hash)) {
+      navigate('/about' + location.hash, { replace: true })
+    }
+  }, [home, location.hash])
 
   useEffect(() => {
     let alive = true
@@ -387,13 +493,10 @@ export default function Jobs({ detail=false }) {
   return (
     <div className="jb-wrap">
       <style>{styles}</style>
-      <nav className="jb-nav">
-        <Link to="/" className="jb-logo"><span>Hospo</span>Search</Link>
-        <Link to="/app" className="jb-nav-cta">{signedIn ? "Go to my account →" : "Sign in"}</Link>
-      </nav>
+      <SiteHeader signedIn={signedIn} onHome={!detail} />
       {detail && !landing
         ? <JobDetail jobs={jobs} loading={loading} id={id} />
-        : <JobsList key={id || "all"} jobs={jobs} loading={loading} landing={landing} />}
+        : <JobsList key={id || "all"} jobs={jobs} loading={loading} landing={landing} signedIn={signedIn} home={home} />}
     </div>
   )
 }

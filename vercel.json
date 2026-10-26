@@ -1,4 +1,5 @@
 {
+  "buildCommand": "npm run build",
   "crons": [
     {
       "path": "/api/send-job-alerts",
@@ -7,13 +8,17 @@
   ],
   "functions": {
     "api/seo.js": {
-      "includeFiles": "dist/index.html"
+      "includeFiles": "dist/shell.html"
     },
     "api/send-job-alerts.js": {
       "maxDuration": 60
     }
   },
   "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/seo?home=1"
+    },
     {
       "source": "/sitemap.xml",
       "destination": "/api/seo?sitemap=1"
@@ -28,7 +33,7 @@
     },
     {
       "source": "/((?!api/).*)",
-      "destination": "/index.html"
+      "destination": "/shell.html"
     }
   ],
   "redirects": [

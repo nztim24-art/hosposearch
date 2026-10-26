@@ -1,13 +1,15 @@
 // /api/seo.js — server-rendered HTML for job-seeker pages, so Google can read them.
 //
-//   /jobs                          → all live jobs + browse-by-role/location links
+//   /                              → homepage = all live jobs (the old landing page is now /about)
+//   /jobs                          → same list (canonical points at /)
 //   /jobs/<uuid>                   → one job, with Google for Jobs (JobPosting) data
 //   /jobs/chef-jobs-sydney         → role + location landing page
 //   /jobs/chef-jobs                → role landing page
 //   /jobs/hospitality-jobs-sydney  → location landing page
 //   /sitemap.xml                   → XML sitemap (same function: Hobby plan caps us at 12)
 //
-// It takes the normal built index.html, fills in <title>, meta tags and JSON-LD,
+// It takes the built SPA shell (dist/shell.html — renamed from index.html at build time so
+// that "/" isn't a static file and can be rendered here too), fills in <title>, meta tags and JSON-LD,
 // and puts readable content inside <div id="root">. The React app then loads and
 // takes over exactly as before — visitors see the same site, crawlers get content.
 // If anything here fails, it falls back to the plain SPA shell (never a broken page).
@@ -25,6 +27,7 @@ let TEMPLATE = null
 async function getTemplate(req) {
   if (TEMPLATE) return TEMPLATE
   const candidates = [
+    path.join(process.cwd(), 'dist', 'shell.html'),
     path.join(process.cwd(), 'dist', 'index.html'),
     path.join(process.cwd(), 'index.html'),
   ]
@@ -39,7 +42,7 @@ async function getTemplate(req) {
   const hosts = [req.headers['x-forwarded-host'] || req.headers.host, 'www.hosposearch.com'].filter(Boolean)
   for (const h of hosts) {
     try {
-      const r = await fetch(`https://${h}/index.html`, { headers: { 'x-hs-seo': '1' } })
+      const r = await fetch(`https://${h}/shell.html`, { headers: { 'x-hs-seo': '1' } })
       const html = r.ok ? await r.text() : ''
       if (html.includes('<div id="root">') && html.includes('/assets/')) { TEMPLATE = html; return TEMPLATE }
     } catch (e) { /* try next */ }
@@ -136,7 +139,7 @@ function breadcrumbLd(items) {
 }
 
 // ─── Page builders: return { status, title, description, canonical, robots, ld[], body, image }
-function listPage(jobs, landing) {
+function listPage(jobs, landing, home = false) {
   const matching = landing ? jobs.filter(j => jobMatchesLanding(j, landing)) : jobs
   let title, h1, intro, description, canonical, crumbs
   if (landing) {
@@ -145,12 +148,12 @@ function listPage(jobs, landing) {
     canonical = `${SITE}/jobs/${landing.group}-jobs${landing.place ? '-' + landing.place : ''}`
     crumbs = [{ name: 'Jobs', path: '/jobs' }, { name: h1, path: canonical.replace(SITE, '') }]
   } else {
-    title = 'Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch'
-    h1 = 'Hospitality jobs'
+    title = home ? 'HospoSearch — Hospitality Jobs in Australia & New Zealand' : 'Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch'
+    h1 = home ? 'Find your next great hospitality role' : 'Hospitality jobs'
     intro = `${matching.length} live chef, front-of-house, bar, sommelier and management roles at restaurants, hotels and wineries across Australia, New Zealand and beyond. Apply directly to the venue — new roles added every evening.`
     description = `Browse ${matching.length} hospitality jobs — chef, sous chef, waiter, bartender, sommelier and restaurant manager roles across Australia and New Zealand. Updated daily on HospoSearch.`
-    canonical = `${SITE}/jobs`
-    crumbs = [{ name: 'Jobs', path: '/jobs' }]
+    canonical = `${SITE}/` // the homepage is the jobs list; /jobs is the same page
+    crumbs = [{ name: 'Jobs', path: '/' }]
   }
   const body = shell(`
 <div class="ssr-crumbs"><a href="/">HospoSearch</a> › <a href="/jobs">Jobs</a>${landing ? ' › ' + esc(h1) : ''}</div>
@@ -159,7 +162,7 @@ function listPage(jobs, landing) {
 ${matching.length ? `<ul class="ssr-list">${matching.map(jobCard).join('')}</ul>` : ''}
 ${landing ? `<p><a href="/jobs">See all hospitality jobs →</a></p>` : ''}
 ${browseSections(jobs)}
-<p class="ssr-sub" style="margin-top:32px">Hiring? <a href="/app">Post a role on HospoSearch →</a></p>`)
+<p class="ssr-sub" style="margin-top:32px">Hiring? <a href="/about?post=1">Post a role on HospoSearch →</a> · <a href="/about">About HospoSearch</a></p>`)
   const ld = [
     breadcrumbLd(crumbs),
     {
@@ -258,8 +261,8 @@ async function sitemap(req, res) {
     `<url><loc>${SITE}${loc}</loc><lastmod>${lastmod}</lastmod><changefreq>${changefreq}</changefreq><priority>${priority}</priority></url>`
   const idx = landingIndex(jobs)
   const urls = [
-    url('/', newest, 'weekly', '1.0'),
-    url('/jobs', newest, 'daily', '0.9'),
+    url('/', newest, 'daily', '1.0'),
+    url('/about', newest, 'monthly', '0.6'),
     ...[...idx.roles, ...idx.places, ...idx.combos].map(l => url(l.path, newest, 'daily', '0.7')),
     ...jobs.map(j => url(`/jobs/${j.id}`, day(j.updatedTs || j.ts), 'weekly', '0.8')),
   ]
@@ -286,7 +289,7 @@ export default async function handler(req, res) {
     const jobs = await getLiveJobs()
     let page
     if (!slug) {
-      page = listPage(jobs, null)
+      page = listPage(jobs, null, !!req.query.home)
     } else if (isJobId(slug)) {
       const live = jobs.find(j => String(j.id) === slug)
       if (live) page = jobPage(live, jobs)

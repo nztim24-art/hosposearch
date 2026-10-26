@@ -7,7 +7,8 @@ import GiveawayTerms from './GiveawayTerms.jsx'
 export default function Root() {
   return (
     <Routes>
-      <Route path="/"          element={<Landing />} />
+      <Route path="/"          element={<Jobs home />} />
+      <Route path="/about"     element={<Landing />} />
       <Route path="/app"       element={<App />} />
       <Route path="/app/*"     element={<App />} />
       <Route path="/jobs"      element={<Jobs />} />
