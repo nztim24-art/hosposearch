@@ -282,6 +282,22 @@ export async function fetchAdminData() {
 
 // ─── Jobs ─────────────────────────────────────────────────────────────────────
 
+// ─── Random feed order ───────────────────────────────────────────────────────
+// Every page load gets a fresh random order. Pinned (featured) jobs stay above
+// the rest but are shuffled among themselves too. Each job's random position is
+// fixed for the life of the page, so refreshing the list in the background
+// (after posting, renewing etc.) doesn't make jobs jump around mid-visit.
+const _feedRank = new Map()
+export function feedRank(id) {
+  const k = String(id)
+  if (!_feedRank.has(k)) _feedRank.set(k, Math.random())
+  return _feedRank.get(k)
+}
+export function shuffleFeed(list) {
+  return [...list].sort((a, b) =>
+    ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || (feedRank(a.id) - feedRank(b.id)))
+}
+
 export async function fetchJobs() {
   // Auto-expire: any active listing whose expires_at has passed becomes inactive.
   const now = new Date().toISOString();
@@ -303,7 +319,7 @@ export async function fetchJobs() {
     console.error('fetchJobs error:', error)
     throw error
   }
-  return data.map(normaliseJob)
+  return shuffleFeed(data.map(normaliseJob))
 }
 
 // Record a share of a job (fire-and-forget). Increments jobs.share_count and
