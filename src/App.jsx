@@ -3003,6 +3003,30 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
     onClose();
   };
 
+  // Phone / browser back closes this listing and returns to where it was opened
+  // (dashboard, feed, admin) instead of leaving the app for the homepage.
+  const onCloseRef = useRef(onClose); onCloseRef.current = onClose;
+  const formDirtyRef = useRef(false); formDirtyRef.current = !!formHasContent;
+  useEffect(() => {
+    if (job?.id === "preview") return;
+    window.history.pushState({ hsJobDetail: true }, "");
+    let popped = false;
+    const onPop = () => {
+      if (formDirtyRef.current && !window.confirm("Discard your application? Your answers won't be saved.")) {
+        window.history.pushState({ hsJobDetail: true }, ""); // stay open
+        return;
+      }
+      popped = true;
+      onCloseRef.current && onCloseRef.current();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      // Closed with the on-screen back/close button: drop the history step we added
+      if (!popped && window.history.state?.hsJobDetail) window.history.back();
+    };
+  }, []);
+
   // ESC closes the modal (with the same guard)
   useEffect(() => {
     const onKey = (e) => { if (e.key === "Escape") guardedClose(); };
