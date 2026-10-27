@@ -143,6 +143,7 @@ const styles = `
   .jb-footer a{color:${C.terracotta};text-decoration:none;font-weight:600;}
   /* Detail page */
   .jb-detail{max-width:760px;margin:0 auto;padding:24px;}
+  .jb-new{position:absolute;top:10px;right:52px;background:${C.terracotta};color:#fff;font-size:10px;font-weight:700;letter-spacing:0.5px;padding:4px 10px;border-radius:100px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:2;}
   .jb-back{display:inline-flex;align-items:center;gap:6px;color:${C.textSoft};text-decoration:none;font-size:14px;font-weight:600;margin-bottom:20px;}
   .jb-back:hover{color:${C.terracotta};}
   .jb-detail-hero{width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;margin-bottom:24px;background:${C.bgSoft};}
@@ -351,6 +352,9 @@ function SignInCard() {
   )
 }
 
+// "New listing" badge for a listing's first 3 days
+const isNewListing = (j) => !!j?.ts && (Date.now() - j.ts) < 3*24*60*60*1000
+
 function JobCard({ job }) {
   const [copied, setCopied] = useState(false)
   const first = job.photos?.[0]
@@ -374,6 +378,7 @@ function JobCard({ job }) {
               <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
             </div>}
         {job.featured && <div className="jb-badge">★ Featured</div>}
+        {isNewListing(job) && <div className="jb-new">New listing</div>}
         <button
           className="jb-card-share"
           title="Share this role"

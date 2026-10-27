@@ -100,6 +100,16 @@ async function adminJobAction(action, jobId, fields) {
 }
 const PBG = ["linear-gradient(145deg,#EDE0D0,#CEBBA0)","linear-gradient(145deg,#D0E0D0,#AACCAA)","linear-gradient(145deg,#E0D4C8,#C0A888)","linear-gradient(145deg,#D8E4D8,#AACCAA)","linear-gradient(145deg,#E4D8CC,#C8A888)"];
 
+// Listings get a "New listing" badge for their first 3 days
+const isNewJob = (j) => !!j?.ts && (Date.now() - j.ts) < 3*24*60*60*1000;
+function NewBadge({ small=false, style={} }) {
+  return (
+    <div style={{ position:"absolute", top:small?8:10, right:small?8:10, background:C.terracotta, color:"#fff", fontSize:small?10:11, fontWeight:700, letterSpacing:0.5, padding:small?"3px 9px":"4px 10px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:3, ...style }}>
+      New listing
+    </div>
+  );
+}
+
 function VenuePlaceholder({ venue, loc }) {
   const city = (loc||'').split(',')[0].trim();
   return (
@@ -2641,8 +2651,9 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
                   :hm?<BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                   :<VenuePlaceholder venue={j.venue} loc={j.loc}/>}
                 {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
-                {j.video && <div style={{ position:"absolute", top:8, right:8, zIndex:2 }}><Icon name="video" size={13} color="#fff"/></div>}
-                {bk && <div style={{ position:"absolute", top:j.video?28:8, right:8, zIndex:2 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
+                {isNewJob(j) && <NewBadge small/>}
+                {j.video && <div style={{ position:"absolute", top:isNewJob(j)?34:8, right:8, zIndex:2 }}><Icon name="video" size={13} color="#fff"/></div>}
+                {bk && <div style={{ position:"absolute", top:(isNewJob(j)?26:0)+(j.video?28:8), right:8, zIndex:2 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
               </div>
               {/* Text */}
               <div style={{ padding:"12px 14px 14px" }}>
@@ -2875,7 +2886,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
   const appliedApp = job.apps?.find(a=>a.uid===currentUser?.id);
   const applied = !!appliedApp;
   const isOwnListing = currentUser?.id && job.empId === currentUser.id;
-  const isNew = job.ts && (Date.now() - job.ts) < 3*24*60*60*1000;
+  const isNew = isNewJob(job);
   const isFollowed = following.includes(job.empId);
   const isBookmarked = bookmarks.includes(job.id);
 
@@ -5085,6 +5096,7 @@ function EmployerBrowse({ jobs, user, onExpand }) {
                   <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
                     {hm ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/> : <VenuePlaceholder venue={j.venue||emp?.name} loc={j.loc}/>}
                     {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    {isNewJob(j) && <NewBadge small/>}
                   </div>
                   <div style={{ padding:"12px 14px 14px" }}>
                     <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
@@ -7213,6 +7225,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                           : <VenuePlaceholder venue={j.venue||emp?.name} loc={j.loc}/>
                       }
                       {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                      {isNewJob(j) && <NewBadge small/>}
                     </div>
                     <div style={{ padding:"12px 14px 14px" }}>
                       <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, marginBottom:3 }}>{j.venue||emp?.name}</div>
