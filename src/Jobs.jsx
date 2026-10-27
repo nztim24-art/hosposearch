@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, fetchJobs, getSession, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
+import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -591,10 +591,12 @@ export default function Jobs({ detail=false, home=false }) {
     fetchJobs()
       .then(data => { if (alive) { setJobs(data.filter(j => isLive(j))); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
+    // Signed in = any live login session. (Checking for a profile row missed
+    // admin accounts, which have none, so they saw "Log in" while logged in.)
     ;(sessionShouldEnd()
       ? supabase.auth.signOut().catch(() => {}).then(() => null)
-      : getSession())
-      .then(profile => { if (alive) setSignedIn(!!profile) })
+      : supabase.auth.getSession().then(({ data }) => data?.session || null))
+      .then(session => { if (alive) setSignedIn(!!session) })
       .catch(() => { if (alive) setSignedIn(false) })
     return () => { alive = false }
   }, [])
