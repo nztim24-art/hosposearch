@@ -5,6 +5,29 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON)
 
+// ─── "Keep me logged in on this device" ──────────────────────────────────────
+// Ticked (the default): the session survives closing the browser.
+// Unticked: the session only lasts until this browser/tab session ends.
+// hs_stay_logged_in (localStorage) holds the choice; hs_temp_session
+// (sessionStorage) marks a short-lived login that's still in its browser session.
+export function getStayLoggedIn() {
+  try { return localStorage.getItem('hs_stay_logged_in') !== '0' } catch (e) { return true }
+}
+// Call with loggingIn=true right before/after a login so an unticked choice
+// still keeps them signed in for the rest of this browser session.
+export function setStayLoggedIn(val, loggingIn = false) {
+  try {
+    localStorage.setItem('hs_stay_logged_in', val ? '1' : '0')
+    if (val) sessionStorage.removeItem('hs_temp_session')
+    else if (loggingIn) sessionStorage.setItem('hs_temp_session', '1')
+  } catch (e) {}
+}
+// True when the person chose not to stay logged in and the browser has since
+// been closed — their saved session should be dropped.
+export function sessionShouldEnd() {
+  try { return !getStayLoggedIn() && sessionStorage.getItem('hs_temp_session') !== '1' } catch (e) { return false }
+}
+
 // ─── Image helpers ────────────────────────────────────────────────────────────
 // Rewrite a Supabase public-storage URL to the on-the-fly image transformation
 // endpoint so we serve small, CDN-cached images instead of multi-MB originals.

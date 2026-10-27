@@ -3626,8 +3626,9 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                       Or apply on their website ↗
                     </a>
                   )}
-                  <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} onLogin(); }} style={{ background:"none", border:"none", color:C.textFaint, fontSize:12, cursor:"pointer", marginTop:4 }}>
-                    Already have an account? Log in →
+                  <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} onLogin(); }} className="tap"
+                    style={{ width:"100%", background:"#fff", border:`1.5px solid ${C.terracotta}`, borderRadius:12, padding:"12px 0", color:C.terracotta, fontWeight:700, fontSize:15, cursor:"pointer", marginTop:4 }}>
+                    Log in to apply
                   </button>
                 </div>
               </div>
@@ -3822,6 +3823,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
     if (su.pass !== su.pass2) { setSuErr("Passwords don't match."); return; }
     try {
       const { profile } = await sbSignUp(su.email, su.pass, su.name, su.mode);
+      _saveStayLoggedIn(stayLoggedIn);
       setSuDone(true);
       setTimeout(()=>{ onLogin(profile, su.mode); }, 1400);
     } catch(e) {
@@ -3892,6 +3894,12 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
                   <input value={su.pass} onChange={e=>setSu(s=>({...s,pass:e.target.value}))} placeholder="Password (min. 6 characters)" type="password" style={IS}/>
                   <input value={su.pass2} onChange={e=>setSu(s=>({...s,pass2:e.target.value}))} placeholder="Confirm password" type="password" onKeyDown={e=>e.key==="Enter"&&signUp()} style={IS}/>
                   {suErr && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{suErr}</div>}
+                  <div className="tap" onClick={()=>setStayLoggedIn(v=>!v)} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", userSelect:"none" }}>
+                    <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${stayLoggedIn?C.terracotta:C.border}`, background:stayLoggedIn?C.terracotta:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
+                      {stayLoggedIn && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <span style={{ fontSize:13, color:C.textMid }}>Keep me logged in on this device</span>
+                  </div>
                   <button className="btn-cta tap" onClick={signUp} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Create Account</button>
                   <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0" }}>
                     <div style={{ flex:1, height:1, background:C.border }}/>
@@ -3900,6 +3908,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
                   </div>
                   <button className="tap" onClick={async()=>{
                     try {
+                      _saveStayLoggedIn(stayLoggedIn);
                       const { error } = await supabase.auth.signInWithOAuth({
                         provider: 'google',
                         options: { redirectTo: window.location.origin + '/app', queryParams: { prompt: 'select_account' } }
@@ -3938,7 +3947,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
               <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${stayLoggedIn?C.terracotta:C.border}`, background:stayLoggedIn?C.terracotta:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
                 {stayLoggedIn && <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
               </div>
-              <span style={{ fontSize:13, color:C.textMid }}>Stay logged in</span>
+              <span style={{ fontSize:13, color:C.textMid }}>Keep me logged in on this device</span>
             </div>
             <button className="btn-cta tap" onClick={go} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>Log In</button>
             <div style={{ display:"flex", alignItems:"center", gap:10, margin:"4px 0" }}>
@@ -3948,6 +3957,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
             </div>
             <button className="tap" onClick={async()=>{
               try {
+                _saveStayLoggedIn(stayLoggedIn);
                 const { error } = await supabase.auth.signInWithOAuth({
                   provider: 'google',
                   options: { redirectTo: window.location.origin + '/app', queryParams: { prompt: 'select_account' } }

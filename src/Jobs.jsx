@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, fetchJobs, getSession, recordJobShare, incrementViews } from './supabase.js'
+import { supabase, fetchJobs, getSession, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -185,6 +185,13 @@ const styles = `
   .jb-menu-auth{display:flex;flex-direction:column;gap:10px;padding:14px 0 6px;}
   .jb-menu .lbl{display:block;font-size:14px;color:${C.textSoft};margin-top:4px;}
   .jb-btn.is-open{border-color:${C.textDark};background:#fff;}
+  .jb-stay{display:flex;align-items:center;gap:10px;min-height:44px;font-size:14px;color:${C.textMid};cursor:pointer;user-select:none;}
+  .jb-stay input{width:18px;height:18px;margin:0;accent-color:${C.terracotta};cursor:pointer;flex-shrink:0;}
+  .jb-menu .jb-stay{border:0;padding:0;}
+  .jb-login .jb-stay{min-height:36px;}
+  .jb-actions-col{flex-direction:column;align-items:flex-start;}
+  .jb-login-apply{background:#fff;border:1.5px solid ${C.terracotta};color:${C.terracotta};padding:15px 30px;border-radius:100px;font-size:15px;font-weight:700;text-decoration:none;display:inline-flex;align-items:center;gap:8px;font-family:inherit;}
+  .jb-login-apply:hover{background:${C.terracottaL};}
   .jb-login-foot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:6px;}
   .jb-menu .jb-login-foot a{min-height:44px;border:0;font-size:14px;font-weight:600;color:${C.terracotta};}
   @media(min-width:861px){
@@ -216,6 +223,7 @@ const styles = `
 
 // Same Google sign-in the /app login screen uses; lands on /app signed in.
 async function signInWithGoogle() {
+  setStayLoggedIn(getStayLoggedIn(), true)
   try {
     await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -235,12 +243,25 @@ const MailIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
 )
 
+// "Keep me logged in on this device" — ticked by default. The choice is saved
+// straight away so it carries through Google sign-in and the email login screen.
+function StayLoggedIn() {
+  const [on, setOn] = useState(getStayLoggedIn)
+  return (
+    <label className="jb-stay">
+      <input type="checkbox" checked={on} onChange={e => { setOn(e.target.checked); setStayLoggedIn(e.target.checked) }} />
+      <span>Keep me logged in on this device</span>
+    </label>
+  )
+}
+
 // Google + email sign-in buttons, used in the Log in dropdown.
 function AuthButtons() {
   return (
     <div className="jb-menu-auth">
       <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
       <Link to={LINKS.login}><MailIcon/> Log in with email</Link>
+      <StayLoggedIn/>
     </div>
   )
 }
@@ -325,6 +346,7 @@ function SignInCard() {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
         Log in with email
       </Link>
+      <StayLoggedIn/>
     </div>
   )
 }
@@ -472,7 +494,7 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
 }
 
 // ─── Detail view ──────────────────────────────────────────────────────────────
-function JobDetail({ jobs, loading, id }) {
+function JobDetail({ jobs, loading, id, signedIn }) {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const job = jobs.find(j => String(j.id)===String(id))
@@ -516,7 +538,7 @@ function JobDetail({ jobs, loading, id }) {
         ))}
       </div>
       <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
-      <div className="jb-actions">
+      <div className="jb-actions jb-actions-col">
         {job.link && job.link.trim() && job.link.trim()!=="#"
           ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
           : <Link
@@ -531,6 +553,13 @@ function JobDetail({ jobs, loading, id }) {
                 try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {}
               }}
             >Apply via HospoSearch →</Link>}
+        {signedIn === false && (
+          <Link
+            to="/app?login=1"
+            className="jb-login-apply"
+            onClick={() => { try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {} }}
+          >Log in to apply</Link>
+        )}
         <button className="jb-share" onClick={() => shareJob(job, () => { setCopied(true); setTimeout(()=>setCopied(false), 2000) })}>
           {copied ? "✓ Link copied" : "↗ Share role"}
         </button>
@@ -562,7 +591,9 @@ export default function Jobs({ detail=false, home=false }) {
     fetchJobs()
       .then(data => { if (alive) { setJobs(data.filter(j => isLive(j))); setLoading(false) } })
       .catch(() => { if (alive) setLoading(false) })
-    getSession()
+    ;(sessionShouldEnd()
+      ? supabase.auth.signOut().catch(() => {}).then(() => null)
+      : getSession())
       .then(profile => { if (alive) setSignedIn(!!profile) })
       .catch(() => { if (alive) setSignedIn(false) })
     return () => { alive = false }
@@ -573,7 +604,7 @@ export default function Jobs({ detail=false, home=false }) {
       <style>{styles}</style>
       <SiteHeader signedIn={signedIn} onHome={!detail} />
       {detail && !landing
-        ? <JobDetail jobs={jobs} loading={loading} id={id} />
+        ? <JobDetail jobs={jobs} loading={loading} id={id} signedIn={signedIn} />
         : <JobsList key={id || "all"} jobs={jobs} loading={loading} landing={landing} signedIn={signedIn} home={home} />}
     </div>
   )
