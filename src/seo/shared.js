@@ -229,7 +229,9 @@ export function jobPostingLd(job) {
   const posted = new Date(job.ts || Date.now())
   const valid = job.expiresAt ? new Date(job.expiresAt) : new Date(posted.getTime() + 30 * 86400000)
   const desc = job.fullHtml || job.full || job.short || `${job.title} at ${job.venue}`
-  const emp = EMPLOYMENT[String(job.type || '').toLowerCase().trim()]
+  // House rule: a job type that can't be confirmed is listed as Casual
+  const typeKey = String(job.type || '').toLowerCase().trim()
+  const emp = EMPLOYMENT[!typeKey || typeKey === 'not stated' ? 'casual' : typeKey]
   const parts = addressParts(job)
   const address = {
     '@type': 'PostalAddress',
