@@ -211,17 +211,32 @@ export function hasExternalApply(job) {
   return /^https?:\/\//i.test(l)
 }
 
+// Address helpers for jobLocation. Many listings store only "Melbourne VIC" in
+// the address field, so only treat it as a street address when it looks like one.
+const AU_STATES = /\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/
+const STREET_WORDS = /\b(st|street|rd|road|ave|avenue|lane|ln|pde|parade|tce|terrace|dr|drive|hwy|highway|pl|place|blvd|boulevard|cres|crescent|way|quay|wharf|esplanade|square|sq)\b/i
+export function addressParts(job) {
+  const raw = String(job.address || '').trim()
+  const usable = raw && !/not stated/i.test(raw)
+  const isStreet = usable && (/\d/.test(raw.split(',')[0]) || STREET_WORDS.test(raw))
+  const postcode = usable ? (raw.match(/\b(\d{4})\s*$/) || raw.match(/\b(?:NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/) || [])[1] : null
+  const state = job.state || (usable ? (raw.match(AU_STATES) || [])[1] : null) || null
+  return { street: isStreet ? raw : null, postcode: postcode || null, state }
+}
+
 export function jobPostingLd(job) {
   const ci = countryInfo(job.country)
   const posted = new Date(job.ts || Date.now())
   const valid = job.expiresAt ? new Date(job.expiresAt) : new Date(posted.getTime() + 30 * 86400000)
   const desc = job.fullHtml || job.full || job.short || `${job.title} at ${job.venue}`
   const emp = EMPLOYMENT[String(job.type || '').toLowerCase().trim()]
+  const parts = addressParts(job)
   const address = {
     '@type': 'PostalAddress',
-    ...(job.address && !/not stated/i.test(job.address) ? { streetAddress: job.address } : {}),
+    ...(parts.street ? { streetAddress: parts.street } : {}),
     ...(job.city ? { addressLocality: cleanCity(job.city) } : {}),
-    ...(job.state ? { addressRegion: job.state } : {}),
+    ...(parts.state ? { addressRegion: parts.state } : {}),
+    ...(parts.postcode ? { postalCode: parts.postcode } : {}),
     ...(ci ? { addressCountry: ci.iso } : job.country ? { addressCountry: job.country } : {}),
   }
   const org = { '@type': 'Organization', name: job.venue }
