@@ -615,6 +615,7 @@ const Icon = ({ name, size=24, color="currentColor", fill="none", style }) => {
     bell:     <><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke={color} strokeWidth="1.6"/></>,
     star:     <><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" stroke={color} strokeWidth="1.6" fill={fill}/></>,
     eye:      <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke={color} strokeWidth="1.6"/><circle cx="12" cy="12" r="3" stroke={color} strokeWidth="1.6"/></>,
+    eyeoff:   <><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19M14.12 14.12a3 3 0 11-4.24-4.24" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/><path d="M1 1l22 22" stroke={color} strokeWidth="1.6" strokeLinecap="round"/></>,
     send:     <><line x1="22" y1="2" x2="11" y2="13" stroke={color} strokeWidth="1.6" strokeLinecap="round"/><polygon points="22,2 15,22 11,13 2,9" stroke={color} strokeWidth="1.6" fill={fill}/></>,
     award:    <><circle cx="12" cy="8" r="6" stroke={color} strokeWidth="1.6"/><path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" stroke={color} strokeWidth="1.6"/></>,
     briefcase:<><rect x="2" y="7" width="20" height="14" rx="2" stroke={color} strokeWidth="1.6"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" stroke={color} strokeWidth="1.6"/></>,
@@ -638,6 +639,25 @@ const Icon = ({ name, size=24, color="currentColor", fill="none", style }) => {
 };
 
 // ─── Helpers / Shared UI ──────────────────────────────────────────────────────
+// Password field with a show/hide eye toggle. Takes the same props as <input>.
+// Margins from `style` go on the wrapper so spacing stays identical to a plain input.
+function PasswordInput({ style = {}, ...props }) {
+  const [show, setShow] = useState(false);
+  const { margin, marginTop, marginBottom, marginLeft, marginRight, ...inputStyle } = style;
+  return (
+    <div style={{ position:"relative", width:"100%", margin, marginTop, marginBottom, marginLeft, marginRight }}>
+      <input {...props} type={show ? "text" : "password"} autoCapitalize="off" autoCorrect="off" spellCheck={false}
+        style={{ ...inputStyle, width:"100%", paddingRight:44, boxSizing:"border-box" }}/>
+      <button type="button" onClick={() => setShow(s => !s)} tabIndex={-1}
+        aria-label={show ? "Hide password" : "Show password"} title={show ? "Hide password" : "Show password"}
+        style={{ position:"absolute", right:6, top:"50%", transform:"translateY(-50%)", background:"none", border:"none",
+          padding:8, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}>
+        <Icon name={show ? "eyeoff" : "eye"} size={18} color={C.textSoft}/>
+      </button>
+    </div>
+  );
+}
+
 // ─── Job sharing ──────────────────────────────────────────────────────────────
 // Public link for a role. Uses the .com domain so links look the same wherever shared.
 const jobShareUrl = (job) => `https://www.hosposearch.com/jobs/${job.id}`;
@@ -3667,8 +3687,8 @@ function ChangePasswordCard() {
       </button>
       {open && (
         <div style={{ background:"#fff", border:"1px solid #E8E3DC", borderTop:"none", borderRadius:"0 0 11px 11px", padding:"14px 16px", display:"flex", flexDirection:"column", gap:10 }}>
-          <input value={newPass} onChange={e=>setNewPass(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={IS}/>
-          <input value={pass2} onChange={e=>setPass2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
+          <PasswordInput value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="New password (min 6 characters)" style={IS}/>
+          <PasswordInput value={pass2} onChange={e=>setPass2(e.target.value)} placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
           <button className="tap" onClick={submit} disabled={saving}
             style={{ width:"100%", background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
             {saving ? "Updating…" : "Update Password"}
@@ -3715,8 +3735,8 @@ function ResetPasswordScreen({ onDone }) {
         ) : (
           <div style={{ background:"#fff", borderRadius:20, padding:24, boxShadow:"0 2px 24px rgba(0,0,0,0.08)", border:`1px solid ${C.border}` }}>
             <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
-              <input value={p1} onChange={e=>setP1(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={IS}/>
-              <input value={p2} onChange={e=>setP2(e.target.value)} type="password" placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
+              <PasswordInput value={p1} onChange={e=>setP1(e.target.value)} placeholder="New password (min 6 characters)" style={IS}/>
+              <PasswordInput value={p2} onChange={e=>setP2(e.target.value)} placeholder="Confirm new password" onKeyDown={e=>e.key==="Enter"&&submit()} style={IS}/>
               {msg && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{msg}</div>}
               <button className="btn-cta tap" onClick={submit} disabled={busy} style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.22)", marginTop:2 }}>{busy ? "Saving…" : "Update password"}</button>
             </div>
@@ -3891,8 +3911,8 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
                 <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
                   <input value={su.name} onChange={e=>setSu(s=>({...s,name:e.target.value}))} placeholder={su.mode==="employer"?"Venue / Business name":"Your full name"} style={IS}/>
                   <input value={su.email} onChange={e=>setSu(s=>({...s,email:e.target.value}))} placeholder="Email address" type="email" style={IS}/>
-                  <input value={su.pass} onChange={e=>setSu(s=>({...s,pass:e.target.value}))} placeholder="Password (min. 6 characters)" type="password" style={IS}/>
-                  <input value={su.pass2} onChange={e=>setSu(s=>({...s,pass2:e.target.value}))} placeholder="Confirm password" type="password" onKeyDown={e=>e.key==="Enter"&&signUp()} style={IS}/>
+                  <PasswordInput value={su.pass} onChange={e=>setSu(s=>({...s,pass:e.target.value}))} placeholder="Password (min. 6 characters)" style={IS}/>
+                  <PasswordInput value={su.pass2} onChange={e=>setSu(s=>({...s,pass2:e.target.value}))} placeholder="Confirm password" onKeyDown={e=>e.key==="Enter"&&signUp()} style={IS}/>
                   {suErr && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{suErr}</div>}
                   <div className="tap" onClick={()=>setStayLoggedIn(v=>!v)} style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", userSelect:"none" }}>
                     <div style={{ width:18, height:18, borderRadius:4, border:`2px solid ${stayLoggedIn?C.terracotta:C.border}`, background:stayLoggedIn?C.terracotta:"transparent", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, transition:"all 0.15s" }}>
@@ -3938,7 +3958,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
           </div>
           <div style={{ display:"flex", flexDirection:"column", gap:11 }}>
             <input value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" type="email" style={IS}/>
-            <input value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" type="password" onKeyDown={e=>e.key==="Enter"&&go()} style={IS}/>
+            <PasswordInput value={pass} onChange={e=>setPass(e.target.value)} placeholder="Password" onKeyDown={e=>e.key==="Enter"&&go()} style={IS}/>
             {err && <div style={{ color:C.error, fontSize:13, background:"#FEF2F0", border:"1px solid #F5C4BE", borderRadius:8, padding:"8px 12px", textAlign:"center" }}>{err}</div>}
             <div style={{ textAlign:"right", marginTop:-2 }}>
               <span onClick={()=>{ setErr(""); setScreen("forgot"); }} style={{ color:C.terracotta, fontSize:12.5, fontWeight:600, cursor:"pointer" }}>Forgot password?</span>
@@ -4616,7 +4636,7 @@ function AccountSettings({ user, onLogout }) {
           {/* Change password */}
           <div>
             <div style={{ color:C.textSoft, fontSize:11, fontWeight:600, textTransform:"uppercase", letterSpacing:1, marginBottom:6 }}>Change Password</div>
-            <input value={newPass} onChange={e=>setNewPass(e.target.value)} type="password" placeholder="New password (min 6 characters)" style={{...IS, marginBottom:8}}/>
+            <PasswordInput value={newPass} onChange={e=>setNewPass(e.target.value)} placeholder="New password (min 6 characters)" style={{...IS, marginBottom:8}}/>
             <button className="tap" onClick={changePassword} disabled={saving}
               style={{ width:"100%", background:"linear-gradient(135deg,#C4623A,#A84F2E)", border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontSize:13, fontWeight:700 }}>
               Update Password
@@ -8368,6 +8388,8 @@ function AdminDash({ jobs, setJobs, codes, setCodes, onLogout }) {
                       short: updated.short, full_desc: updated.full,
                       link: updated.link, apply_email: updated.applyEmail||"", photos: updatedPhotos,
                       featured: updated.featured, verified: updated.verified,
+                      // Owner — set by "Transfer to Employer". Without this the transfer never reached the database.
+                      emp_id: updated.empId || 'admin',
                     });
                   } catch(e) { console.warn('Update job error:', e); alert('Save failed — please try again.'); }
                   setJobs(p=>p.map(j=>j.id===updated.id?updated:j));
