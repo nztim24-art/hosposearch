@@ -424,7 +424,8 @@ export async function createJob(empId, jobData) {
 }
 
 export async function incrementViews(jobId) {
-  await supabase.rpc('increment_job_views', { job_id: jobId })
+  const { error } = await supabase.rpc('increment_job_views', { job_id: jobId })
+  if (error) console.warn('incrementViews failed:', error.message)
 }
 
 export async function updateJobStatus(jobId, updates) {

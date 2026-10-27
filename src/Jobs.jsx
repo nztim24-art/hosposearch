@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, fetchJobs, getSession, recordJobShare } from './supabase.js'
+import { supabase, fetchJobs, getSession, recordJobShare, incrementViews } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -476,6 +476,13 @@ function JobDetail({ jobs, loading, id }) {
   const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const job = jobs.find(j => String(j.id)===String(id))
+
+  // Count a view every time a role is opened on the public site — a click from
+  // the homepage / job lists, or a direct landing on /jobs/<id> (Instagram, Google,
+  // shared links). Runs once per open; reopening the role counts again.
+  useEffect(() => {
+    if (job?.id) incrementViews(job.id).catch(() => {})
+  }, [job?.id])
 
   useSEO({
     title: job ? `${job.title} — ${job.venue} | HospoSearch` : "Hospitality Role | HospoSearch",

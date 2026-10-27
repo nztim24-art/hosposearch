@@ -272,9 +272,17 @@ async function sitemap(req, res) {
   return res.end(`<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join('\n')}\n</urlset>`)
 }
 
+// Read the query string with the WHATWG URL API. Vercel's built-in query helper uses
+// Node's deprecated url.parse(), which logged a DEP0169 warning on every request.
+function readQuery(req) {
+  try { return new URL(req.url || '/', 'https://www.hosposearch.com').searchParams }
+  catch (e) { return new URLSearchParams() }
+}
+
 export default async function handler(req, res) {
-  if (req.query.sitemap) return sitemap(req, res)
-  const slug = String(req.query.slug || '').replace(/\/+$/, '')
+  const q = readQuery(req)
+  if (q.get('sitemap')) return sitemap(req, res)
+  const slug = String(q.get('slug') || '').replace(/\/+$/, '')
   let template
   try {
     template = await getTemplate(req)
@@ -289,7 +297,7 @@ export default async function handler(req, res) {
     const jobs = await getLiveJobs()
     let page
     if (!slug) {
-      page = listPage(jobs, null, !!req.query.home)
+      page = listPage(jobs, null, !!q.get('home'))
     } else if (isJobId(slug)) {
       const live = jobs.find(j => String(j.id) === slug)
       if (live) page = jobPage(live, jobs)
