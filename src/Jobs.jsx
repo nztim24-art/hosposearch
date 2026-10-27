@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, Fragment } from 'react'
+import { useEffect, useState, useMemo, useRef, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
@@ -144,6 +144,16 @@ const styles = `
   /* Detail page */
   .jb-detail{max-width:760px;margin:0 auto;padding:24px;}
   .jb-new{position:absolute;top:10px;right:52px;background:${C.terracotta};color:#fff;font-size:10px;font-weight:700;letter-spacing:0.5px;padding:4px 10px;border-radius:100px;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:2;}
+  .jb-gallery{position:relative;margin-bottom:24px;}
+  .jb-gallery .jb-detail-hero{margin-bottom:0;}
+  .jb-gallery-track{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;}
+  .jb-gallery-track::-webkit-scrollbar{display:none;}
+  .jb-gallery-track img{flex:0 0 100%;scroll-snap-align:start;}
+  .jb-gal-btn{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;border:0;background:rgba(255,255,255,0.92);font-size:24px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.15);color:${C.textDark};}
+  .jb-gal-prev{left:12px;} .jb-gal-next{right:12px;}
+  .jb-gal-dots{position:absolute;bottom:12px;left:0;right:0;display:flex;justify-content:center;gap:6px;}
+  .jb-gal-dots span{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.55);cursor:pointer;}
+  .jb-gal-dots span.on{background:#fff;}
   .jb-back{display:inline-flex;align-items:center;gap:6px;color:${C.textSoft};text-decoration:none;font-size:14px;font-weight:600;margin-bottom:20px;}
   .jb-back:hover{color:${C.terracotta};}
   .jb-detail-hero{width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;margin-bottom:24px;background:${C.bgSoft};}
@@ -352,6 +362,32 @@ function SignInCard() {
   )
 }
 
+// Every photo on the listing, swipeable on mobile, arrows on desktop.
+// Shown to everyone; only applying needs a login.
+function PhotoGallery({ photos, alt }) {
+  const [idx, setIdx] = useState(0)
+  const ref = useRef(null)
+  const go = (i) => {
+    const el = ref.current; if (!el) return
+    const n = Math.max(0, Math.min(photos.length - 1, i))
+    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
+  }
+  const onScroll = () => { const el = ref.current; if (el) setIdx(Math.round(el.scrollLeft / el.clientWidth)) }
+  if (!photos.length) return null
+  return (
+    <div className="jb-gallery">
+      <div className="jb-detail-hero jb-gallery-track" ref={ref} onScroll={onScroll}>
+        {photos.map((p, i) => <img key={i} src={p} alt={i === 0 ? alt : `${alt} (photo ${i + 1})`} loading={i ? 'lazy' : 'eager'} />)}
+      </div>
+      {photos.length > 1 && <>
+        {idx > 0 && <button type="button" className="jb-gal-btn jb-gal-prev" aria-label="Previous photo" onClick={() => go(idx - 1)}>‹</button>}
+        {idx < photos.length - 1 && <button type="button" className="jb-gal-btn jb-gal-next" aria-label="Next photo" onClick={() => go(idx + 1)}>›</button>}
+        <div className="jb-gal-dots">{photos.map((_, i) => <span key={i} className={i === idx ? 'on' : ''} onClick={() => go(i)} />)}</div>
+      </>}
+    </div>
+  )
+}
+
 // "New listing" badge for a listing's first 3 days
 const isNewListing = (j) => !!j?.ts && (Date.now() - j.ts) < 3*24*60*60*1000
 
@@ -533,7 +569,7 @@ function JobDetail({ jobs, loading, id, signedIn }) {
   return (
     <div className="jb-detail">
       <Link to="/" className="jb-back">← All roles</Link>
-      {hasImg && <div className="jb-detail-hero"><img src={first} alt={`${job.title} at ${job.venue}`} /></div>}
+      {hasImg && <PhotoGallery photos={(job.photos||[]).filter(isData)} alt={`${job.title} at ${job.venue}`} />}
       <div className="jb-detail-venue">{job.venue} · {job.loc}</div>
       <h1 className="jb-serif">{job.title}</h1>
       {job.salary && <div className="jb-salary" style={{ fontSize:18, marginBottom:18 }}>{fmtSalary(job)}</div>}
