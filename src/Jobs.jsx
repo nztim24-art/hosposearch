@@ -130,7 +130,17 @@ const styles = `
   .jb-card:hover{transform:translateY(-3px);box-shadow:0 12px 28px rgba(0,0,0,0.12);}
   .jb-card-img{position:relative;width:100%;aspect-ratio:4/5;overflow:hidden;background:#F4F0EB;}
   .jb-card-img .jb-main{width:100%;height:100%;object-fit:cover;display:block;}
-  .jb-badge{position:absolute;top:10px;left:10px;background:${C.featuredL};border:1px solid ${C.featured}55;color:${C.featured};font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;display:flex;align-items:center;gap:4px;}
+  .jb-card-track{display:flex;width:100%;height:100%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;}
+  .jb-card-track::-webkit-scrollbar{display:none;}
+  .jb-card-track img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;display:block;scroll-snap-align:start;scroll-snap-stop:always;}
+  .jb-card-arrow{position:absolute;top:50%;transform:translateY(-50%);z-index:3;width:36px;height:36px;border-radius:50%;border:0;background:rgba(255,255,255,0.92);color:${C.textDark};font-size:22px;line-height:1;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.18);display:flex;align-items:center;justify-content:center;padding:0 0 2px;}
+  .jb-card-arrow.prev{left:10px;} .jb-card-arrow.next{right:10px;}
+  .jb-card-count{position:absolute;bottom:12px;right:12px;z-index:2;background:rgba(0,0,0,0.5);color:#fff;font-size:11px;font-weight:600;padding:3px 9px;border-radius:100px;pointer-events:none;}
+  .jb-card-dots{position:absolute;bottom:14px;left:0;right:0;z-index:2;display:flex;justify-content:center;gap:5px;pointer-events:none;}
+  .jb-card-dots span{width:6px;height:6px;border-radius:3px;background:rgba(255,255,255,0.55);transition:width 0.2s;}
+  .jb-card-dots span.on{width:16px;background:#fff;}
+  @media(hover:none){.jb-card-arrow{width:32px;height:32px;font-size:20px;opacity:0.9;}}
+  .jb-badge{position:absolute;top:10px;left:10px;z-index:2;background:${C.featuredL};border:1px solid ${C.featured}55;color:${C.featured};font-size:10px;font-weight:700;padding:4px 10px;border-radius:100px;display:flex;align-items:center;gap:4px;}
   .jb-card-body{padding:14px 16px 16px;flex:1;display:flex;flex-direction:column;}
   .jb-venue{color:${C.textSoft};font-size:12px;font-weight:600;margin-bottom:4px;}
   .jb-title{font-family:'Fraunces','Playfair Display',serif;font-weight:700;font-size:19px;line-height:1.2;margin-bottom:5px;}
@@ -391,6 +401,36 @@ function PhotoGallery({ photos, alt }) {
 // "New listing" badge for a listing's first 3 days
 const isNewListing = (j) => !!j?.ts && (Date.now() - j.ts) < 3*24*60*60*1000
 
+// All of a listing's photos on its card: swipe on phones, arrows on desktop.
+// Arrow taps don't open the listing; tapping the photo itself still does.
+function CardPhotos({ photos, alt }) {
+  const [idx, setIdx] = useState(0)
+  const ref = useRef(null)
+  const go = (e, i) => {
+    e.preventDefault(); e.stopPropagation()
+    const el = ref.current; if (!el) return
+    const n = Math.max(0, Math.min(photos.length - 1, i))
+    el.scrollTo({ left: n * el.clientWidth, behavior: 'smooth' })
+  }
+  const onScroll = () => {
+    const el = ref.current
+    if (el && el.clientWidth) setIdx(Math.round(el.scrollLeft / el.clientWidth))
+  }
+  if (photos.length <= 1) return <img src={photos[0]} alt={alt} loading="lazy" className="jb-main"/>
+  return (
+    <>
+      <div className="jb-card-track" ref={ref} onScroll={onScroll}>
+        {photos.map((p, i) => <img key={i} src={p} alt={i === 0 ? alt : `${alt} (photo ${i + 1})`} loading="lazy" draggable={false}/>)}
+      </div>
+      {idx > 0 && <button type="button" className="jb-card-arrow prev" aria-label="Previous photo" onClick={(e) => go(e, idx - 1)}>‹</button>}
+      {idx < photos.length - 1 && <button type="button" className="jb-card-arrow next" aria-label="Next photo" onClick={(e) => go(e, idx + 1)}>›</button>}
+      {photos.length <= 8
+        ? <div className="jb-card-dots" aria-hidden="true">{photos.map((_, i) => <span key={i} className={i === idx ? 'on' : ''}/>)}</div>
+        : <div className="jb-card-count" aria-hidden="true">{idx + 1}/{photos.length}</div>}
+    </>
+  )
+}
+
 function JobCard({ job }) {
   const [copied, setCopied] = useState(false)
   const first = job.photos?.[0]
@@ -400,7 +440,7 @@ function JobCard({ job }) {
     <Link to={`/jobs/${job.id}`} className="jb-card">
       <div className="jb-card-img" style={{ background:pbg }}>
         {hasImg
-          ? <img src={first} alt={`${job.title} at ${job.venue}`} loading="lazy" className="jb-main"/>
+          ? <CardPhotos photos={(job.photos||[]).filter(isData)} alt={`${job.title} at ${job.venue}`}/>
           : <div style={{ width:"100%", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, position:"relative", overflow:"hidden" }}>
               <div style={{ position:"absolute", inset:0, backgroundImage:"radial-gradient(circle, #C9A96E 1px, transparent 1px)", backgroundSize:"22px 22px", opacity:0.1 }}/>
               <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
