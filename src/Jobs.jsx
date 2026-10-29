@@ -166,7 +166,7 @@ const styles = `
   .jb-gal-dots span.on{background:#fff;}
   .jb-back{display:inline-flex;align-items:center;gap:6px;color:${C.textSoft};text-decoration:none;font-size:14px;font-weight:600;margin-bottom:20px;}
   .jb-back:hover{color:${C.terracotta};}
-  .jb-detail-hero{width:100%;aspect-ratio:16/9;border-radius:18px;overflow:hidden;margin-bottom:24px;background:${C.bgSoft};}
+  .jb-detail-hero{width:100%;aspect-ratio:4/5;max-height:min(78vh,720px);border-radius:18px;overflow:hidden;margin-bottom:24px;background:${C.bgSoft};}
   .jb-detail-hero img{width:100%;height:100%;object-fit:cover;}
   .jb-detail h1{font-family:'Fraunces','Playfair Display',serif;font-size:clamp(28px,4vw,40px);font-weight:800;line-height:1.1;letter-spacing:-0.5px;margin-bottom:8px;}
   .jb-detail-venue{font-size:16px;color:${C.textSoft};font-weight:600;margin-bottom:16px;}
