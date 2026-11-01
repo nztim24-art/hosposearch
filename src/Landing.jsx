@@ -594,15 +594,14 @@ export default function Landing() {
   const statsRef = useRef()
   const countersAnimated = useRef(false)
 
-  const [followers, setFollowers] = useState('2,177')
+  const [followers, setFollowers] = useState('8,100')
 
   useEffect(() => {
-    // Fetch real Instagram follower count from Behold
-    fetch('https://feeds.behold.so/SVyieFYXHAirbiQqA0Ws')
-      .then(r => r.json())
-      .then(data => {
-        const count = data?.followersCount || data?.userInfo?.followersCount || null
-        if (count) setFollowers(count.toLocaleString())
+    // Instagram follower count, refreshed daily into public.site_stats
+    supabase.from('site_stats').select('value').eq('key', 'instagram_followers').maybeSingle()
+      .then(({ data }) => {
+        const count = data?.value?.count
+        if (count) setFollowers(Number(count).toLocaleString())
       })
       .catch(() => {})
 
@@ -613,15 +612,6 @@ export default function Landing() {
       link.rel = 'stylesheet'
       link.href = 'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&family=DM+Sans:wght@300;400;500;600;700&display=swap'
       document.head.appendChild(link)
-    }
-
-    // Inject Behold Instagram widget script
-    if (!document.querySelector('#behold-script')) {
-      const s = document.createElement('script')
-      s.id = 'behold-script'
-      s.type = 'module'
-      s.src = 'https://w.behold.so/widget.js'
-      document.head.appendChild(s)
     }
 
     // Nav shrink on scroll
@@ -814,9 +804,12 @@ export default function Landing() {
                 Follow
               </a>
             </div>
-            <div style={{borderRadius:16,overflow:'hidden',border:'1px solid var(--border)',boxShadow:'0 8px 32px rgba(0,0,0,0.08)'}}>
-              <behold-widget feed-id="SVyieFYXHAirbiQqA0Ws"></behold-widget>
-            </div>
+            <a href="https://www.instagram.com/hosposearch" target="_blank" rel="noreferrer"
+              style={{display:'block',textDecoration:'none',borderRadius:16,border:'1px solid var(--border)',boxShadow:'0 8px 32px rgba(0,0,0,0.08)',padding:'44px 28px',textAlign:'center',background:'linear-gradient(135deg,#fdf1e6,#fbe4ec)'}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:800,color:'var(--ink)',lineHeight:1}}>{followers}+</div>
+              <div style={{fontSize:14,color:'var(--ink-soft)',marginTop:8}}>hospitality professionals following</div>
+              <div style={{fontSize:15,fontWeight:700,color:'var(--terra)',marginTop:16}}>@hosposearch on Instagram →</div>
+            </a>
           </div>
         </div>
       </section>
@@ -1177,11 +1170,6 @@ export default function Landing() {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg>
               @hosposearch
             </a>
-          </div>
-
-          {/* Live Behold Instagram feed */}
-          <div className="reveal" style={{marginBottom:32}}>
-            <behold-widget feed-id="SVyieFYXHAirbiQqA0Ws"></behold-widget>
           </div>
 
           <div className="reveal" style={{textAlign:'center',marginTop:8}}>
