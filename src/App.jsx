@@ -1768,11 +1768,26 @@ function CandidateDiscovery({ jobs, currentUser }) {
 
   const activeDiscFilters = [discCountry, discState, discSector, roleFilter!=="All"?roleFilter:"", locFilter!=="All"?locFilter:""].filter(Boolean).length;
 
-  const sendMessage = () => {
-    if (!msgDraft.trim()||!selected) return;
-    const key = `${selected.id}-${currentUser.id}`;
-    setMessages(m=>({ ...m, [key]:[...(m[key]||[]), { from:currentUser.id, text:msgDraft.trim(), ts:Date.now() }] }));
-    setMsgDraft(""); setMsgSent(true); setTimeout(()=>{ setMsgSent(false); setSelected(null); },2000);
+  // Invite to apply (Growth and Pro): sends the candidate an in-app message
+  // with a link to one of this employer's live listings.
+  const canInvite = !!currentUser?.subscription_active && ['growth','pro'].includes((currentUser?.subscription_tier||'').toLowerCase());
+  const myLiveJobs = (jobs||[]).filter(j => j.empId === currentUser?.id && j.active !== false);
+  const [inviteJobId, setInviteJobId] = useState("");
+  const [inviteState, setInviteState] = useState("idle"); // idle | sending | sent | error
+  const [invitedIds, setInvitedIds] = useState({});
+  useEffect(() => { setInviteState("idle"); setInviteJobId(myLiveJobs[0]?.id || ""); }, [selected?.id]);
+  const sendInvite = async () => {
+    const job = myLiveJobs.find(j => String(j.id) === String(inviteJobId));
+    if (!job || !selected || inviteState === "sending") return;
+    setInviteState("sending");
+    const first = (selected.name||"").split(" ")[0] || "there";
+    const text = `Hi ${first}, we'd love you to apply for ${job.title} at ${job.venue || currentUser?.name || "our venue"}. Details and apply: https://www.hosposearch.com/jobs/${job.id}`;
+    try {
+      const { error } = await supabase.from('messages').insert({ from_id: currentUser.id, to_id: selected.id, text });
+      if (error) throw error;
+      setInvitedIds(m => ({ ...m, [`${selected.id}:${job.id}`]: true }));
+      setInviteState("sent");
+    } catch(e) { console.warn('Invite failed:', e); setInviteState("error"); }
   };
 
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"10px 12px", color:C.textDark, fontSize:13 };
@@ -1952,6 +1967,28 @@ function CandidateDiscovery({ jobs, currentUser }) {
                 This candidate hasn't shared contact details yet
               </div>
             )}
+            {/* Invite to apply */}
+            <div style={{ marginTop:16, padding:"14px", background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:12 }}>
+              <div style={{ fontWeight:700, fontSize:14, color:C.textDark, marginBottom:4 }}>Invite {(selected.name||"").split(" ")[0] || "them"} to apply</div>
+              {!canInvite ? (
+                <div style={{ color:C.textSoft, fontSize:12.5, lineHeight:1.5 }}>Inviting candidates is included with the Growth and Pro plans. Upgrade from your dashboard to reach people before they apply anywhere else.</div>
+              ) : myLiveJobs.length === 0 ? (
+                <div style={{ color:C.textSoft, fontSize:12.5, lineHeight:1.5 }}>You need a live listing to invite candidates to. Post a job first.</div>
+              ) : inviteState === "sent" ? (
+                <div style={{ color:C.sage, fontSize:13, fontWeight:700 }}>✓ Invite sent. They'll see it in their messages.</div>
+              ) : (
+                <>
+                  <select value={inviteJobId} onChange={e=>{ setInviteJobId(e.target.value); setInviteState("idle"); }} style={{ ...IS, marginBottom:8, background:"#fff" }}>
+                    {myLiveJobs.map(j => <option key={j.id} value={j.id}>{j.title}{j.loc ? ` · ${j.loc}` : ""}</option>)}
+                  </select>
+                  <button className="btn-cta tap" onClick={sendInvite} disabled={inviteState==="sending" || invitedIds[`${selected.id}:${inviteJobId}`]}
+                    style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"11px 0", color:"#fff", fontWeight:700, fontSize:14, opacity:inviteState==="sending"?0.7:1 }}>
+                    {inviteState==="sending" ? "Sending…" : invitedIds[`${selected.id}:${inviteJobId}`] ? "Already invited to this role" : "Send invite"}
+                  </button>
+                  {inviteState==="error" && <div style={{ color:C.error, fontSize:12, marginTop:6 }}>That didn't send. Please try again.</div>}
+                </>
+              )}
+            </div>
             <button className="tap" onClick={()=>setSelected(null)}
               style={{ width:"100%", marginTop:16, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"11px 0", color:C.textMid, fontSize:13, fontWeight:500, cursor:"pointer" }}>
               Close
