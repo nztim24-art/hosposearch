@@ -19,6 +19,13 @@ hosposearch/
     └── App.jsx         ← The full app (/app)
 ```
 
+## State machines
+
+The app's implicit state machines (root screen, payment return, job lifecycle,
+listing composer and more) are catalogued in
+[`docs/STATE_MACHINES.md`](docs/STATE_MACHINES.md). The extracted ones live in
+`src/state/` and are tested with `npm test`.
+
 ## Routes
 
 | URL       | Component  | Description               |

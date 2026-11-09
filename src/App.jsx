@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { resolveRootScreen } from "./state/rootScreen.js";
+import { paymentStatusFromSearch, isSubscriptionSuccess, subscriptionPlan, isPaymentCancelled } from "./state/paymentReturn.js";
+import { isLiveJob } from "./state/jobLifecycle.js";
 
 // Desktop detection
 const useIsDesktop = () => {
@@ -5485,7 +5488,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     const id = deleteConfirmJob.id;
     // An already-inactive listing (expired or an unpublished draft) is removed
     // permanently. A live listing is only archived (kept with its applications).
-    const isInactive = deleteConfirmJob.active === false;
+    const isInactive = !isLiveJob(deleteConfirmJob);
     try {
       if (isInactive) {
         // Hard delete: remove the row entirely. Safety: only own jobs.
@@ -5549,8 +5552,8 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       }));
     return jobApps.length ? { ...j, apps: jobApps } : { ...j, apps: j.apps || [] };
   };
-  const mine = (myJobs || jobs.filter(j=>j.empId===user.id)).filter(j=>j.empId===user.id && (j.active!==false)).map(_attachApps);
-  const expiredMine = (myJobs || []).filter(j=>j.empId===user.id && j.active===false).map(_attachApps);
+  const mine = (myJobs || jobs.filter(j=>j.empId===user.id)).filter(j=>j.empId===user.id && isLiveJob(j)).map(_attachApps);
+  const expiredMine = (myJobs || []).filter(j=>j.empId===user.id && !isLiveJob(j)).map(_attachApps);
   const apps = mine.reduce((s,j)=>s+(j.apps?.length||0),0);
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
 
@@ -5784,12 +5787,12 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
         </div>
       )}
-      {paymentStatus&&paymentStatus.startsWith('subscription_success_') && (
+      {isSubscriptionSuccess(paymentStatus) && (
         <div style={{ background:"#ECFDF5", borderBottom:"1px solid #86EFAC", padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
           <span style={{ fontSize:20 }}>🎉</span>
           <div style={{ flex:1 }}>
             <div style={{ color:"#166534", fontWeight:700, fontSize:14 }}>
-              Welcome to {paymentStatus.replace('subscription_success_','').charAt(0).toUpperCase()+paymentStatus.replace('subscription_success_','').slice(1)} Plan!
+              Welcome to {subscriptionPlan(paymentStatus).charAt(0).toUpperCase()+subscriptionPlan(paymentStatus).slice(1)} Plan!
             </div>
             <div style={{ color:"#166534", fontSize:12, opacity:0.8 }}>{nj.title ? `Your draft listing "${nj.title}" has been restored — ` : ""}You can now post listings included in your plan.</div>
           </div>
@@ -5800,7 +5803,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
           <button onClick={()=>setPaymentStatus(null)} style={{ background:"none", border:"none", color:"#166534", fontSize:20, cursor:"pointer", lineHeight:1 }}>×</button>
         </div>
       )}
-      {(paymentStatus==='cancelled'||paymentStatus==='subscription_cancelled') && (
+      {isPaymentCancelled(paymentStatus) && (
         <div style={{ background:"#FEF2F0", borderBottom:`1px solid ${C.error}30`, padding:"11px 16px", display:"flex", alignItems:"center", gap:10, flexShrink:0 }}>
           <span style={{ fontSize:20 }}>ℹ️</span>
           <div style={{ flex:1 }}>
@@ -8534,15 +8537,15 @@ export default function App() {
   useEffect(()=>{
     // Check for Stripe payment return
     const params = new URLSearchParams(window.location.search);
-    if (params.get('payment') === 'success') {
+    const _payStatus = paymentStatusFromSearch(window.location.search);
+    if (_payStatus === 'success') {
       setPaymentStatus('success');
       window.history.replaceState({}, '', window.location.pathname);
-    } else if (params.get('payment') === 'cancelled') {
+    } else if (_payStatus === 'cancelled') {
       setPaymentStatus('cancelled');
       window.history.replaceState({}, '', window.location.pathname);
-    } else if (params.get('subscription') === 'success') {
-      const plan = params.get('plan') || '';
-      setPaymentStatus('subscription_success_' + plan);
+    } else if (isSubscriptionSuccess(_payStatus)) {
+      setPaymentStatus(_payStatus);
       window.history.replaceState({}, '', window.location.pathname);
       // Restore draft job form if one was saved before redirecting to Stripe
       try {
@@ -8556,7 +8559,7 @@ export default function App() {
           localStorage.removeItem('hs_draft_job');
         }
       } catch(e) {}
-    } else if (params.get('subscription') === 'cancelled') {
+    } else if (_payStatus === 'subscription_cancelled') {
       setPaymentStatus('subscription_cancelled');
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -8698,9 +8701,12 @@ export default function App() {
     setAltAccount({ profile: prev.profile, type: prev.type });
   };
 
-  if (recovering) return <ResetPasswordScreen onDone={()=>{ setRecovering(false); window.location.replace('/app'); }} />;
+  // Which top-level screen to show is decided in one place: src/state/rootScreen.js
+  const screen = resolveRootScreen({ recovering, loading, needsAccountType, user, type, showLogin, showSignup, search: window.location.search });
 
-  if (loading) return (
+  if (screen.name === 'recovering') return <ResetPasswordScreen onDone={()=>{ setRecovering(false); window.location.replace('/app'); }} />;
+
+  if (screen.name === 'loading') return (
     <div style={{ height:"100vh", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"#FAF8F4", fontFamily:"'DM Sans',sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500&display=swap');`}</style>
       <div style={{ width:56, height:56, borderRadius:16, background:"linear-gradient(135deg,#C4623A,#C9A96E)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:26, marginBottom:16, boxShadow:"0 6px 18px rgba(196,98,58,0.3)" }}>🍽️</div>
@@ -8710,7 +8716,7 @@ export default function App() {
   );
 
   // New Google sign-in with no profile yet — choose Employer or Job Seeker.
-  if (needsAccountType && !user) return (
+  if (screen.name === 'choose-account-type') return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap');`}</style>
       <div style={{ maxWidth:440, width:"100%" }}>
@@ -8748,11 +8754,11 @@ export default function App() {
   );
 
   // Show login/signup modal if triggered from PublicBrowse
-  if ((showLogin||showSignup) && !user) return <Login defaultScreen={showSignup?"signup":"login"} onLogin={(u,t)=>{ setShowLogin(false); setShowSignup(false); handleLogin(u,t); }} onClose={()=>{ setShowLogin(false); setShowSignup(false); }}/>;
+  if (screen.name === 'login-modal') return <Login defaultScreen={showSignup?"signup":"login"} onLogin={(u,t)=>{ setShowLogin(false); setShowSignup(false); handleLogin(u,t); }} onClose={()=>{ setShowLogin(false); setShowSignup(false); }}/>;
   // Arriving from landing "Get Started" — show employer signup with Employer tab pre-selected
   const _tierParam = new URLSearchParams(window.location.search).get('tier');
   // Employee trying to post a job — show employer account required screen
-  if (user && _tierParam && type !== "employer" && type !== "admin") return (
+  if (screen.name === 'employer-required') return (
     <div style={{ minHeight:"100vh", background:C.bg, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }}>
       <div style={{ maxWidth:420, width:"100%", textAlign:"center" }}>
         <div style={{ fontSize:56, marginBottom:16 }}>🍽️</div>
@@ -8772,14 +8778,12 @@ export default function App() {
       </div>
     </div>
   );
-  if (!user && _tierParam) return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
-  const _loginParam = new URLSearchParams(window.location.search).get('login') === '1';
+  if (screen.name === 'signup-employer') return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
   const _typeParam  = new URLSearchParams(window.location.search).get('type') || 'employee';
-  if (!user && _loginParam) return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;
+  if (screen.name === 'login-param') return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;
   // "Sign up free" from the homepage header → open the sign-up screen directly
-  const _signupParam = new URLSearchParams(window.location.search).get('signup') === '1';
-  if (!user && _signupParam) return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  if (!user) return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
-  if (type==="admin")    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
-  if (type==="employer") return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
+  if (screen.name === 'signup-param') return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  if (screen.name === 'public') return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
+  if (screen.name === 'admin')    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
+  if (screen.name === 'employer') return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount} applyJobId={applyJobId} onApplyConsumed={()=>setApplyJobId(null)}/>;
 }
