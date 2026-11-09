@@ -2,6 +2,8 @@
 // Handles Stripe webhook events and updates Supabase.
 // No stripe npm package — uses native fetch.
 
+import { sendInstantAlerts } from './_lib/alerts.js';
+
 export const config = { api: { bodyParser: false } }; // CRITICAL: must read raw body for Stripe signature
 
 const LISTING_PRICE_IDS = {
@@ -10,6 +12,7 @@ const LISTING_PRICE_IDS = {
   'price_1TYxkdGgUkBXedj2pS9j0zcZ':      'gold',
   'price_1TkLi1GgUkBXedj2rGk7CBC1': 'silver', // silver upgrade from subscription
   'price_1TkLhDGgUkBXedj21S867prY':   'gold',   // gold upgrade from subscription
+  'price_1Ua0w5GgUkBXedj2bP8sqTr1': 'shift',  // Shift Cover, $9.95, 3 days
 };
 
 const SUBSCRIPTION_PRICE_MAP = {
@@ -148,15 +151,28 @@ export default async function handler(req, res) {
         if (jobId) {
           // 30-day listing window — fresh clock on every payment (incl. re-activation)
           // All listings run for 30 days
-          const days = 30; // all listings run 30 days
+          // Shift Cover runs 3 days; every other listing runs 30.
+          const days = tier === 'shift' ? 3 : 30;
           const expiresAt = new Date(Date.now() + days*24*60*60*1000).toISOString();
           await supabaseUpdate('jobs', {
             paid: true,
             active: true,
             tier,
-            featured: ['silver','gold'].includes(tier),
+            featured: ['silver','gold','shift'].includes(tier),
             expires_at: expiresAt,
           }, { id: jobId });
+
+          // Shift Cover: email matching job-alert subscribers straight away.
+          if (tier === 'shift') {
+            try {
+              const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+              const sbKey = process.env.SUPABASE_SERVICE_KEY;
+              const jr = await fetch(`${sbUrl}/rest/v1/jobs?id=eq.${jobId}&select=*`, { headers: { apikey: sbKey, Authorization: `Bearer ${sbKey}` } });
+              const job = jr.ok ? (await jr.json())[0] : null;
+              const r = await sendInstantAlerts(job, { supabaseUrl: sbUrl, serviceKey: sbKey });
+              console.log('Shift Cover instant alerts:', r);
+            } catch (e) { console.warn('Shift Cover alerts failed:', e.message); }
+          }
 
           // If this payment was a SUBSCRIPTION upgrade (Silver/Gold add-on bought
           // on top of a plan), the listing only just went live — consume one plan
@@ -177,8 +193,8 @@ export default async function handler(req, res) {
           try {
             const resendKey = process.env.RESEND_API_KEY;
             const buyerEmail = session.customer_details?.email || session.customer_email || 'unknown';
-            const tierEmoji = { gold: '🥇', silver: '🥈', bronze: '🥉' }[tier] || '💳';
-            const tierLabel = tier.charAt(0).toUpperCase() + tier.slice(1);
+            const tierEmoji = { gold: '🥇', silver: '🥈', bronze: '🥉', shift: '⚡' }[tier] || '💳';
+            const tierLabel = tier === 'shift' ? 'Shift Cover' : tier.charAt(0).toUpperCase() + tier.slice(1);
             if (resendKey) {
               await fetch('https://api.resend.com/emails', {
                 method: 'POST',
