@@ -3217,10 +3217,6 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     <span>📎</span>
                     <div style={{ color:C.textMid, fontSize:12 }}>Your résumé & cover letter attach automatically</div>
                   </div>
-                  <a href={job.link} target="_blank" rel="noreferrer"
-                    style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:7, padding:"11px 0", borderRadius:13, background:"#fff", border:`1px solid ${C.border}`, color:C.textSoft, fontSize:13, fontWeight:600, textDecoration:"none" }}>
-                    Or apply on their website ↗
-                  </a>
                 </div>
               ) : hasLink ? (
                 /* Link only — apply externally */
@@ -3678,7 +3674,8 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                     style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                     Apply via HospoSearch →
                   </button>
-                  {expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
+                  {/* Only offer the venue's own site when there's no way to apply through HospoSearch */}
+                  {!(expandedJob.applyEmail && expandedJob.applyEmail.trim()) && expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
                     <a href={expandedJob.link} target="_blank" rel="noreferrer"
                       style={{ display:"block", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
                       Or apply on their website ↗
