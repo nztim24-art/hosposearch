@@ -548,7 +548,7 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
         </div>
       )}
       <div style={{ textAlign:"center", padding:"0 20px" }}>
-        <Link to={LINKS.post} className="jb-post">Hiring? Post a job from $50 →</Link>
+        <Link to={LINKS.post} className="jb-post">Hiring? Post a job from $9.95 →</Link>
       </div>
       {loading ? (
         <div className="jb-empty">Loading hospitality roles…</div>

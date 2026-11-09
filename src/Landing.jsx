@@ -369,6 +369,21 @@ const TICKER_ITEMS = [
   "Kitchen Hand · Adelaide SA","Chef de Partie · Hobart TAS","Venue Manager · Sydney NSW",
 ]
 
+// Shift Cover ($9.95, 3 days) — shown on the pricing section and the Post a Job popup.
+function ShiftCoverStrip({ cur, compact=false }) {
+  const local = cur.isAU ? '$9.95' : `${cur.symbol}${(9.95 * cur.rate).toFixed(2)}`
+  return (
+    <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:compact?12:18,justifyContent:'space-between',background:'#FDECEA',border:'2px solid #C0392B',borderRadius:18,padding:compact?'14px 16px':'20px 24px',maxWidth:900,margin:compact?'0 0 18px':'0 auto 28px',textAlign:'left'}}>
+      <div style={{flex:'1 1 260px',minWidth:0}}>
+        <div style={{display:'inline-block',background:'#C0392B',color:'#fff',fontSize:10,fontWeight:800,letterSpacing:1,textTransform:'uppercase',padding:'3px 10px',borderRadius:100,marginBottom:8}}>⚡ New · Shift Cover</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:compact?18:22,fontWeight:800,color:'#0F0E0C',lineHeight:1.2,marginBottom:4}}>Need extra staff for this week? {local} for 3 days.</div>
+        <div style={{fontSize:13,color:'#3A3733',lineHeight:1.5}}>For casual and one-off event roles. Urgent badge, pinned near the top, and emailed straight to matching job-alert subscribers.{!cur.isAU && <> Billed at $9.95 AUD.</>}</div>
+      </div>
+      <a href="/app?tier=shift&mode=listing" style={{flexShrink:0,background:'#C0392B',color:'#fff',fontWeight:700,fontSize:14,padding:'12px 22px',borderRadius:100,textDecoration:'none',whiteSpace:'nowrap'}}>Post a Shift Cover →</a>
+    </div>
+  )
+}
+
 function PricingModal({ onClose, defaultTab='listing' }) {
   const [tab, setTab] = useState(defaultTab)
   const [selectedTier, setSelectedTier] = useState(null)
@@ -440,6 +455,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
           </div>
         </div>
 
+        {tab==='listing' && <ShiftCoverStrip cur={cur} compact/>}
         {/* Tier cards */}
         <div className="hs-modal-tier-grid" style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:14,marginBottom:24}}>
           {tiers.map(tier=>{
@@ -850,6 +866,7 @@ export default function Landing() {
             </div>
           </div>
 
+          <ShiftCoverStrip cur={cur}/>
           {(() => {
             const DOT = '#C4623A';
             const listingTiers = [
