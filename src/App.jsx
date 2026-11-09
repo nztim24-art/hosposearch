@@ -5507,6 +5507,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   const _urlTier = _urlParams.get('tier') || 'bronze';
   const _urlMode = _urlParams.get('mode') || 'listing';
   const _tierMap = { bronze:{ key:'bronze', price:50, priceId:'price_1TfwBfGkG9EGtGJgBv341e2n', featured:false }, silver:{ key:'silver', price:70, priceId:'price_1TfwBlGkG9EGtGJgGxDjQEhS', featured:true }, gold:{ key:'gold', price:100, priceId:'price_1TfwBrGkG9EGtGJg6O8z5oAu', featured:true } };
+  _tierMap.shift = { key:'shift', price:9.95, priceId:'price_1Ua0w5GgUkBXedj2bP8sqTr1', featured:true };
   const _initTier = _tierMap[_urlTier] || _tierMap.bronze;
   const _viewParam = _urlParams.get('view');
   const _jobIdParam = _urlParams.get('jobId');
@@ -5610,7 +5611,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   // render can't lose it.
   const _restoredDraft = window._draftJob;
   useEffect(()=>{ delete window._draftJob; }, []);
-  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryCurrency:"AUD", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
+  const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryCurrency:"AUD", salaryBand:"$70–90k", type:(_initTier.key==="shift"?"Casual":"Full-time"), payType:(_initTier.key==="shift"?"Hourly":"Annually"), workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState(_restoredDraft?.photos || [null,null,null,null,null]);
   // Image cropper: stash raw src + a callback that receives the cropped result
   const [cropState, setCropState] = useState(null); // { src, onDone }
