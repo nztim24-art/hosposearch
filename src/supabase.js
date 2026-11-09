@@ -792,6 +792,7 @@ function normaliseJob(row) {
     paid:       row.paid || false,
     active:     row.active !== undefined ? row.active : true,
     expiresAt:  row.expires_at ? new Date(row.expires_at).getTime() : null,
+    archivedAt: row.archived_at ? new Date(row.archived_at).getTime() : null, // set when the employer removes a live listing
   }
 }
 

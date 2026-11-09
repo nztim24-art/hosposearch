@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { resolveRootScreen } from "./state/rootScreen.js";
 import { paymentStatusFromSearch, isSubscriptionSuccess, subscriptionPlan, isPaymentCancelled } from "./state/paymentReturn.js";
-import { isLiveJob } from "./state/jobLifecycle.js";
+import { isLiveJob, jobLifecycle, JOB_LIFECYCLE } from "./state/jobLifecycle.js";
 
 // Desktop detection
 const useIsDesktop = () => {
@@ -3885,25 +3885,12 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
       setSuDone(true);
       setTimeout(()=>{ onLogin(profile, su.mode); }, 1400);
     } catch(e) {
-      // If Supabase signup fails (e.g. email already exists), fall back to session account
+      // Supabase sign-up failed
       if (e.message?.includes('already')) {
         setSuErr("An account with this email already exists. Please log in.");
       } else {
-        // Create session-only account as fallback
-        const newUser = {
-          id: "new_" + Date.now(),
-          email: su.email,
-          name: su.name,
-          handle: su.name.toLowerCase().replace(/\s+/g,"_"),
-          avatar: su.mode==="employer" ? "🍽️" : "👨‍🍳",
-          role: su.mode==="employer" ? "" : "Hospitality Professional",
-          type: su.mode,
-          verified: false,
-          bio: "",
-          ...(su.mode==="employer" ? { cuisine:"", venue_size:"", awards:[] } : { experience:"", cuisine_tags:[], location:"", available:true, skills:[], work_history:[], portfolio_photos:[] }),
-        };
-        setSuDone(true);
-        setTimeout(()=>{ onLogin(newUser, su.mode); }, 1400);
+        // Never fake an account: nothing would be saved. Tell them and let them retry.
+        setSuErr("We couldn't create your account just now. Please check your connection and try again.");
       }
     }
   };
@@ -5382,8 +5369,21 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
   const [tab, setTabRaw] = useState(_urlParams.get('tier') ? "post" : (_viewParam==="apps" ? "apps" : "feed"));
   const empTabHistory = useRef([]);
-  const setTab = (next) => { setTabRaw(prev => { if(prev!==next) empTabHistory.current=[...empTabHistory.current.slice(-9),prev]; return next; }); };
-  const goBack = () => { if(empTabHistory.current.length>0){ const p=empTabHistory.current[empTabHistory.current.length-1]; empTabHistory.current=empTabHistory.current.slice(0,-1); setTabRaw(p); } else setTabRaw("feed"); };
+  // "Posted!" auto-return timer. Tracked so it can be cancelled if the person
+  // navigates away first (or leaves the dashboard) instead of yanking them back.
+  const successTimer = useRef(null);
+  const cancelPendingSuccess = () => {
+    if (!successTimer.current) return;
+    clearTimeout(successTimer.current); successTimer.current = null;
+    setPosted(false); resetForm();
+  };
+  const finishPost = (ms) => {
+    clearTimeout(successTimer.current);
+    successTimer.current = setTimeout(()=>{ successTimer.current = null; setPosted(false); setTab("feed"); resetForm(); }, ms);
+  };
+  useEffect(()=>()=>clearTimeout(successTimer.current), []);
+  const setTab = (next) => { cancelPendingSuccess(); setTabRaw(prev => { if(prev!==next) empTabHistory.current=[...empTabHistory.current.slice(-9),prev]; return next; }); };
+  const goBack = () => { cancelPendingSuccess(); if(empTabHistory.current.length>0){ const p=empTabHistory.current[empTabHistory.current.length-1]; empTabHistory.current=empTabHistory.current.slice(0,-1); setTabRaw(p); } else setTabRaw("feed"); };
   const [expandedJob, setExpandedJob] = useState(null);
   const [emailNotifs, setEmailNotifs] = useState(()=>localStorage.getItem('hs_email_notifs')!=='false');
 
@@ -5461,11 +5461,13 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       if (target) setSel(target);
     }
   }, [jobs.length]);
+  // Draft handed over from App (see the Stripe-return effect). Read it without
+  // side effects during render; clear it once mounted so StrictMode's double
+  // render can't lose it.
   const _restoredDraft = window._draftJob;
-  if (_restoredDraft) { delete window._draftJob; }
+  useEffect(()=>{ delete window._draftJob; }, []);
   const [nj, setNj] = useState(_restoredDraft?.nj || { title:"", short:"", full:"", salary:"", salaryCurrency:"AUD", salaryBand:"$70–90k", type:"Full-time", payType:"Annually", workplace:"On-site", salaryShown:true, country:"Australia", state:"", city:"", sector:"", roleType:"", link:"", tags:[], featured:_initTier.featured, tier:_initTier.key, tierPrice:_initTier.price, tierPriceId:_initTier.priceId });
   const [photos, setPhotos] = useState(_restoredDraft?.photos || [null,null,null,null,null]);
-  const [njPosting, setNjPosting] = useState(false);
   // Image cropper: stash raw src + a callback that receives the cropped result
   const [cropState, setCropState] = useState(null); // { src, onDone }
   const pickAndCrop = (onDone) => {
@@ -5501,12 +5503,19 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       } else {
         // Soft delete: archive the listing (remove from the live board) but keep
         // the row + its applications so the employer can still see who applied.
-        const { error } = await supabase.from('jobs').update({ active:false })
+        const archivedAt = new Date();
+        let { error } = await supabase.from('jobs').update({ active:false, archived_at: archivedAt.toISOString() })
           .eq('id', id)
           .eq('emp_id', user.id); // safety: can only archive own jobs
+        if (error) {
+          // archived_at column not added yet (supabase/archived-at.sql): archive the old way.
+          ({ error } = await supabase.from('jobs').update({ active:false })
+            .eq('id', id)
+            .eq('emp_id', user.id));
+        }
         if (error) throw error;
         setJobs(prev => prev.filter(j => j.id !== id));
-        if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).map(j => j.id===id ? {...j, active:false} : j));
+        if (typeof setMyJobs === 'function') setMyJobs(prev => (prev||[]).map(j => j.id===id ? {...j, active:false, archivedAt: archivedAt.getTime()} : j));
       }
       setDeleteConfirmJob(null);
     } catch(e) {
@@ -5639,7 +5648,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     }
     setPosting(false);
     setPosted(true);
-    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 1800);
+    finishPost(1800);
   };
 
   const post = async () => {
@@ -5687,7 +5696,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
 
       setPosting(false);
       setPosted(true);
-      setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
+      finishPost(2500);
       return;
     }
 
@@ -5731,7 +5740,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
     setCheckoutJob(null);
     setPosting(false);
     setPosted(true);
-    setTimeout(()=>{ setPosted(false); setTab("feed"); resetForm(); }, 2500);
+    finishPost(2500);
   };
   // Re-activate an expired listing using a subscription slot (no payment).
   // Fresh 30-day clock; consumes one plan listing (counter doesn't refund on delete).
@@ -5989,7 +5998,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                           <div style={{ color:C.textSoft, fontSize:11, marginBottom:6 }}>{j.type} · {fmtSalary(j)}</div>
                           <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                             <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:j.paid?"#FEE2E2":"#F3F4F6", border:`1px solid ${j.paid?"#FCA5A5":"#D1D5DB"}`, color:j.paid?"#B91C1C":"#6B7280", fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>
-                              <Icon name="clock" size={10} color={j.paid?"#B91C1C":"#6B7280"}/> {j.paid ? "Expired" : "Unpublished"}
+                              <Icon name="clock" size={10} color={j.paid?"#B91C1C":"#6B7280"}/> {jobLifecycle(j)===JOB_LIFECYCLE.ARCHIVED ? "Archived" : j.paid ? "Expired" : "Unpublished"}
                             </span>
                             {(j.apps?.length||0)>0 && (
                               <span style={{ display:"inline-flex", alignItems:"center", gap:4, background:C.sageL, border:`1px solid ${C.sage}40`, color:C.sage, fontSize:10, fontWeight:600, padding:"2px 8px", borderRadius:20 }}>

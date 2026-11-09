@@ -49,6 +49,7 @@ Not stored as a field; derived from `jobs.active` and `jobs.paid`:
 | `live` | `active !== false` | on the board |
 | `expired` | `active === false && paid` | ran its term; can be renewed |
 | `unpublished` | `active === false && !paid` | draft that never reached payment |
+| `archived` | `active === false && archivedAt` | employer removed it; can be relisted |
 
 `fetchJobs()` / `fetchMyJobs()` sweep past-`expires_at` rows to `active=false`.
 The Stripe webhook (`api/webhook.js`) moves a job to paid + active with a fresh
@@ -116,24 +117,15 @@ time.
   `notify-abandoned` and `send-weekly-email` send email. These were not audited in
   detail.
 
-## 3. Defects found while auditing (not changed)
+## 3. Defects found while auditing
 
-Left alone on purpose: each one changes behaviour, so each needs a decision.
-
-1. **Archived looks like expired.** `handleDeleteJob` archives a live listing with
-   `active=false` and leaves `paid=true`, so the dashboard labels it **Expired**
-   and offers renewal. Needs a distinguishing column (e.g. `archived_at`).
-2. **Success timers navigate for you.** Three `setTimeout(… setTab("feed");
-   resetForm() …)` calls fire 1.8–2.5 s after posting even if the person has moved
-   on, and after unmount. Fix: track the timer in a ref and clear it on tab change
-   and unmount.
-3. **Failed sign-up can fake an account.** In `Login.signUp`, any Supabase error
-   other than "already exists" creates a session-only user (`id: "new_<time>"`) and
-   logs them in. They believe they registered; nothing is saved.
-4. **Draft hand-off through a global.** `window._draftJob` passes a restored draft
-   from `App` to `EmployerDash`, and `EmployerDash` deletes it *during render*.
-   With `React.StrictMode` on, development double-renders can lose the draft.
-5. **Dead state.** `njPosting` in `EmployerDash` is declared and never read.
+| # | Defect | Status |
+|---|--------|--------|
+| 1 | Archived listings looked **Expired** | Fixed in code: new `archived` lifecycle state and an "Archived" badge. **Needs `supabase/archived-at.sql` run once** (adds `archived_at` and a trigger that clears it when a job goes live again). Until then it behaves as before. |
+| 2 | Success timers navigated for you after 1.8–2.5 s | Fixed: one tracked timer (`finishPost`), cancelled on any tab change, Back, or leaving the dashboard. |
+| 3 | A failed sign-up logged you into a fake session-only account | Fixed: shows an error and lets the person retry. |
+| 4 | Draft hand-off deleted `window._draftJob` during render | Fixed: read in render, deleted in a mount effect (safe under StrictMode). |
+| 5 | Dead `njPosting` state in `EmployerDash` | Removed (the other component's `njPosting` is used and stays). |
 
 ## 4. Conventions for adding or changing a machine
 

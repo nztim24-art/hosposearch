@@ -8,19 +8,21 @@
 //   expired      active === false && paid             ran its term, can be renewed
 //   unpublished  active === false && !paid            draft that never reached payment
 //
-// KNOWN AMBIGUITY: when an employer removes a live listing, handleDeleteJob()
-// archives it with `active = false` and leaves `paid` true, so an archived
-// listing is indistinguishable from an expired one. Fixing that needs a new
-// column (e.g. `archived_at`); see docs/STATE_MACHINES.md.
+//   archived     active === false && archivedAt      employer removed it; can be relisted
+//
+// `archived_at` (supabase/archived-at.sql) is what tells "archived" apart from
+// "expired". Until that column exists, archived listings still read as expired.
 
 export const JOB_LIFECYCLE = Object.freeze({
   LIVE: 'live',
+  ARCHIVED: 'archived',
   EXPIRED: 'expired',
   UNPUBLISHED: 'unpublished',
 });
 
 export function jobLifecycle(job) {
   if (job && job.active === false) {
+    if (job.archivedAt) return JOB_LIFECYCLE.ARCHIVED;
     return job.paid ? JOB_LIFECYCLE.EXPIRED : JOB_LIFECYCLE.UNPUBLISHED;
   }
   return JOB_LIFECYCLE.LIVE;

@@ -120,3 +120,11 @@ test('job lifecycle: matches the old active/paid checks for every combination', 
   }
   assert.equal(isLiveJob(undefined), true); // matches `undefined?.active !== false` style guards
 });
+
+test('job lifecycle: archived is only reported when archivedAt is set and the job is inactive', () => {
+  assert.equal(jobLifecycle({ active: false, paid: true, archivedAt: 1700000000000 }), 'archived');
+  assert.equal(jobLifecycle({ active: false, paid: false, archivedAt: 1700000000000 }), 'archived');
+  assert.equal(jobLifecycle({ active: false, paid: true, archivedAt: null }), 'expired');
+  assert.equal(jobLifecycle({ active: true, paid: true, archivedAt: 1700000000000 }), 'live'); // relisted
+  assert.equal(isLiveJob({ active: false, archivedAt: 1 }), false);
+});
