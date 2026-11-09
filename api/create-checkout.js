@@ -8,6 +8,7 @@ const BASE_PRICES = {
   gold:          10000,  // $100 AUD in cents
   silver_upgrade: 2000,  // $20 AUD in cents
   gold_upgrade:   5000,  // $50 AUD in cents
+  shift:           995,  // $9.95 AUD in cents (Shift Cover: 3 days, Casual/event roles)
 };
 
 const PRICE_IDS = {
@@ -16,6 +17,7 @@ const PRICE_IDS = {
   gold:           'price_1TYxkdGgUkBXedj2pS9j0zcZ',
   silver_upgrade: 'price_1TkLi1GgUkBXedj2rGk7CBC1',
   gold_upgrade:   'price_1TkLhDGgUkBXedj21S867prY',
+  shift:          'price_1Ua0w5GgUkBXedj2bP8sqTr1',
 };
 
 const TIER_NAMES = {
@@ -24,6 +26,7 @@ const TIER_NAMES = {
   gold:   'Gold Listing — HospoSearch',
   silver_upgrade: 'Silver Upgrade — HospoSearch',
   gold_upgrade:   'Gold Upgrade — HospoSearch',
+  shift:          'Shift Cover Listing — HospoSearch',
 };
 
 async function validateCode(code) {
@@ -57,6 +60,27 @@ async function incrementCodeUsage(code) {
   } catch(e) { console.warn('Failed to increment code usage:', e.message); }
 }
 
+// Shift Cover rules, checked on the server so they can't be bypassed:
+// Casual roles only, and one Shift Cover listing per venue per 7 days.
+async function shiftCoverProblem(jobId) {
+  const sbUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const sbKey = process.env.SUPABASE_SERVICE_KEY;
+  if (!sbUrl || !sbKey) return 'Payment service not configured';
+  if (!jobId) return 'Save the listing before paying for Shift Cover';
+  const h = { apikey: sbKey, Authorization: `Bearer ${sbKey}` };
+  const jr = await fetch(`${sbUrl}/rest/v1/jobs?id=eq.${encodeURIComponent(jobId)}&select=id,emp_id,type`, { headers: h });
+  const job = jr.ok ? (await jr.json())[0] : null;
+  if (!job) return 'Listing not found';
+  if ((job.type || '').toLowerCase() !== 'casual') return 'Shift Cover is for Casual roles. Set the job type to Casual, or choose another listing type.';
+  // A paid Shift Cover listing runs 3 days, so one bought in the last 7 days
+  // still has expires_at after (now - 4 days).
+  const since = new Date(Date.now() - 4*24*60*60*1000).toISOString();
+  const rr = await fetch(`${sbUrl}/rest/v1/jobs?emp_id=eq.${encodeURIComponent(job.emp_id)}&tier=eq.shift&paid=eq.true&expires_at=gt.${since}&id=neq.${encodeURIComponent(jobId)}&select=id`, { headers: h });
+  const recent = rr.ok ? await rr.json() : [];
+  if (recent.length) return "You've already used Shift Cover this week. It's one per venue every 7 days. Choose Bronze, Silver or Gold for this listing.";
+  return null;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -69,10 +93,15 @@ export default async function handler(req, res) {
 
   const origin = 'https://www.hosposearch.com';
 
+  if (tierKey === 'shift') {
+    const problem = await shiftCoverProblem(jobId);
+    if (problem) return res.status(400).json({ error: problem });
+  }
+
   // Validate discount code server-side
   let discountPct = 0;
   let validCode = null;
-  if (discountCode) {
+  if (discountCode && tierKey !== 'shift') {
     validCode = await validateCode(discountCode);
     if (validCode) discountPct = validCode.pct || 0;
   }
@@ -120,7 +149,7 @@ export default async function handler(req, res) {
     } else {
       params.append('line_items[0][price]', PRICE_IDS[tierKey] || PRICE_IDS.bronze);
       params.append('line_items[0][quantity]', '1');
-      params.append('allow_promotion_codes', 'true');
+      if (tierKey !== 'shift') params.append('allow_promotion_codes', 'true');
     }
 
     const response = await fetch('https://api.stripe.com/v1/checkout/sessions', {

@@ -453,7 +453,9 @@ function JobCard({ job }) {
               {(job.loc||"").split(",")[0].trim() && <div style={{ fontSize:9, color:"#3A3733", letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>{(job.loc||"").split(",")[0].trim()}</div>}
               <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
             </div>}
-        {job.featured && <div className="jb-badge">★ Featured</div>}
+        {job.tier === 'shift'
+            ? <div className="jb-badge" style={{ background:"#C0392B", borderColor:"#C0392B", color:"#fff" }}>⚡ Urgent</div>
+            : job.featured && <div className="jb-badge">★ Featured</div>}
         {isNewListing(job) && <div className="jb-new">New listing</div>}
         <button
           className="jb-card-share"

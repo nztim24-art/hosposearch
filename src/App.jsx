@@ -23,7 +23,13 @@ async function createCheckoutSession(tier, jobTitle, venueEmail, jobId, discount
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ tier, jobTitle, venueEmail, jobId, discountCode }),
   });
-  if (!res.ok) throw new Error('Failed to create checkout session');
+  if (!res.ok) {
+    let msg = '';
+    try { msg = (await res.json())?.error || ''; } catch(e) {}
+    const err = new Error(msg || 'Failed to create checkout session');
+    err.userMessage = msg && msg !== 'Stripe error' && msg !== 'Internal error' ? msg : '';
+    throw err;
+  }
   const data = await res.json();
   return data.url;
 }
@@ -157,6 +163,16 @@ function NewBadge({ small=false, style={} }) {
   return (
     <div style={{ position:"absolute", top:small?8:10, right:small?8:10, background:C.terracotta, color:"#fff", fontSize:small?10:11, fontWeight:700, letterSpacing:0.5, padding:small?"3px 9px":"4px 10px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", zIndex:3, ...style }}>
       New listing
+    </div>
+  );
+}
+
+// Shift Cover listings ($9.95, 3 days) — shown in place of the Featured badge.
+const isShiftCover = (j) => j?.tier === 'shift';
+function UrgentBadge({ style={} }) {
+  return (
+    <div style={{ position:"absolute", top:8, left:8, zIndex:2, background:"#C0392B", color:"#fff", fontSize:10, fontWeight:800, letterSpacing:0.4, padding:"3px 9px", borderRadius:20, boxShadow:"0 2px 8px rgba(0,0,0,0.25)", ...style }}>
+      ⚡ Urgent
     </div>
   );
 }
@@ -2701,7 +2717,7 @@ function ExploreGrid({ jobs, following, currentUser, bookmarks, onOpen, onToggle
                 {hm&&isVid(first)?<video src={first} muted playsInline style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
                   :hm?<BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                   :<VenuePlaceholder venue={j.venue} loc={j.loc}/>}
-                {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                {isShiftCover(j) && <UrgentBadge/>}{j.featured && !isShiftCover(j) && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                 {isNewJob(j) && <NewBadge small/>}
                 {j.video && <div style={{ position:"absolute", top:isNewJob(j)?34:8, right:8, zIndex:2 }}><Icon name="video" size={13} color="#fff"/></div>}
                 {bk && <div style={{ position:"absolute", top:(isNewJob(j)?26:0)+(j.video?28:8), right:8, zIndex:2 }}><Icon name="bookmark" size={14} color={C.terracotta} fill={C.terracotta}/></div>}
@@ -2943,7 +2959,11 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 
   return (
     <div style={{ background:"#fff", marginBottom:12, borderRadius:14, border:`1px solid ${C.border}`, overflow:"hidden", boxShadow:"0 2px 8px rgba(0,0,0,0.06)" }}>
-      {job.featured && (
+      {isShiftCover(job) ? (
+        <div style={{ background:"#FDECEA", borderBottom:"1px solid #C0392B30", padding:"5px 14px", display:"flex", alignItems:"center", gap:6 }}>
+          <span style={{ color:"#C0392B", fontSize:11, fontWeight:800 }}>⚡ Urgent — hiring for a shift this week</span>
+        </div>
+      ) : job.featured && (
         <div style={{ background:C.featuredL, borderBottom:`1px solid ${C.featured}30`, padding:"5px 14px", display:"flex", alignItems:"center", gap:6 }}>
           <Icon name="star" size={12} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:11, fontWeight:700 }}>Featured Listing</span>
         </div>
@@ -3184,7 +3204,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
               {job.verified && <span style={{ color:C.sage, fontSize:11, border:`1px solid ${C.sage}`, borderRadius:20, padding:"3px 9px", fontWeight:600 }}>Verified</span>}
             </div>
           </div>
-          {job.featured && <div style={{ display:"flex", alignItems:"center", gap:6, background:C.featuredL, border:`1px solid ${C.featured}30`, borderRadius:10, padding:"8px 12px", marginBottom:14 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontWeight:600, fontSize:13 }}>Featured Listing</span></div>}
+          {isShiftCover(job) && <div style={{ display:"flex", alignItems:"center", gap:6, background:"#FDECEA", border:"1px solid #C0392B30", borderRadius:10, padding:"8px 12px", marginBottom:14 }}><span style={{ color:"#C0392B", fontWeight:800, fontSize:13 }}>⚡ Urgent — hiring for a shift this week</span></div>}{job.featured && !isShiftCover(job) && <div style={{ display:"flex", alignItems:"center", gap:6, background:C.featuredL, border:`1px solid ${C.featured}30`, borderRadius:10, padding:"8px 12px", marginBottom:14 }}><Icon name="star" size={14} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontWeight:600, fontSize:13 }}>Featured Listing</span></div>}
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:26, fontWeight:700, color:C.textDark, lineHeight:1.2, marginBottom:6 }}>{job.title}</div>
           <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:10, flexWrap:"wrap" }}>
             <span style={{ color:C.sand, fontWeight:700, fontSize:14 }}>{fmtSalary(job)}</span>
@@ -4142,7 +4162,7 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
 // ─── Stripe Checkout ──────────────────────────────────────────────────────────
 function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeatured, tierKey="bronze", tierPrice=50, tierPriceId="price_1TfwBfGkG9EGtGJgBv341e2n", user=null }) {
   const basePrice = tierPrice;
-  const tierLabel = tierKey==='gold_upgrade' ? 'Gold upgrade for this listing' : tierKey==='silver_upgrade' ? 'Silver upgrade for this listing' : tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
+  const tierLabel = tierKey==='shift' ? '⚡ Shift Cover (3 days)' : tierKey==='gold_upgrade' ? 'Gold upgrade for this listing' : tierKey==='silver_upgrade' ? 'Silver upgrade for this listing' : tierKey==='gold' ? '🥇 Gold Premium listing' : tierKey==='silver' ? '🥈 Silver Featured listing' : '🥉 Bronze Standard listing';
   const isUpgrade = tierKey==='gold_upgrade' || tierKey==='silver_upgrade';
 
   const [codeInput, setCodeInput]     = useState("");
@@ -4194,7 +4214,7 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
       );
       window.location.href = url;
     } catch(e) {
-      setErr("Could not connect to payment. Please try again.");
+      setErr(e?.userMessage || "Could not connect to payment. Please try again.");
       setLoading(false);
     }
   };
@@ -4242,8 +4262,8 @@ function StripeCheckout({ jobDraft, onSuccess, onCancel, codes, setCodes, isFeat
         </div>
       </div>
 
-      {/* Discount code */}
-      <div style={{ marginBottom:16 }}>
+      {/* Discount code (not offered on Shift Cover — it's already the low price) */}
+      <div style={{ marginBottom:16, display: tierKey==='shift' ? 'none' : undefined }}>
         <div style={{ color:C.textSoft, fontSize:13, textTransform:"uppercase", marginBottom:6, fontWeight:600 }}>🏷️ Have a discount code?</div>
         {appliedCode ? (
           <div style={{ display:"flex", alignItems:"center", gap:8, padding:"10px 13px", background:C.sageL, borderRadius:10, border:`1px solid ${C.sage}40` }}>
@@ -5172,7 +5192,7 @@ function EmployerBrowse({ jobs, user, onExpand }) {
                   onMouseLeave={e=>{ e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.06)"; e.currentTarget.style.transform="none"; }}>
                   <div style={{ position:"relative", width:"100%", aspectRatio:"4/5", overflow:"hidden", background:pbg }}>
                     {hm ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/> : <VenuePlaceholder venue={j.venue||emp?.name} loc={j.loc}/>}
-                    {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                    {isShiftCover(j) && <UrgentBadge/>}{j.featured && !isShiftCover(j) && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                     {isNewJob(j) && <NewBadge small/>}
                   </div>
                   <div style={{ padding:"12px 14px 14px" }}>
@@ -5682,7 +5702,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
   // draft id so post() updates that row rather than creating a new one.
   const openDraftForCompletion = (j) => {
     const _tier = j.tier||"bronze";
-    const _tp = { bronze:50, silver:70, gold:100 }[_tier] || 50;
+    const _tp = { bronze:50, silver:70, gold:100, shift:9.95 }[_tier] || 50;
     setNj({
       title: j.title||"", short: j.short||"", full: j.full||j.short||"",
       salary: j.salary||"", salaryBand: j.salaryBand||"$70–90k", type: j.type||"Full-time",
@@ -6300,6 +6320,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                   { key:"bronze", label:"🥉 Bronze — Standard", price:50,  priceId:"price_1TYxkgGgUkBXedj25MHNk2OX", perks:["Listed in the feed","Candidates can apply","30-day listing"], missing:["Not featured","No priority placement"] },
                   { key:"silver", label:"🥈 Silver — Featured", price:70,  priceId:"price_1TYxkbGgUkBXedj23615jbeg", perks:["Everything in Bronze","⭐ Pinned to top of feed","30-day listing","Featured badge on listing"], missing:[] },
                   { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TYxkdGgUkBXedj2pS9j0zcZ", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
+                  { key:"shift", label:"⚡ Shift Cover — Urgent", price:9.95, priceId:"price_1Ua0w5GgUkBXedj2bP8sqTr1", perks:["Casual / event roles","⚡ Urgent badge","Pinned near the top","Emailed to matching job alerts","3-day listing"], missing:["One per venue per week"] },
                 ];
                 return (
                   <div style={{ marginBottom:16 }}>
@@ -6311,7 +6332,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                     <div style={{ color:C.textSoft, fontSize:11, textTransform:"uppercase", letterSpacing:1.2, marginBottom:8, fontWeight:600 }}>Or post this one as a paid listing</div>
                     <div style={{ display:"flex", flexDirection:"column", gap:8 }}>
                       {payTiers.map(tier=>(
-                        <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
+                        <div key={tier.key} className="tap" onClick={()=>{ if (tier.key==="shift" && nj.type!=="Casual") { alert("Shift Cover is for Casual or one-off event roles. Set the job type to Casual to use it."); return; } setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId})); }}
                           style={{ border:`2px solid ${nj.tier===tier.key?C.terracotta:C.border}`, borderRadius:13, padding:"14px 15px", background:nj.tier===tier.key?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -6393,8 +6414,9 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                     { key:"bronze", label:"🥉 Bronze — Standard", price:50, priceId:"price_1TfwBfGkG9EGtGJgBv341e2n", perks:["Listed in the feed","Candidates can apply","30-day listing"], missing:["Not featured","No priority placement"] },
                     { key:"silver", label:"🥈 Silver — Featured", price:70, priceId:"price_1TfwBlGkG9EGtGJgGxDjQEhS", perks:["Everything in Bronze","⭐ Pinned to top of feed","30-day listing","Featured badge on listing"], missing:[] },
                     { key:"gold",   label:"🥇 Gold — Premium",   price:100, priceId:"price_1TfwBrGkG9EGtGJg6O8z5oAu", perks:["Everything in Silver","🔥 Maximum visibility","Highlighted in search results","30-day listing","Dedicated support"], missing:[] },
+                    { key:"shift", label:"⚡ Shift Cover — Urgent", price:9.95, priceId:"price_1Ua0w5GgUkBXedj2bP8sqTr1", perks:["Casual / event roles","⚡ Urgent badge","Pinned near the top","Emailed to matching job alerts","3-day listing"], missing:["One per venue per week"] },
                   ].map(tier=>(
-                    <div key={tier.key} className="tap" onClick={()=>setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId}))}
+                    <div key={tier.key} className="tap" onClick={()=>{ if (tier.key==="shift" && nj.type!=="Casual") { alert("Shift Cover is for Casual or one-off event roles. Set the job type to Casual to use it."); return; } setNj(j=>({...j, tier:tier.key, featured:tier.key!=="bronze", tierPrice:tier.price, tierPriceId:tier.priceId})); }}
                       style={{ border:`2px solid ${nj.tier===tier.key?C.terracotta:C.border}`, borderRadius:13, padding:"14px 15px", background:nj.tier===tier.key?C.terracottaL:"#fff", cursor:"pointer", transition:"all 0.2s" }}>
                       <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
                         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
@@ -7364,7 +7386,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
                           ? <BlurFillImage src={first} alt={j.title} ratio="4/5"/>
                           : <VenuePlaceholder venue={j.venue||emp?.name} loc={j.loc}/>
                       }
-                      {j.featured && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
+                      {isShiftCover(j) && <UrgentBadge/>}{j.featured && !isShiftCover(j) && <div style={{ position:"absolute", top:8, left:8, background:C.featuredL, border:`1px solid ${C.featured}40`, borderRadius:20, padding:"3px 9px", display:"flex", alignItems:"center", gap:4, zIndex:2 }}><Icon name="star" size={11} color={C.featured} fill={C.featured}/><span style={{ color:C.featured, fontSize:10, fontWeight:700 }}>Featured</span></div>}
                       {isNewJob(j) && <NewBadge small/>}
                     </div>
                     <div style={{ padding:"12px 14px 14px" }}>
