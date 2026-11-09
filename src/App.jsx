@@ -40,6 +40,54 @@ async function createSubscriptionSession(plan, userEmail, userId) {
 }
 import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, shuffleFeed, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare } from './supabase.js';
 
+// ─── Guest applications ────────────────────────────────────────────────────────
+// A logged-out visitor fills in the whole application (CV included) before they
+// create an account. The draft is held in IndexedDB on this device so it survives
+// the sign-up step, including the full-page Google redirect, and is sent
+// automatically once they're signed in. Nothing leaves the device until then.
+const PENDING_APP_DB = 'hs-pending-application';
+const PENDING_APP_TTL = 24 * 3600 * 1000;
+function _pendingAppStore(mode, fn) {
+  return new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(PENDING_APP_DB, 1); } catch (e) { reject(e); return; }
+    req.onupgradeneeded = () => { try { req.result.createObjectStore('drafts'); } catch (e) {} };
+    req.onerror = () => reject(req.error);
+    req.onsuccess = () => {
+      const db = req.result;
+      let r;
+      try {
+        const tx = db.transaction('drafts', mode);
+        r = fn(tx.objectStore('drafts'));
+        tx.oncomplete = () => { db.close(); resolve(r ? r.result : undefined); };
+        tx.onerror = () => { db.close(); reject(tx.error); };
+      } catch (e) { db.close(); reject(e); }
+    };
+  });
+}
+async function savePendingApplication(draft) {
+  await _pendingAppStore('readwrite', s => s.put({ ...draft, ts: Date.now() }, 'current'));
+}
+async function loadPendingApplication() {
+  try {
+    const d = await _pendingAppStore('readonly', s => s.get('current'));
+    if (!d || Date.now() - (d.ts || 0) > PENDING_APP_TTL) return null;
+    return d;
+  } catch (e) { return null; }
+}
+async function clearPendingApplication() {
+  try { await _pendingAppStore('readwrite', s => s.delete('current')); } catch (e) {}
+  try { localStorage.removeItem('hs_pending_app_meta'); } catch (e) {}
+}
+// Small, non-sensitive summary used to label the sign-up step and prefill it.
+function readPendingAppMeta() {
+  try {
+    const m = JSON.parse(localStorage.getItem('hs_pending_app_meta') || 'null');
+    if (m && Date.now() - (m.ts || 0) < PENDING_APP_TTL) return m;
+  } catch (e) {}
+  return null;
+}
+
 // ─── Design Tokens ────────────────────────────────────────────────────────────
 const C = {
   bg:"#FAFAF8", bgSoft:"#F4F0EB", border:"#EAE4DA", borderMid:"#D6CEBC",
@@ -2985,7 +3033,7 @@ function JobCard({ job, currentUser, following, bookmarks, onApply, onExpand, on
 }
 
 // ─── Job Detail ───────────────────────────────────────────────────────────────
-function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick, openToApply=false }) {
+function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, onApply, onToggleFollow, onToggleBookmark, onVenueClick, openToApply=false, guest=false, draft=null }) {
   if (!job) return null; // safety guard
   const emp = getEmp(job);
   const safePhotos = job.photos || [];
@@ -2996,9 +3044,11 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
   const isFollowed = (following||[]).includes(job.empId);
   const isBookmarked = (bookmarks||[])?.includes(job.id);
   const [showForm, setShowForm] = useState(openToApply && !isOwnListing);
-  const [fd, setFd] = useState({ name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
-  const [resume, setResume] = useState(profile?.resume||null);
-  const [cover, setCover] = useState(profile?.coverLetter||null);
+  // A held guest draft (see savePendingApplication) pre-fills the form if it has to reopen.
+  const _draftFields = (() => { if (!draft?.payload) return null; const { resume:_r, cover:_c, ...rest } = draft.payload; return rest; })();
+  const [fd, setFd] = useState(_draftFields ? { name:"", email:"", phone:"", msg:"", ..._draftFields } : { name:currentUser?.name||"", email:currentUser?.email||"", phone:currentUser?.phone||"", msg:"" });
+  const [resume, setResume] = useState(draft?.payload?.resume||profile?.resume||null);
+  const [cover, setCover] = useState(draft?.payload?.cover||profile?.coverLetter||null);
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [copied, flagCopied] = useCopiedFlag(2200);
@@ -3082,6 +3132,14 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
       }
     }
     setSubmitting(true);
+    if (guest) {
+      // Not signed in yet: hand the finished application over to be held while
+      // they create their account. It's sent once they're signed in.
+      try { await onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}}); }
+      catch(e) { alert("Sorry, something went wrong. Please try again."); }
+      setSubmitting(false);
+      return;
+    }
     try {
       await onApply(job, {...fd, resume, cover, screeningAnswers: fd.screeningAnswers||{}});
     } catch(e) {
@@ -3237,7 +3295,8 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
           {showForm && !done && (
             <div style={{ background:"#fff", borderRadius:16, padding:20, border:`1px solid ${C.border}`, boxShadow:"0 2px 10px rgba(0,0,0,0.05)" }}>
               <div style={{ fontFamily:"'Fraunces',serif", fontSize:18, color:C.textDark, fontWeight:700, marginBottom:3 }}>Your Application</div>
-              <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>For <strong style={{ color:C.textDark }}>{job.title}</strong> at {job.venue}</div>
+              <div style={{ color:C.textSoft, fontSize:13, marginBottom:guest?8:14 }}>For <strong style={{ color:C.textDark }}>{job.title}</strong> at {job.venue}</div>
+              {guest && <div style={{ background:C.sageL, border:`1px solid ${C.sage}40`, borderRadius:10, padding:"9px 12px", color:C.textMid, fontSize:12.5, lineHeight:1.45, marginBottom:14 }}>No account needed to start. Fill this in, then create a free account at the end to send it. Your details and CV are saved for next time.</div>}
               <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
 
                 {/* Name */}
@@ -3432,10 +3491,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
                 {/* Buttons */}
                 <div style={{ display:"flex", gap:9, paddingTop:4 }}>
-                  <button className="tap" onClick={()=>setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
+                  <button className="tap" onClick={()=> guest ? guardedClose() : setShowForm(false)} style={{ flex:1, background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 0", color:C.textMid, fontSize:14 }}>Cancel</button>
                   <button className="btn-cta tap" onClick={submit} disabled={submitting}
                     style={{ flex:2, background:(submitting||!resume)?"#999":`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:10, padding:"12px 0", color:"#fff", fontWeight:700, fontSize:14, boxShadow:(submitting||!resume)?"none":"0 3px 10px rgba(196,98,58,0.22)" }}>
-                    {submitting ? "⏳ Uploading…" : !resume ? "Add your CV to apply" : "Submit Application"}
+                    {submitting ? (guest ? "⏳ One moment…" : "⏳ Uploading…") : !resume ? "Add your CV to apply" : guest ? "Continue to send →" : "Submit Application"}
                   </button>
                 </div>
               </div>
@@ -3457,8 +3516,28 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
 // ─── Login ────────────────────────────────────────────────────────────────────
 // ─── Public Browse (no login required) ───────────────────────────────────────
-function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) {
+function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="", initialApplyId=null }) {
   const [expandedJob, setExpandedJob] = useState(null);
+  // Guest application: the full form opens without an account; the account is
+  // created at the end (see startGuestSignup).
+  const [guestJob, setGuestJob] = useState(null);
+  const _initialApplyDone = useRef(false);
+  useEffect(() => {
+    if (_initialApplyDone.current || !initialApplyId || !jobs?.length) return;
+    const j = jobs.find(x => String(x.id) === String(initialApplyId));
+    _initialApplyDone.current = true;
+    try { window.history.replaceState({}, '', '/app'); } catch(e) {}
+    if (j) setGuestJob(j);
+  }, [initialApplyId, jobs]);
+  const startGuestSignup = async (job, payload) => {
+    try { await savePendingApplication({ jobId: job.id, payload }); } catch(e) { console.warn('Could not hold application on this device:', e); }
+    try {
+      localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() }));
+      localStorage.setItem('hs_pending_app_meta', JSON.stringify({ venue: job.venue||'', title: job.title||'', name: payload.name||'', email: payload.email||'', ts: Date.now() }));
+    } catch(e) {}
+    setGuestJob(null); setExpandedJob(null);
+    onSignup();
+  };
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [pubSearch, setPubSearch] = useState(initialSearch);
   const isDesktop = useIsDesktop();
@@ -3669,11 +3748,12 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
                 {/* Apply gate */}
                 <div style={{ background:C.terracottaL, border:`1px solid ${C.terracottaM}`, borderRadius:14, padding:"16px", textAlign:"center" }}>
                   <div style={{ fontFamily:"'Fraunces',serif", fontSize:17, fontWeight:700, color:C.textDark, marginBottom:6 }}>Apply for this role</div>
-                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Create a free account to apply in seconds</div>
-                  <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} (onSignup||onLogin)(); }} className="btn-cta tap"
+                  <div style={{ color:C.textSoft, fontSize:13, marginBottom:14 }}>Takes a couple of minutes. No account needed to start.</div>
+                  {(expandedJob.applyEmail && expandedJob.applyEmail.trim()) || !(expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#") ? (
+                  <button onClick={()=>setGuestJob(expandedJob)} className="btn-cta tap"
                     style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                     Apply via HospoSearch →
-                  </button>
+                  </button>) : null}
                   {/* Only offer the venue's own site when there's no way to apply through HospoSearch */}
                   {!(expandedJob.applyEmail && expandedJob.applyEmail.trim()) && expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
                     <a href={expandedJob.link} target="_blank" rel="noreferrer"
@@ -3690,6 +3770,10 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="" }) 
             </div>
           </div>
         </div>
+      )}
+      {guestJob && (
+        <JobDetail job={guestJob} currentUser={null} profile={null} following={[]} openToApply guest
+          onClose={()=>setGuestJob(null)} onApply={startGuestSignup}/>
       )}
     </div>
   );
@@ -3790,10 +3874,11 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
   }, []);
   const [screen, setScreen] = useState(defaultScreen); // login | signup
   const [mode, setMode] = useState(defaultMode);
-  const [email, setEmail] = useState(""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
+  const pendingApp = readPendingAppMeta();
+  const [email, setEmail] = useState(pendingApp?.email||""); const [pass, setPass] = useState(""); const [err, setErr] = useState("");
   const [stayLoggedIn, setStayLoggedIn] = useState(()=>localStorage.getItem('hs_stay_logged_in')!=='0');
   // Sign up fields
-  const [su, setSu] = useState({ name:"", email:"", pass:"", pass2:"", mode:defaultMode });
+  const [su, setSu] = useState({ name:pendingApp?.name||"", email:pendingApp?.email||"", pass:"", pass2:"", mode:defaultMode });
   const [suErr, setSuErr] = useState("");
   const [suDone, setSuDone] = useState(false);
   const [rEmail, setREmail] = useState("");
@@ -3912,6 +3997,11 @@ function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee"
           <div style={{ fontFamily:"'Fraunces',serif", fontSize:32, fontWeight:700, color:C.textDark, letterSpacing:-0.5 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</div>
           <div style={{ color:C.textFaint, fontSize:11, marginTop:5, letterSpacing:2.5, textTransform:"uppercase", fontWeight:500 }}>Hospitality Jobs · ANZ</div>
         </div>
+        {pendingApp && (screen==="signup" || screen==="login") && !suDone && (
+          <div style={{ background:C.sageL, border:`1px solid ${C.sage}50`, borderRadius:14, padding:"12px 14px", marginBottom:16, color:C.textMid, fontSize:13, lineHeight:1.5 }}>
+            <b style={{ color:C.textDark }}>Last step.</b> {screen==="signup" ? "Create your free account" : "Log in"} and your application{pendingApp.title ? <> for <b style={{ color:C.textDark }}>{pendingApp.title}</b></> : null}{pendingApp.venue ? <> at {pendingApp.venue}</> : null} will be sent straight away.
+          </div>
+        )}
 
         {/* ── Sign Up Screen ── */}
         {screen==="signup" && (
@@ -6875,15 +6965,50 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
   // If the visitor clicked Apply on a job before logging in, reopen that job's
   // application now that they're signed in. Runs once when the job is available.
   const _appliedPendingRef = useRef(false);
+  // A guest application held on this device (filled in before sign-up) is sent
+  // automatically here; if that fails the form reopens with everything filled in.
+  const [pendingDraft, setPendingDraft] = useState(null);
+  const [guestSent, setGuestSent] = useState(null);
   useEffect(() => {
     if (_appliedPendingRef.current || !applyJobId) return;
     const j = (jobs||[]).find(x => String(x.id) === String(applyJobId));
-    if (j) {
-      _appliedPendingRef.current = true;
-      applyJob(j);
-      onApplyConsumed && onApplyConsumed();
-    }
+    if (!j) return;
+    _appliedPendingRef.current = true;
+    onApplyConsumed && onApplyConsumed();
+    (async () => {
+      const draft = await loadPendingApplication();
+      if (!draft || String(draft.jobId) !== String(j.id) || !draft.payload) { applyJob(j); return; }
+      if ((j.apps||[]).some(a => a.uid === user.id)) { await clearPendingApplication(); openJob(j); return; }
+      try {
+        const saved = await handleApply(j, draft.payload);
+        await clearPendingApplication();
+        await saveGuestDetailsToProfile(draft.payload, saved);
+        setGuestSent({ title: j.title, venue: j.venue });
+        setTimeout(() => setGuestSent(null), 7000);
+      } catch(e) {
+        console.warn('Held application could not be sent automatically:', e);
+        setPendingDraft(draft);
+        applyJob(j);
+      }
+    })();
   }, [applyJobId, jobs]);
+  // Keep what a guest typed: CV, cover letter and phone go onto their new profile
+  // (only where the profile doesn't already have one) so the next apply is one tap.
+  const saveGuestDetailsToProfile = async (payload, saved) => {
+    try {
+      const updates = {};
+      if (!profile?.resume && saved?.resume_url) { updates.resume_name = payload.resume?.name || 'Résumé'; updates.resume_url = saved.resume_url; }
+      if (!profile?.coverLetter && saved?.cover_url) { updates.cover_name = payload.cover?.name || 'Cover Letter'; updates.cover_url = saved.cover_url; }
+      if (!user.phone && !profile?.phone && payload.phone?.trim()) updates.phone = payload.phone.trim();
+      if (Object.keys(updates).length === 0) return;
+      await sbUpdateProfile(user.id, updates);
+      setProfile && setProfile(p => ({
+        ...p,
+        ...(updates.resume_url ? { resume: { name: updates.resume_name, url: updates.resume_url, size: payload.resume?.size } } : {}),
+        ...(updates.cover_url ? { coverLetter: { name: updates.cover_name, url: updates.cover_url, size: payload.cover?.size } } : {}),
+      }));
+    } catch(e) { console.warn('Could not save details to profile:', e); }
+  };
   const [refreshing, setRefreshing] = useState(false);
   const [pullDist, setPullDist] = useState(0);
   const [homeSearch, setHomeSearch] = useState("");
@@ -7029,6 +7154,7 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         status: "Sent"
       }]
     } : j));
+    return savedApp;
   };
 
   const followedJobs = jobs.filter(j=>following.includes(j.empId)).sort((a,b)=>b.ts-a.ts);
@@ -7188,7 +7314,12 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
         </div>
       )}
       {tab==="alerts" && null}
-      {expandedJob && <JobDetail job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>{ setExpandedJob(null); setOpenToApply(false); }} onApply={handleApply} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile} openToApply={openToApply}/>}
+      {expandedJob && <JobDetail key={expandedJob.id + (pendingDraft ? ':draft' : '')} job={expandedJob} currentUser={user} profile={profile} following={following} bookmarks={bookmarks} onClose={()=>{ setExpandedJob(null); setOpenToApply(false); if (pendingDraft) { setPendingDraft(null); clearPendingApplication(); } }} onApply={async (j, fd) => { const r = await handleApply(j, fd); if (pendingDraft) { setPendingDraft(null); clearPendingApplication(); saveGuestDetailsToProfile(fd, r); } return r; }} onToggleFollow={toggleFollow} onToggleBookmark={toggleBookmark} onVenueClick={setVenueProfile} openToApply={openToApply} draft={pendingDraft && String(pendingDraft.jobId)===String(expandedJob.id) ? pendingDraft : null}/>}
+      {guestSent && (
+        <div role="status" style={{ position:"fixed", left:"50%", transform:"translateX(-50%)", bottom:84, zIndex:3500, width:"calc(100% - 32px)", maxWidth:440, background:C.sageDark, color:"#fff", borderRadius:14, padding:"13px 16px", boxShadow:"0 8px 24px rgba(0,0,0,0.2)", fontSize:14, lineHeight:1.45 }} onClick={()=>setGuestSent(null)}>
+          <b>Application sent</b>{guestSent.title ? <> for {guestSent.title}</> : null}{guestSent.venue ? <> at {guestSent.venue}</> : null}. Your details and CV are saved, so next time it's one tap.
+        </div>
+      )}
       {/* Desktop grid view */}
       {isDesktop && tab==="home" && (
         <div style={{ position:"absolute", top:"53px", left:0, right:0, bottom:0, overflowY:"auto", background:C.bg, zIndex:5 }}>
@@ -8788,7 +8919,7 @@ export default function App() {
   const _typeParam  = new URLSearchParams(window.location.search).get('type') || 'employee';
   if (screen.name === 'login-param') return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;
   // "Sign up free" from the homepage header → open the sign-up screen directly
-  if (screen.name === 'signup-param') return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  if (screen.name === 'public') return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""}/> ;
+  if (screen.name === 'signup-param') return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  if (screen.name === 'public') return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""} initialApplyId={new URLSearchParams(window.location.search).get('apply')}/> ;
   if (screen.name === 'admin')    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (screen.name === 'employer') return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount} applyJobId={applyJobId} onApplyConsumed={()=>setApplyJobId(null)}/>;
