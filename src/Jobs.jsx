@@ -545,8 +545,10 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
     return jobs.filter(j => {
       if (country!=="All" && j.country!==country) return false
       if (!q.trim()) return true
-      const hay = `${j.title} ${j.venue} ${j.loc} ${j.sector} ${j.roleType} ${(j.tags||[]).join(" ")}`.toLowerCase()
-      return hay.includes(q.toLowerCase())
+      // Every word typed must appear somewhere. City and address are included so
+      // "gold coast" finds a Southport venue and "burleigh" finds one listed under Gold Coast.
+      const hay = `${j.title} ${j.venue} ${j.loc} ${j.city} ${j.state} ${j.country} ${j.address} ${j.sector} ${j.roleType} ${(j.tags||[]).join(" ")}`.toLowerCase()
+      return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
     })
   }, [jobs, q, country])
 
