@@ -20,7 +20,7 @@ import { getLiveJobs, getJob } from '../src/seo/server-data.js'
 import {
   SITE, isJobId, parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex,
   relatedLandings, jobPostingLd, jobGroups, stripTags, cleanCity, parseSalary, groupBySlug,
-  jobTitleTag, jobDescriptionTag, clip, hasExternalApply, hasCareersLink, trackedLink,
+  jobTitleTag, jobDescriptionTag, clip, hasExternalApply, hasCareersLink, trackedLink, mapLinks,
 } from '../src/seo/shared.js'
 
 // ─── Template (the built SPA shell) ──────────────────────────────────────────
@@ -108,6 +108,7 @@ const CSS = `<style id="ssr-css">
 .ssr-apply{display:inline-block;background:#C4623A;color:#fff!important;padding:12px 22px;border-radius:100px;text-decoration:none;font-weight:600;margin-top:20px}
 .ssr-links{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0}
 .ssr-links a{display:inline-block;border:1px solid #E8E2D8;border-radius:100px;padding:6px 12px;font-size:14px;text-decoration:none;background:#fff}
+.ssr-map{display:block;width:100%;height:260px;border:1px solid #E8E2D8;border-radius:14px;margin-top:10px}
 .ssr-img{width:100%;max-height:360px;object-fit:cover;border-radius:14px;margin-bottom:12px}
 </style>`
 
@@ -179,6 +180,15 @@ ${browseSections(jobs)}
   }
 }
 
+// Address, directions link and (when we have an exact pin) a small map
+function mapBlock(job) {
+  const m = mapLinks(job)
+  if (!m) return ''
+  return `<h2>Where you'll work</h2>
+<p class="ssr-meta">${m.label ? esc(m.label) : ''}${m.directions ? `${m.label ? ' · ' : ''}<a href="${esc(m.directions)}" rel="nofollow noopener" target="_blank">Get directions ↗</a>` : ''}</p>
+${m.embed ? `<iframe class="ssr-map" title="Map showing ${esc(job.venue)}" src="${esc(m.embed)}" loading="lazy"></iframe>` : ''}`
+}
+
 function jobPage(job, jobs) {
   const loc = where(job)
   const sal = fmtSalary(job)
@@ -200,6 +210,7 @@ ${sal ? `<p><strong>${esc(sal)}</strong></p>` : ''}
 ${tags.length ? `<p class="ssr-meta">${tags.map(esc).join(' · ')}</p>` : ''}
 <p class="ssr-meta">${esc(ago(job.ts))}</p>
 <div class="ssr-body">${safeHtml(job.full || job.short)}</div>
+${mapBlock(job)}
 <a class="ssr-apply" href="${ext ? esc(trackedLink(job.link)) : '/app'}"${ext ? ' rel="nofollow noopener" target="_blank"' : ''}>${ext ? 'Apply on venue website' : 'Apply via HospoSearch'}</a>
 ${careers ? `<p class="ssr-meta"><a href="${esc(trackedLink(job.link))}" rel="nofollow noopener" target="_blank">${esc(job.venue)} careers page ↗</a></p>` : ''}
 ${related.length ? `<h2>Related searches</h2><ul class="ssr-links">${related.map(l => `<li><a href="${esc(l.path)}">${esc(l.label)}</a></li>`).join('')}</ul>` : ''}
@@ -270,6 +281,7 @@ async function sitemap(req, res) {
   const urls = [
     url('/', newest, 'daily', '1.0'),
     url('/about', newest, 'monthly', '0.6'),
+    url('/map', newest, 'daily', '0.5'),
     ...[...idx.awards, ...idx.roles, ...idx.places, ...idx.combos].map(l => url(l.path, newest, 'daily', '0.7')),
     ...jobs.map(j => url(`/jobs/${j.id}`, day(j.updatedTs || j.ts), 'weekly', '0.8')),
   ]

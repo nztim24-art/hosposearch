@@ -1,7 +1,7 @@
-import { useEffect, useState, useMemo, useRef, Fragment } from 'react'
+import { useEffect, useState, useMemo, useRef, Fragment, lazy, Suspense } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
-import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag, trackedLink } from './seo/shared.js'
+import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag, trackedLink, mapLinks } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -149,6 +149,15 @@ const styles = `
   .jb-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:${C.textFaint};margin-top:auto;}
   .jb-meta .role{color:${C.terracotta};font-weight:700;font-size:12px;}
   .jb-empty{text-align:center;padding:80px 24px;color:${C.textSoft};}
+  .jb-map{border:1px solid ${C.border};border-radius:16px;overflow:hidden;background:#fff;margin-bottom:28px;}
+  .jb-map-head{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;flex-wrap:wrap;}
+  .jb-map-title{font-weight:700;font-size:15px;}
+  .jb-map-addr{font-size:14px;color:${C.textSoft};margin-top:2px;}
+  .jb-map-dir{border:1.5px solid ${C.terracotta};color:${C.terracotta};padding:9px 16px;border-radius:100px;font-size:14px;font-weight:700;text-decoration:none;white-space:nowrap;}
+  .jb-map-dir:hover{background:${C.terracottaL};}
+  .jb-map iframe{display:block;width:100%;height:260px;border:0;border-top:1px solid ${C.border};}
+  .jb-maplink{display:inline-block;margin-top:14px;color:${C.terracotta};font-weight:700;font-size:15px;text-decoration:none;}
+  .jb-maplink:hover{text-decoration:underline;}
   .jb-footer{text-align:center;padding:40px 24px;border-top:1px solid ${C.border};color:${C.textSoft};font-size:13px;}
   .jb-footer a{color:${C.terracotta};text-decoration:none;font-weight:600;}
   /* Detail page */
@@ -499,6 +508,28 @@ function BrowseLinks({ jobs, only }) {
   )
 }
 
+// The browse-by-map page loads its map library on demand, so it costs nothing
+// on the pages most visitors and Google land on.
+const JobsMap = lazy(() => import('./JobsMap.jsx'))
+
+// Map and directions for one role. Shows nothing if we have no street address.
+function JobMap({ job }) {
+  const m = mapLinks(job)
+  if (!m) return null
+  return (
+    <div className="jb-map">
+      <div className="jb-map-head">
+        <div>
+          <div className="jb-map-title">Where you'll work</div>
+          {m.label && <div className="jb-map-addr">{m.label}</div>}
+        </div>
+        {m.directions && <a href={m.directions} target="_blank" rel="noopener" className="jb-map-dir">Get directions ↗</a>}
+      </div>
+      {m.embed && <iframe title={`Map showing ${job.venue}`} src={m.embed} loading="lazy" referrerPolicy="no-referrer-when-downgrade" />}
+    </div>
+  )
+}
+
 function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
   const jobs = useMemo(() => landing ? allJobs.filter(j => jobMatchesLanding(j, landing)) : allJobs, [allJobs, landing])
   const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
@@ -550,6 +581,7 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
       )}
       <div style={{ textAlign:"center", padding:"0 20px" }}>
         <Link to={LINKS.post} className="jb-post">Hiring? Post a job from $9.95 →</Link>
+        <div><Link to="/map" className="jb-maplink">📍 Browse jobs on a map</Link></div>
       </div>
       {loading ? (
         <div className="jb-empty">Loading hospitality roles…</div>
@@ -623,6 +655,7 @@ function JobDetail({ jobs, loading, id, signedIn }) {
         ))}
       </div>
       <div className="jb-detail-body" dangerouslySetInnerHTML={{ __html: sanitizeHtml(job.full || job.short) }} />
+      <JobMap job={job} />
       <div className="jb-actions jb-actions-col">
         {/* Apply through HospoSearch whenever the venue has an apply email; the
             venue's own site is only the route when there's no other way to apply. */}
@@ -661,7 +694,7 @@ function JobDetail({ jobs, loading, id, signedIn }) {
 }
 
 // ─── Root ─────────────────────────────────────────────────────────────────────
-export default function Jobs({ detail=false, home=false }) {
+export default function Jobs({ detail=false, home=false, map=false }) {
   const { id } = useParams()
   const navigate = useNavigate()
   const location = useLocation()
@@ -696,7 +729,9 @@ export default function Jobs({ detail=false, home=false }) {
     <div className="jb-wrap">
       <style>{styles}</style>
       <SiteHeader signedIn={signedIn} onHome={!detail} />
-      {detail && !landing
+      {map
+        ? <Suspense fallback={<div className="jb-empty">Loading map…</div>}><JobsMap jobs={jobs} loading={loading} /></Suspense>
+        : detail && !landing
         ? <JobDetail jobs={jobs} loading={loading} id={id} signedIn={signedIn} />
         : <JobsList key={id || "all"} jobs={jobs} loading={loading} landing={landing} signedIn={signedIn} home={home} />}
     </div>

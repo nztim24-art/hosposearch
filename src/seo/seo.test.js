@@ -93,3 +93,29 @@ test('careers links: tagged for the venue, and email listings still apply throug
   assert.ok(!JSON.stringify(both).includes('jobs@venue.com')) // the address itself is never carried into the page data
 })
 
+
+test('addresses: UK and Irish postcodes are read, Australian ones still are', async () => {
+  const { addressParts } = await import('./shared.js')
+  assert.equal(addressParts({ address: '12 Dean St, London W1D 3RP', country: 'United Kingdom' }).postcode, 'W1D 3RP')
+  assert.equal(addressParts({ address: '1 Castle Terrace, Edinburgh EH1 2DP, UK', country: 'United Kingdom' }).postcode, 'EH1 2DP')
+  assert.equal(addressParts({ address: '21 Kildare St, Dublin 2, D02 X285', country: 'Ireland' }).postcode, 'D02 X285')
+  assert.equal(addressParts({ address: 'Shop 2/130 Lonsdale St, Melbourne VIC 3000', country: 'Australia' }).postcode, '3000')
+  assert.equal(addressParts({ address: 'Level B2 5th Avenue Arcade, Sydney', country: 'Australia' }).postcode, null)
+})
+
+test('map: embed only with an exact pin, directions from the address alone', async () => {
+  const { mapLinks, jobGeo, jobPostingLd } = await import('./shared.js')
+  const base = { id: 'm', title: 'Chef', venue: 'Rātā', city: 'Queenstown', country: 'New Zealand', created_at: '2026-11-01T00:00:00Z' }
+  assert.equal(mapLinks(fromRow(base)), null) // no address, no pin: no map block
+  const addr = fromRow({ ...base, address: '43 Ballarat St, Queenstown 9300' })
+  assert.equal(mapLinks(addr).embed, null)
+  assert.match(mapLinks(addr).directions, /^https:\/\/www\.google\.com\/maps\/dir\/\?api=1&destination=R%C4%81t%C4%81%2C%2043%20Ballarat/)
+  const pinned = fromRow({ ...base, address: '43 Ballarat St, Queenstown 9300', lat: -45.0312, lng: 168.6626, geo_precise: true })
+  assert.match(mapLinks(pinned).embed, /openstreetmap\.org\/export\/embed\.html\?bbox=.*marker=-45\.03120%2C168\.66260$/)
+  assert.deepEqual(jobPostingLd(pinned).jobLocation.geo, { '@type': 'GeoCoordinates', latitude: -45.0312, longitude: 168.6626 })
+  const cityOnly = fromRow({ ...base, lat: -45.03, lng: 168.66, geo_precise: false })
+  assert.equal(mapLinks(cityOnly), null) // a suburb-level pin is not shown as the venue's location
+  assert.equal(jobPostingLd(cityOnly).jobLocation.geo, undefined)
+  assert.equal(jobGeo(fromRow({ ...base, lat: 0, lng: 0 })), null)
+  assert.equal(jobGeo(cityOnly).precise, false)
+})

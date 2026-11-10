@@ -297,13 +297,52 @@ export function trackedLink(url) {
 // the address field, so only treat it as a street address when it looks like one.
 const AU_STATES = /\b(NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\b/
 const STREET_WORDS = /\b(st|street|rd|road|ave|avenue|lane|ln|pde|parade|tce|terrace|dr|drive|hwy|highway|pl|place|blvd|boulevard|cres|crescent|way|quay|wharf|esplanade|square|sq)\b/i
+// UK postcodes ("W1F 9SE", "EH1 1BB") and Irish Eircodes ("D02 X285"), matched
+// anywhere in the address because they are often followed by the country.
+const UK_POSTCODE = /\b([A-Z]{1,2}\d[A-Z\d]?\s?\d[A-Z]{2})\b/i
+const IE_EIRCODE = /\b((?:[AC-FHKNPRTV-Y]\d{2}|D6W)\s?[0-9AC-FHKNPRTV-Y]{4})\b/i
 export function addressParts(job) {
   const raw = String(job.address || '').trim()
   const usable = raw && !/not stated/i.test(raw)
+  const place = `${job.country || ''} ${raw}`
   const isStreet = usable && (/\d/.test(raw.split(',')[0]) || STREET_WORDS.test(raw))
-  const postcode = usable ? (raw.match(/\b(\d{4})\s*$/) || raw.match(/\b(?:NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/) || [])[1] : null
+  const postcode = usable ? (
+    raw.match(/\b(\d{4})\s*$/) || raw.match(/\b(?:NSW|VIC|QLD|WA|SA|TAS|ACT|NT)\s+(\d{4})\b/) ||
+    (/united kingdom|england|scotland|wales|northern ireland|\buk\b/i.test(place) && raw.match(UK_POSTCODE)) ||
+    (/ireland/i.test(place) && !/northern/i.test(place) && raw.match(IE_EIRCODE)) || []
+  )[1] : null
   const state = job.state || (usable ? (raw.match(AU_STATES) || [])[1] : null) || null
   return { street: isStreet ? raw : null, postcode: postcode || null, state }
+}
+
+// Map pin for a listing, or null. Coordinates are filled in by the database
+// (supabase/job-coordinates.sql). `precise` means the pin is the street address
+// rather than just the suburb or city.
+export function jobGeo(job) {
+  const lat = Number(job.lat), lng = Number(job.lng)
+  if (job.lat == null || job.lng == null || !isFinite(lat) || !isFinite(lng)) return null
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180 || (lat === 0 && lng === 0)) return null
+  return { lat, lng, precise: job.geoPrecise === true }
+}
+
+// Links for the map on a job page: an embeddable OpenStreetMap view (needs a
+// precise pin) and Google Maps directions (works from the address alone).
+export function mapLinks(job) {
+  const geo = jobGeo(job)
+  const street = addressParts(job).street
+  const out = { embed: null, directions: null, label: street || null }
+  if (geo && geo.precise) {
+    const d = 0.006
+    const bbox = [geo.lng - d, geo.lat - d * 0.6, geo.lng + d, geo.lat + d * 0.6].map(n => n.toFixed(5)).join(',')
+    out.embed = `https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(bbox)}&layer=mapnik&marker=${geo.lat.toFixed(5)}%2C${geo.lng.toFixed(5)}`
+  }
+  if (street) {
+    const dest = /,/.test(street) ? `${job.venue}, ${street}` : [job.venue, street, cleanCity(job.city), job.country].filter(Boolean).join(', ')
+    out.directions = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}`
+  } else if (geo && geo.precise) {
+    out.directions = `https://www.google.com/maps/dir/?api=1&destination=${geo.lat.toFixed(5)}%2C${geo.lng.toFixed(5)}`
+  }
+  return out.embed || out.directions ? out : null
 }
 
 export function jobPostingLd(job) {
@@ -315,6 +354,7 @@ export function jobPostingLd(job) {
   const typeKey = String(job.type || '').toLowerCase().trim()
   const emp = EMPLOYMENT[!typeKey || typeKey === 'not stated' ? 'casual' : typeKey]
   const parts = addressParts(job)
+  const geo = jobGeo(job)
   const address = {
     '@type': 'PostalAddress',
     ...(parts.street ? { streetAddress: parts.street } : {}),
@@ -336,7 +376,7 @@ export function jobPostingLd(job) {
     datePosted: posted.toISOString(),
     validThrough: valid.toISOString(),
     hiringOrganization: org,
-    jobLocation: { '@type': 'Place', address },
+    jobLocation: { '@type': 'Place', address, ...(geo && geo.precise ? { geo: { '@type': 'GeoCoordinates', latitude: geo.lat, longitude: geo.lng } } : {}) },
     directApply: !hasExternalApply(job),
     url: `${SITE}/jobs/${job.id}`,
   }
@@ -381,6 +421,9 @@ export function fromRow(row) {
     link: row.link || '',
     hasApplyEmail: !!String(row.apply_email || '').trim(), // only whether one exists; the address is never rendered
     address: row.address || '',
+    lat: row.lat ?? null,
+    lng: row.lng ?? null,
+    geoPrecise: row.geo_precise === true,
     photos: Array.isArray(row.photos) ? row.photos.filter(p => typeof p === 'string' && /^https?:/.test(p)) : [],
     logo: row.avatar_url || null,
     ts: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
