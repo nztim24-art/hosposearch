@@ -8,7 +8,7 @@ const SUPABASE_ANON =
   process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY ||
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjdmF0bGFnaXNrdmFwZXFzZm51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYyMTI1MzksImV4cCI6MjA5MTc4ODUzOX0.9NL3wnGKAQzfLXTpzlgEyHTiOVGFRBkM99WCYEZoAOM'
 
-const COLS = 'id,title,venue,loc,country,state,city,sector,role_type,salary,salary_shown,pay_type,workplace,type,tags,short,full_desc,link,address,photos,avatar_url,apply_email,created_at,updated_at,expires_at,active,featured'
+const COLS = 'id,title,venue,loc,country,state,city,sector,role_type,salary,salary_shown,pay_type,workplace,type,tags,short,full_desc,link,address,lat,lng,geo_precise,photos,avatar_url,apply_email,created_at,updated_at,expires_at,active,featured'
 
 let cache = { at: 0, jobs: null }
 
