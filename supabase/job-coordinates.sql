@@ -38,31 +38,74 @@ drop trigger if exists reset_job_coordinates on public.jobs;
 create trigger reset_job_coordinates before update on public.jobs
 for each row execute function public.reset_job_coordinates();
 
+-- "Shop 2/130 Lonsdale St" -> "130 Lonsdale St": unit numbers confuse the lookup
+create or replace function public.geo_clean_address(a text) returns text
+language sql immutable as $$
+  select regexp_replace(
+    regexp_replace(trim(coalesce(a, '')), '^(shop|unit|suite|level|lot|tenancy)\s*[\w.-]+\s*[/,]\s*', '', 'i'),
+    '^\d+[a-z]?\s*/\s*(?=\d)', '', 'i')
+$$;
+
+-- Lower-case with street types spelled out, so "Ballarat St" matches "Ballarat Street"
+create or replace function public.geo_norm(a text) returns text
+language sql immutable as $$
+  select trim(regexp_replace(
+    regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(regexp_replace(
+      regexp_replace(lower(coalesce(a, '')), '[.,]', ' ', 'g'),
+      '\mst\M', 'street', 'g'), '\mrd\M', 'road', 'g'), '\mave\M', 'avenue', 'g'), '\mhwy\M', 'highway', 'g'),
+      '\mdr\M', 'drive', 'g'), '\mtce\M', 'terrace', 'g'), '\mpde\M', 'parade', 'g'), '&', ' and ', 'g'),
+    '\s+', ' ', 'g'))
+$$;
+
 create or replace function public.geocode_step() returns void
 language plpgsql security definer set search_path = public, net, extensions as $$
 declare
   r record;
   j record;
+  f jsonb;
+  best jsonb;
+  best_score int;
+  score int;
+  addr text;
+  num text;
+  hs text;
   q text;
   by_address boolean;
   rid bigint;
-  hit jsonb;
 begin
   -- 1. Read the answers to earlier lookups
   for r in
-    select g.request_id, g.job_id, g.precise, resp.status_code, resp.content
+    select g.request_id, g.job_id, g.precise, resp.status_code, resp.content, jb.address
     from public.geocode_requests g
     join net._http_response resp on resp.id = g.request_id
+    join public.jobs jb on jb.id = g.job_id
   loop
     begin
       if r.status_code = 200 then
-        hit := (r.content::jsonb) -> 'features' -> 0;
-        if hit is not null and jsonb_array_length(hit -> 'geometry' -> 'coordinates') = 2 then
+        best := null; best_score := 0;
+        if r.precise then
+          -- The lookup's first answer is often a different place nearby, so only
+          -- accept an answer on the same street: 2 = same street and number, 1 = same street.
+          addr := public.geo_norm(public.geo_clean_address(r.address));
+          num := (regexp_match(public.geo_clean_address(r.address), '(\d+)'))[1];
+          for f in select * from jsonb_array_elements(r.content::jsonb -> 'features') loop
+            hs := public.geo_norm(coalesce(f -> 'properties' ->> 'street',
+              case when f -> 'properties' ->> 'type' = 'street' then f -> 'properties' ->> 'name' end, ''));
+            if hs = '' or position(hs in addr) = 0 then continue; end if;
+            score := 1;
+            if num is not null and (regexp_match(coalesce(f -> 'properties' ->> 'housenumber', ''), '(\d+)'))[1] = num then
+              score := 2;
+            end if;
+            if score > best_score then best := f; best_score := score; end if;
+          end loop;
+        else
+          best := (r.content::jsonb) -> 'features' -> 0;
+        end if;
+        if best is not null and jsonb_array_length(best -> 'geometry' -> 'coordinates') = 2 then
           update public.jobs
-             set lng = (hit -> 'geometry' -> 'coordinates' ->> 0)::double precision,
-                 lat = (hit -> 'geometry' -> 'coordinates' ->> 1)::double precision,
-                 -- exact only when we asked by street address and got a building or street back
-                 geo_precise = r.precise and (hit -> 'properties' ->> 'type') in ('house', 'street')
+             set lng = (best -> 'geometry' -> 'coordinates' ->> 0)::double precision,
+                 lat = (best -> 'geometry' -> 'coordinates' ->> 1)::double precision,
+                 geo_precise = (r.precise and best_score = 2) -- exact only with the street number
            where id = r.job_id and lat is null;
         end if;
       end if;
@@ -77,7 +120,7 @@ begin
   -- 2. One new lookup at a time
   if exists (select 1 from public.geocode_requests) then return; end if;
 
-  select id, address, city, state, country, geocode_tries into j
+  select id, address, city, state, country, loc, geocode_tries into j
   from public.jobs
   where active is not false and lat is null and geocode_tries < 2
     and coalesce(nullif(trim(address), ''), nullif(trim(city), '')) is not null
@@ -85,25 +128,20 @@ begin
   limit 1;
   if not found then return; end if;
 
-  -- First try the street address; if that found nothing, fall back to the city.
+  -- First try the street address; if that found nothing on the right street, fall back to the suburb.
   by_address := j.geocode_tries = 0 and coalesce(j.address, '') ~ '\d' and j.address !~* 'not stated';
   if by_address then
-    -- "Shop 2/130 Lonsdale St" -> "130 Lonsdale St": unit numbers confuse the lookup
-    q := regexp_replace(trim(j.address), '^(shop|unit|suite|level|lot|tenancy)\s*[\w.-]+\s*[/,]\s*', '', 'i');
-    q := regexp_replace(q, '^\d+[a-z]?\s*/\s*(?=\d)', '', 'i');
-    if coalesce(j.city, '') <> '' and position(lower(split_part(j.city, ' (', 1)) in lower(q)) = 0 then
-      q := q || ', ' || split_part(j.city, ' (', 1);
-    end if;
-    q := q || ', ' || coalesce(j.country, '');
+    q := public.geo_clean_address(j.address) || ', ' || coalesce(j.country, '');
   else
-    q := concat_ws(', ', nullif(split_part(coalesce(j.city, ''), ' (', 1), ''), nullif(j.state, ''), nullif(j.country, ''));
+    -- loc is "Suburb, State, Country", which is closer than the city for venues in a suburb
+    q := coalesce(nullif(trim(j.loc), ''), concat_ws(', ', nullif(split_part(coalesce(j.city, ''), ' (', 1), ''), nullif(j.state, ''), nullif(j.country, '')));
   end if;
 
   update public.jobs set geocode_tries = case when by_address then 1 else 2 end where id = j.id;
 
   select net.http_get(
     url := 'https://photon.komoot.io/api/',
-    params := jsonb_build_object('q', q, 'limit', '1', 'lang', 'en'),
+    params := jsonb_build_object('q', q, 'limit', '5', 'lang', 'en'),
     headers := jsonb_build_object('User-Agent', 'HospoSearch job board (https://www.hosposearch.com)'),
     timeout_milliseconds := 20000
   ) into rid;
