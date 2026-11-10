@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
-import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag } from './seo/shared.js'
+import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag, trackedLink } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -627,7 +627,7 @@ function JobDetail({ jobs, loading, id, signedIn }) {
         {/* Apply through HospoSearch whenever the venue has an apply email; the
             venue's own site is only the route when there's no other way to apply. */}
         {job.link && job.link.trim() && job.link.trim()!=="#" && !(job.applyEmail && job.applyEmail.trim())
-          ? <a href={job.link} target="_blank" rel="noreferrer" className="jb-apply">Apply on venue website ↗</a>
+          ? <a href={trackedLink(job.link)} target="_blank" rel="noopener" className="jb-apply">Apply on venue website ↗</a>
           : <Link
               to={signedIn === false ? `/app?apply=${job.id}` : "/app"}
               className="jb-apply"
@@ -640,6 +640,10 @@ function JobDetail({ jobs, loading, id, signedIn }) {
                 try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch(e) {}
               }}
             >Apply via HospoSearch →</Link>}
+        {/* The venue's own careers page, as a second link. Tagged so the venue can see the visit came from HospoSearch. */}
+        {job.link && job.link.trim() && job.link.trim()!=="#" && job.applyEmail && job.applyEmail.trim() && (
+          <a href={trackedLink(job.link)} target="_blank" rel="noopener" className="jb-login-apply">{job.venue} careers page ↗</a>
+        )}
         {signedIn === false && (
           <Link
             to="/app?login=1"

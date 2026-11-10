@@ -20,7 +20,7 @@ import { getLiveJobs, getJob } from '../src/seo/server-data.js'
 import {
   SITE, isJobId, parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex,
   relatedLandings, jobPostingLd, jobGroups, stripTags, cleanCity, parseSalary, groupBySlug,
-  jobTitleTag, jobDescriptionTag, clip,
+  jobTitleTag, jobDescriptionTag, clip, hasExternalApply, hasCareersLink, trackedLink,
 } from '../src/seo/shared.js'
 
 // ─── Template (the built SPA shell) ──────────────────────────────────────────
@@ -185,7 +185,8 @@ function jobPage(job, jobs) {
   const title = jobTitleTag(job)
   const description = jobDescriptionTag(job)
   const canonical = `${SITE}/jobs/${job.id}`
-  const ext = /^https?:\/\//i.test(job.link || '')
+  const ext = hasExternalApply(job)
+  const careers = !ext && hasCareersLink(job)
   const related = relatedLandings(job)
   const g0 = jobGroups(job)[0]
   const similar = g0 ? jobs.filter(j => j.id !== job.id && jobMatchesLanding(j, { group: g0, place: null })).slice(0, 5) : []
@@ -199,7 +200,8 @@ ${sal ? `<p><strong>${esc(sal)}</strong></p>` : ''}
 ${tags.length ? `<p class="ssr-meta">${tags.map(esc).join(' · ')}</p>` : ''}
 <p class="ssr-meta">${esc(ago(job.ts))}</p>
 <div class="ssr-body">${safeHtml(job.full || job.short)}</div>
-<a class="ssr-apply" href="${ext ? esc(job.link) : '/app'}"${ext ? ' rel="nofollow noopener" target="_blank"' : ''}>${ext ? 'Apply on venue website' : 'Apply via HospoSearch'}</a>
+<a class="ssr-apply" href="${ext ? esc(trackedLink(job.link)) : '/app'}"${ext ? ' rel="nofollow noopener" target="_blank"' : ''}>${ext ? 'Apply on venue website' : 'Apply via HospoSearch'}</a>
+${careers ? `<p class="ssr-meta"><a href="${esc(trackedLink(job.link))}" rel="nofollow noopener" target="_blank">${esc(job.venue)} careers page ↗</a></p>` : ''}
 ${related.length ? `<h2>Related searches</h2><ul class="ssr-links">${related.map(l => `<li><a href="${esc(l.path)}">${esc(l.label)}</a></li>`).join('')}</ul>` : ''}
 ${similar.length ? `<h2>Similar roles</h2><ul class="ssr-list">${similar.map(jobCard).join('')}</ul>` : ''}
 <p><a href="/jobs">Browse all hospitality jobs →</a></p>`)
