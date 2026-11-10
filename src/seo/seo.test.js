@@ -74,3 +74,22 @@ test('titles and descriptions fit Google and never stop mid-word', () => {
   assert.match(jobDescriptionTag(JOBS[0]), /\$70,000 – \$80,000\./)
   assert.equal(clip('short text'), 'short text')
 })
+
+test('careers links: tagged for the venue, and email listings still apply through HospoSearch', async () => {
+  const { trackedLink, hasExternalApply, hasCareersLink, jobPostingLd } = await import('./shared.js')
+  assert.equal(trackedLink('https://venue.com/careers'), 'https://venue.com/careers?utm_source=hosposearch&utm_medium=job_board&utm_campaign=hosposearch_listing')
+  assert.equal(trackedLink('https://venue.com/jobs?id=7'), 'https://venue.com/jobs?id=7&utm_source=hosposearch&utm_medium=job_board&utm_campaign=hosposearch_listing')
+  assert.equal(trackedLink('https://venue.com/?utm_source=theirs'), 'https://venue.com/?utm_source=theirs')
+  assert.equal(trackedLink('#'), '#')
+  const both = row({ title: 'Chef', venue: 'V', link: 'https://venue.com/careers', apply_email: 'jobs@venue.com' })
+  const siteOnly = row({ title: 'Chef', venue: 'V', link: 'https://venue.com/careers' })
+  const emailOnly = row({ title: 'Chef', venue: 'V', link: '#', apply_email: 'jobs@venue.com' })
+  assert.deepEqual([hasCareersLink(both), hasExternalApply(both)], [true, false])
+  assert.deepEqual([hasCareersLink(siteOnly), hasExternalApply(siteOnly)], [true, true])
+  assert.deepEqual([hasCareersLink(emailOnly), hasExternalApply(emailOnly)], [false, false])
+  assert.equal(jobPostingLd(both).directApply, true)
+  assert.equal(jobPostingLd(both).hiringOrganization.sameAs, 'https://venue.com')
+  assert.equal(jobPostingLd(siteOnly).directApply, false)
+  assert.ok(!JSON.stringify(both).includes('jobs@venue.com')) // the address itself is never carried into the page data
+})
+

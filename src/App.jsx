@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { resolveRootScreen } from "./state/rootScreen.js";
 import { paymentStatusFromSearch, isSubscriptionSuccess, subscriptionPlan, isPaymentCancelled } from "./state/paymentReturn.js";
 import { isLiveJob, jobLifecycle, JOB_LIFECYCLE } from "./state/jobLifecycle.js";
+import { trackedLink } from "./seo/shared.js";
 
 // Desktop detection
 const useIsDesktop = () => {
@@ -3332,10 +3333,14 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                     <span>📎</span>
                     <div style={{ color:C.textMid, fontSize:12 }}>Your résumé & cover letter attach automatically</div>
                   </div>
+                  <a href={trackedLink(job.link)} target="_blank" rel="noopener"
+                    style={{ display:"block", textAlign:"center", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", padding:"6px 0" }}>
+                    {job.venue} careers page ↗
+                  </a>
                 </div>
               ) : hasLink ? (
                 /* Link only — apply externally */
-                <a href={job.link} target="_blank" rel="noreferrer" className="btn-cta tap"
+                <a href={trackedLink(job.link)} target="_blank" rel="noopener" className="btn-cta tap"
                   style={{ display:"block", textAlign:"center", padding:"15px 0", borderRadius:13, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", textDecoration:"none", fontSize:15, fontWeight:700, boxShadow:"0 4px 14px rgba(196,98,58,0.22)" }}>
                   Apply on venue website ↗
                 </a>
@@ -3811,11 +3816,11 @@ function PublicBrowse({ jobs, onLogin, onSignup, onRefresh, initialSearch="", in
                     style={{ width:"100%", background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, border:"none", borderRadius:12, padding:"13px 0", color:"#fff", fontWeight:700, fontSize:15, boxShadow:"0 4px 14px rgba(196,98,58,0.25)", marginBottom:10 }}>
                     Apply via HospoSearch →
                   </button>) : null}
-                  {/* Only offer the venue's own site when there's no way to apply through HospoSearch */}
-                  {!(expandedJob.applyEmail && expandedJob.applyEmail.trim()) && expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
-                    <a href={expandedJob.link} target="_blank" rel="noreferrer"
+                  {/* The venue's own careers page: the apply route when there's no email, otherwise a second link. Tagged so the venue sees it came from HospoSearch. */}
+                  {expandedJob.link && expandedJob.link.trim() && expandedJob.link.trim() !== "#" && (
+                    <a href={trackedLink(expandedJob.link)} target="_blank" rel="noopener"
                       style={{ display:"block", color:C.textMid, fontSize:13, fontWeight:600, textDecoration:"none", padding:"8px 0" }}>
-                      Or apply on their website ↗
+                      {(expandedJob.applyEmail && expandedJob.applyEmail.trim()) ? `${expandedJob.venue} careers page ↗` : "Or apply on their website ↗"}
                     </a>
                   )}
                   <button onClick={()=>{ try{ localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: expandedJob.id, ts: Date.now() })); }catch(e){} onLogin(); }} className="tap"

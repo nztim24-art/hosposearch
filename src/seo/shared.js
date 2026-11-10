@@ -270,9 +270,27 @@ export function parseSalary(job) {
   return { min, max, unit }
 }
 
+// A listing's `link` is the venue's own careers page (or its own hiring system).
+export function hasCareersLink(job) {
+  return /^https?:\/\//i.test(String(job.link || '').trim())
+}
+// People apply on the venue's site only when there is no apply email; otherwise
+// they apply through HospoSearch and the careers page is shown as a second link.
 export function hasExternalApply(job) {
-  const l = String(job.link || '').trim()
-  return /^https?:\/\//i.test(l)
+  return hasCareersLink(job) && !(job.hasApplyEmail || String(job.applyEmail || '').trim())
+}
+// Outbound link to the venue, tagged so their analytics shows the visit came from
+// HospoSearch (source "hosposearch", medium "job_board"). Existing tags are kept.
+export function trackedLink(url) {
+  try {
+    const u = new URL(String(url).trim())
+    if (!u.searchParams.has('utm_source')) {
+      u.searchParams.set('utm_source', 'hosposearch')
+      u.searchParams.set('utm_medium', 'job_board')
+      u.searchParams.set('utm_campaign', 'hosposearch_listing')
+    }
+    return u.toString()
+  } catch (e) { return url }
 }
 
 // Address helpers for jobLocation. Many listings store only "Melbourne VIC" in
@@ -306,7 +324,7 @@ export function jobPostingLd(job) {
     ...(ci ? { addressCountry: ci.iso } : job.country ? { addressCountry: job.country } : {}),
   }
   const org = { '@type': 'Organization', name: job.venue }
-  if (hasExternalApply(job)) { try { org.sameAs = new URL(job.link).origin } catch (e) {} }
+  if (hasCareersLink(job)) { try { org.sameAs = new URL(job.link).origin } catch (e) {} }
   if (job.logo && /^https?:\/\//.test(job.logo)) org.logo = job.logo
 
   const ld = {
@@ -361,6 +379,7 @@ export function fromRow(row) {
     short: row.short || '',
     full: row.full_desc || row.short || '',
     link: row.link || '',
+    hasApplyEmail: !!String(row.apply_email || '').trim(), // only whether one exists; the address is never rendered
     address: row.address || '',
     photos: Array.isArray(row.photos) ? row.photos.filter(p => typeof p === 'string' && /^https?:/.test(p)) : [],
     logo: row.avatar_url || null,
