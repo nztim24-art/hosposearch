@@ -6083,34 +6083,46 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
                 const _hs = user.subscription_active && _sl > 0;
                 const _rem = Math.max(0, _sl - _ac);
                 const _atLimit = _hs && _ac >= _sl;
+                const _plan = (user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1);
+                // At the plan limit: never a dead end. Offer a one-off paid listing
+                // (the post form shows Bronze / Silver / Gold / Shift Cover) or an upgrade.
+                if (_atLimit) return (
+                  <div style={{ width:"100%", background:"#FFF8EE", border:`2px dashed #F5A623`, borderRadius:16, padding:"24px 20px", display:"flex", flexDirection:"column", alignItems:"center", gap:10, marginBottom:20, boxSizing:"border-box" }}>
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:C.textDark, textAlign:"center" }}>
+                      You've used all {_sl} listing{_sl!==1?"s":""} on your {_plan} plan
+                    </div>
+                    <div style={{ fontSize:13, color:C.textSoft, textAlign:"center", lineHeight:1.5, maxWidth:340 }}>
+                      Still hiring? Post this one as a one-off listing from $9.95, or upgrade for more included listings each month.
+                    </div>
+                    <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }}
+                      style={{ width:"100%", maxWidth:320, background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"12px 20px", marginTop:4, border:"none", cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
+                      Post a one-off listing →
+                    </button>
+                    <div style={{ fontSize:11, color:C.textFaint, textAlign:"center" }}>Shift Cover $9.95 · Bronze $50 · Silver $70 · Gold $100</div>
+                    <button className="tap" onClick={()=>setTab("subscribe")}
+                      style={{ width:"100%", maxWidth:320, background:"#fff", color:C.terracotta, fontWeight:700, fontSize:14, borderRadius:10, padding:"11px 20px", border:`1.5px solid ${C.terracotta}`, cursor:"pointer" }}>
+                      Upgrade plan for more listings
+                    </button>
+                  </div>
+                );
                 return (
-                  <button className="tap" onClick={()=>{ if(_atLimit) return; resetForm(); setTab("post"); }}
-                    style={{ width:"100%", background:_atLimit?"#FEF2F0":`linear-gradient(135deg,${C.terracottaL},${C.sandL})`, border:`2px dashed ${_atLimit?C.error:C.terracottaM}`, borderRadius:16, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, cursor:_atLimit?"default":"pointer", marginBottom:20, transition:"all 0.2s" }}>
-                    <div style={{ width:56, height:56, borderRadius:"50%", background:_atLimit?"#FEF2F0":C.terracottaL, border:`2px solid ${_atLimit?C.error:C.terracotta}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                      <Icon name="plus" size={28} color={_atLimit?C.error:C.terracotta}/>
+                  <button className="tap" onClick={()=>{ resetForm(); setTab("post"); }}
+                    style={{ width:"100%", background:`linear-gradient(135deg,${C.terracottaL},${C.sandL})`, border:`2px dashed ${C.terracottaM}`, borderRadius:16, padding:"28px 20px", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, cursor:"pointer", marginBottom:20, transition:"all 0.2s" }}>
+                    <div style={{ width:56, height:56, borderRadius:"50%", background:C.terracottaL, border:`2px solid ${C.terracotta}`, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <Icon name="plus" size={28} color={C.terracotta}/>
                     </div>
-                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:_atLimit?C.error:C.textDark }}>
-                      {_atLimit ? "Listing limit reached" : mine.length===0 ? "Post your first listing" : "Add new listing"}
+                    <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:18, color:C.textDark }}>
+                      {mine.length===0 ? "Post your first listing" : "Add new listing"}
                     </div>
-                    <div style={{ fontSize:13, color:_atLimit?C.error:C.textSoft, textAlign:"center", lineHeight:1.5 }}>
-                      {_atLimit
-                        ? `You've used all ${_sl} listings on your ${user.subscription_tier||"subscription"} plan — upgrade to post more`
-                        : _hs
-                          ? `${_rem} of ${_sl} listing${_sl!==1?"s":""} remaining on your ${(user.subscription_tier||"subscription").charAt(0).toUpperCase()+(user.subscription_tier||"subscription").slice(1)} plan`
-                          : "Bronze $50 · Silver $70 · Gold $100"
+                    <div style={{ fontSize:13, color:C.textSoft, textAlign:"center", lineHeight:1.5 }}>
+                      {_hs
+                        ? `${_rem} of ${_sl} listing${_sl!==1?"s":""} remaining on your ${_plan} plan`
+                        : "Shift Cover $9.95 · Bronze $50 · Silver $70 · Gold $100"
                       }
                     </div>
-                    {!_atLimit && (
-                      <div style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"10px 28px", marginTop:4, boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
-                        {_hs ? "Post a Listing →" : "Post a Job →"}
-                      </div>
-                    )}
-                    {_atLimit && (
-                      <button className="tap" onClick={e=>{ e.stopPropagation(); setTab("subscribe"); }}
-                        style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"10px 28px", marginTop:4, border:"none", cursor:"pointer", boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
-                        Upgrade Plan →
-                      </button>
-                    )}
+                    <div style={{ background:`linear-gradient(135deg,${C.terracotta},#A84F2E)`, color:"#fff", fontWeight:700, fontSize:14, borderRadius:10, padding:"10px 28px", marginTop:4, boxShadow:"0 3px 10px rgba(196,98,58,0.3)" }}>
+                      {_hs ? "Post a Listing →" : "Post a Job →"}
+                    </div>
                   </button>
                 );
               })()}
