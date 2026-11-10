@@ -20,6 +20,7 @@ import { getLiveJobs, getJob } from '../src/seo/server-data.js'
 import {
   SITE, isJobId, parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex,
   relatedLandings, jobPostingLd, jobGroups, stripTags, cleanCity, parseSalary, groupBySlug,
+  jobTitleTag, jobDescriptionTag, clip,
 } from '../src/seo/shared.js'
 
 // ─── Template (the built SPA shell) ──────────────────────────────────────────
@@ -118,13 +119,14 @@ function jobCard(j) {
   const sal = fmtSalary(j)
   return `<li class="ssr-card"><a href="/jobs/${esc(j.id)}">${esc(j.title)} — ${esc(j.venue)}</a>
 <div class="ssr-meta">${esc(where(j))}${j.type && !/not stated/i.test(j.type) ? ' · ' + esc(j.type) : ''}${sal ? ' · ' + esc(sal) : ''}</div>
-${j.short ? `<div class="ssr-meta">${esc(stripTags(j.short).slice(0, 180))}</div>` : ''}</li>`
+${j.short ? `<div class="ssr-meta">${esc(clip(stripTags(j.short), 180))}</div>` : ''}</li>`
 }
 
 function browseSections(jobs) {
   const idx = landingIndex(jobs)
   const links = (arr) => `<ul class="ssr-links">${arr.map(l => `<li><a href="${esc(l.path)}">${esc(l.label)} (${l.count})</a></li>`).join('')}</ul>`
   let html = ''
+  if (idx.awards.length) html += `<h2>Award-winning venues</h2>${links(idx.awards)}`
   if (idx.roles.length) html += `<h2>Browse by role</h2>${links(idx.roles)}`
   if (idx.places.length) html += `<h2>Browse by location</h2>${links(idx.places)}`
   if (idx.combos.length) html += `<h2>Popular searches</h2>${links(idx.combos.slice(0, 40))}`
@@ -180,8 +182,8 @@ ${browseSections(jobs)}
 function jobPage(job, jobs) {
   const loc = where(job)
   const sal = fmtSalary(job)
-  const title = `${job.title} — ${job.venue}, ${cleanCity(job.city) || job.country || job.loc} | HospoSearch`
-  const description = `${job.title} at ${job.venue}, ${loc}.${sal ? ' ' + sal + '.' : ''} ${stripTags(job.short || job.full)}`.slice(0, 158).trim()
+  const title = jobTitleTag(job)
+  const description = jobDescriptionTag(job)
   const canonical = `${SITE}/jobs/${job.id}`
   const ext = /^https?:\/\//i.test(job.link || '')
   const related = relatedLandings(job)
@@ -190,7 +192,7 @@ function jobPage(job, jobs) {
   const tags = [job.type, job.sector, job.roleType, ...(job.tags || [])].filter(t => t && !/not stated/i.test(t))
   const body = shell(`
 <div class="ssr-crumbs"><a href="/">HospoSearch</a> › <a href="/jobs">Jobs</a>${related[0] ? ` › <a href="${esc(related[0].path)}">${esc(related[0].label.replace(/^More /, '').replace(/^./, c => c.toUpperCase()))}</a>` : ''}</div>
-${job.photos[0] ? `<img class="ssr-img" src="${esc(job.photos[0])}" alt="${esc(job.title)} at ${esc(job.venue)}">` : ''}
+${job.photos[0] ? `<img class="ssr-img" fetchpriority="high" decoding="async" src="${esc(job.photos[0])}" alt="${esc(job.title)} at ${esc(job.venue)}">` : ''}
 <div class="ssr-meta">${esc(job.venue)} · ${esc(loc)}</div>
 <h1>${esc(job.title)}</h1>
 ${sal ? `<p><strong>${esc(sal)}</strong></p>` : ''}
@@ -236,6 +238,9 @@ function render(template, page) {
     page.canonical ? `<meta property="og:url" content="${esc(page.canonical)}">` : '',
     page.image ? `<meta property="og:image" content="${esc(page.image)}">` : '',
     `<meta name="twitter:card" content="${page.image ? 'summary_large_image' : 'summary'}">`,
+    `<meta name="twitter:title" content="${esc(page.title)}">`,
+    `<meta name="twitter:description" content="${esc(page.description)}">`,
+    page.image ? `<meta name="twitter:image" content="${esc(page.image)}">` : '',
     ...(page.ld || []).map(ldScript),
   ].filter(Boolean).join('\n    ')
 
@@ -263,7 +268,7 @@ async function sitemap(req, res) {
   const urls = [
     url('/', newest, 'daily', '1.0'),
     url('/about', newest, 'monthly', '0.6'),
-    ...[...idx.roles, ...idx.places, ...idx.combos].map(l => url(l.path, newest, 'daily', '0.7')),
+    ...[...idx.awards, ...idx.roles, ...idx.places, ...idx.combos].map(l => url(l.path, newest, 'daily', '0.7')),
     ...jobs.map(j => url(`/jobs/${j.id}`, day(j.updatedTs || j.ts), 'weekly', '0.8')),
   ]
   res.statusCode = 200
@@ -296,7 +301,14 @@ export default async function handler(req, res) {
   try {
     const jobs = await getLiveJobs()
     let page
-    if (!slug) {
+    if (q.get('about')) {
+      page = {
+        status: 200, robots: 'index,follow', ld: [], body: '',
+        title: 'About HospoSearch — Hospitality Jobs in Australia & New Zealand',
+        description: 'HospoSearch connects chefs, front-of-house, bar and wine professionals with leading restaurants, hotels and wineries. Post a role or find your next one.',
+        canonical: `${SITE}/about`,
+      }
+    } else if (!slug) {
       page = listPage(jobs, null, !!q.get('home'))
     } else if (isJobId(slug)) {
       const live = jobs.find(j => String(j.id) === slug)

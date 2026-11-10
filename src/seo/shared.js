@@ -13,6 +13,13 @@ export const ROLE_GROUPS = [
   { slug: 'front-of-house', label: 'Front of House',     plural: 'front of house',     re: /wait|server|host|front of house|\bfoh\b|floor|maitre|runner|barista/i },
   { slug: 'manager',        label: 'Hospitality Manager', plural: 'hospitality manager', re: /manager|supervisor|director|general manager/i },
 ]
+// Award groups: matched on the whole listing (title, venue, description, tags), because
+// "Michelin" and "hatted" describe the venue, not the role. These are the searches where
+// HospoSearch can beat the big job boards.
+export const AWARD_GROUPS = [
+  { slug: 'michelin-restaurant', label: 'Michelin Restaurant', plural: 'Michelin restaurant', award: true, re: /michelin/i },
+  { slug: 'hatted-restaurant',   label: 'Hatted Restaurant',   plural: 'hatted restaurant',   award: true, re: /\bhatted\b|\b(one|two|three|1|2|3)[\s-]hat(s|ted)?\b|chef'?s hats?\b/i },
+]
 // "hospitality" = every role
 export const ALL_GROUP = { slug: 'hospitality', label: 'Hospitality', plural: 'hospitality', re: /.*/ }
 
@@ -34,7 +41,40 @@ export function cleanCity(city) {
 // Which role groups a job belongs to (a Bar Manager is both bartender + manager)
 export function jobGroups(job) {
   const hay = `${job.roleType || ''} ${job.title || ''}`
-  return ROLE_GROUPS.filter(g => g.re.test(hay)).map(g => g.slug)
+  const roles = ROLE_GROUPS.filter(g => g.re.test(hay)).map(g => g.slug)
+  const all = `${job.title || ''} ${job.venue || ''} ${stripTags(job.short)} ${stripTags(job.full)} ${(job.tags || []).join(' ')}`
+  const awards = AWARD_GROUPS.filter(g => g.re.test(all)).map(g => g.slug)
+  return [...roles, ...awards] // roles first: the first group drives breadcrumbs and "similar roles"
+}
+const isAward = (slug) => AWARD_GROUPS.some(g => g.slug === slug)
+
+// Cut text to `max` characters without stopping mid-word
+export function clip(text, max = 155) {
+  const s = String(text || '').replace(/\s+/g, ' ').trim()
+  if (s.length <= max) return s
+  const cut = s.slice(0, max - 1)
+  const at = cut.lastIndexOf(' ')
+  return (at > max * 0.6 ? cut.slice(0, at) : cut).replace(/[\s,;:.\-–—]+$/, '') + '…'
+}
+
+// "A, B and C"
+export function listWords(arr) {
+  if (arr.length <= 1) return arr.join('')
+  return `${arr.slice(0, -1).join(', ')} and ${arr[arr.length - 1]}`
+}
+
+// <title> and meta description for one job — shared so the server page and the
+// React page say the same thing. Long titles drop the brand suffix so the role,
+// venue and place aren't cut off in Google.
+export function jobTitleTag(job) {
+  const place = cleanCity(job.city) || job.country || job.loc
+  const core = `${job.title} — ${job.venue}${place ? ', ' + place : ''}`
+  return core.length + ' | HospoSearch'.length > 65 ? core : `${core} | HospoSearch`
+}
+export function jobDescriptionTag(job) {
+  const salaryText = job.salaryShown !== false && job.salary && !/competitive/i.test(job.salary) ? job.salary : ''
+  const where = [cleanCity(job.city), job.state, job.country].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(', ') || job.loc
+  return clip(`${job.title} at ${job.venue}, ${where}.${salaryText ? ' ' + salaryText + '.' : ''} ${stripTags(job.short || job.full)}`, 155)
 }
 
 // Places a job can be found under: its city and its country
@@ -57,7 +97,7 @@ export const isJobId = (s) => UUID_RE.test(String(s || ''))
 export function parseLandingSlug(slug) {
   if (!slug || isJobId(slug)) return null
   const s = String(slug).toLowerCase()
-  for (const g of [...ROLE_GROUPS, ALL_GROUP]) {
+  for (const g of [...AWARD_GROUPS, ...ROLE_GROUPS, ALL_GROUP]) {
     const prefix = `${g.slug}-jobs`
     if (s === prefix) return g.slug === 'hospitality' ? null : { group: g.slug, place: null }
     if (s.startsWith(prefix + '-')) {
@@ -76,7 +116,7 @@ export function jobMatchesLanding(job, landing) {
 }
 
 export function groupBySlug(slug) {
-  return [...ROLE_GROUPS, ALL_GROUP].find(g => g.slug === slug) || ALL_GROUP
+  return [...ROLE_GROUPS, ...AWARD_GROUPS, ALL_GROUP].find(g => g.slug === slug) || ALL_GROUP
 }
 
 // Human label for a place slug, taken from the jobs themselves
@@ -104,11 +144,27 @@ export function landingCopy(landing, jobs, count) {
     manager: 'restaurant manager, duty manager and venue management',
     hospitality: 'chef, front-of-house, bar, sommelier and management',
   }[g.slug]
+  const reach = where || ' across Australia, New Zealand and beyond'
+  const lead = g.slug === 'michelin-restaurant'
+    ? `${n} at Michelin-starred and Michelin Guide restaurants${reach} — kitchen, floor, bar and wine positions`
+    : g.slug === 'hatted-restaurant'
+      ? `${n} at hatted restaurants${reach} — kitchen, floor, bar and wine positions`
+      : `${n} for ${roleWords} positions${reach}`
+  // Facts from the live listings, so every landing page says something of its own
+  const matching = (jobs || []).filter(j => jobMatchesLanding(j, landing))
+  const venues = [...new Set(matching.map(j => String(j.venue || '').trim()).filter(Boolean))]
+  const shown = venues.slice(0, 4)
+  const hiring = shown.length
+    ? ` Hiring now: ${listWords(shown)}${venues.length > shown.length ? ` and ${venues.length - shown.length} more` : ''}.`
+    : ''
+  const withPay = matching.filter(j => parseSalary(j)).length
+  const pay = withPay ? ` ${withPay === matching.length ? (withPay === 1 ? 'Pay is listed up front' : 'All list pay up front') : `${withPay} of ${matching.length} list pay up front`}.` : ''
   const intro = count > 0
-    ? `${n} for ${roleWords} positions${where ? where : ' across Australia, New Zealand and beyond'}. Every listing on HospoSearch is checked by our team and you apply directly to the venue — no recruiters in the middle.`
+    ? `${lead}.${hiring}${pay} Every listing on HospoSearch is checked by our team and you apply directly to the venue — no recruiters in the middle.`
     : `There are no live ${g.plural} roles${where} right now. New hospitality jobs go up every evening — check back soon or browse all roles below.`
+  const at = venues.length ? ` at ${listWords(venues.slice(0, 3))}${venues.length > 3 ? ' and more' : ''}` : ''
   const description = count > 0
-    ? `Browse ${n.replace('live ', '')} for ${g.plural} jobs${where}. Apply directly to restaurants, hotels and bars on HospoSearch — updated daily.`
+    ? clip(`${count} ${g.plural} job${count === 1 ? '' : 's'}${where}${at}. Apply directly to the venue on HospoSearch — updated daily.`, 155)
     : `${g.label} jobs${where} on HospoSearch — hospitality roles updated daily across Australia and New Zealand.`
   return { title, h1, intro, description, place }
 }
@@ -128,7 +184,10 @@ export function landingIndex(jobs, { minCombo = 2 } = {}) {
     }
   }
   const sort = (m) => [...m.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+  const awards = new Map()
+  for (const [k, v] of [...groups]) if (isAward(k)) { awards.set(k, v); groups.delete(k) }
   return {
+    awards: sort(awards),
     roles: sort(groups),
     places: sort(places),
     combos: sort(combos).filter(c => c.count >= minCombo),
