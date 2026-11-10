@@ -24,6 +24,10 @@
       "destination": "/api/seo?sitemap=1"
     },
     {
+      "source": "/about",
+      "destination": "/api/seo?about=1"
+    },
+    {
       "source": "/jobs",
       "destination": "/api/seo"
     },

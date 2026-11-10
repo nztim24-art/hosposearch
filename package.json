@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build && mv dist/index.html dist/shell.html",
     "preview": "vite preview",
-    "test": "node --test \"src/state/*.test.js\""
+    "test": "node --test \"src/state/*.test.js\" \"src/seo/*.test.js\""
   },
   "dependencies": {
     "react": "^18.2.0",

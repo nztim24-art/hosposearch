@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef, Fragment } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
-import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive } from './seo/shared.js'
+import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
 const C = {
@@ -482,6 +482,7 @@ function JobCard({ job }) {
 function BrowseLinks({ jobs, only }) {
   const idx = useMemo(() => landingIndex(jobs), [jobs])
   const sections = only ? [["Related searches", only]] : [
+    ["Award-winning venues", idx.awards],
     ["Browse by role", idx.roles],
     ["Browse by location", idx.places],
     ["Popular searches", idx.combos.slice(0, 40)],
@@ -590,8 +591,9 @@ function JobDetail({ jobs, loading, id, signedIn }) {
   }, [job?.id])
 
   useSEO({
-    title: job ? `${job.title} — ${job.venue} | HospoSearch` : "Hospitality Role | HospoSearch",
-    description: job ? `${job.title} at ${job.venue}, ${job.loc}. ${stripTags(job.short||"").slice(0,140)}` : "View this hospitality role on HospoSearch.",
+    // Same title and description as the server-rendered page (api/seo.js)
+    title: job ? jobTitleTag(job) : "Hospitality Role | HospoSearch",
+    description: job ? jobDescriptionTag(job) : "View this hospitality role on HospoSearch.",
     canonical: job ? `https://www.hosposearch.com/jobs/${job.id}` : undefined,
     jsonLd: null, // JobPosting is rendered server-side in api/seo.js
   })

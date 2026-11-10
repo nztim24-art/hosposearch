@@ -1,4 +1,8 @@
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
+
+// Cormorant Garamond is only used on this page, so it loads here rather than on every page.
+const CORMORANT = 'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600&display=swap'
 
 // Brand palette (matches App.jsx)
 const T  = '#C4623A'   // terracotta
@@ -34,6 +38,11 @@ function S({ n, title, children }) {
 }
 
 export default function GiveawayTerms() {
+  useEffect(() => {
+    if (document.querySelector(`link[href="${CORMORANT}"]`)) return
+    const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = CORMORANT
+    document.head.appendChild(l)
+  }, [])
   return (
     <div style={wrap}>
       <div style={bar}>
