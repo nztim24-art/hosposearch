@@ -155,16 +155,21 @@ export function landingCopy(landing, jobs, count) {
   const venues = [...new Set(matching.map(j => String(j.venue || '').trim()).filter(Boolean))]
   const shown = venues.slice(0, 4)
   const hiring = shown.length
-    ? ` Hiring now: ${listWords(shown)}${venues.length > shown.length ? ` and ${venues.length - shown.length} more` : ''}.`
+    ? ` Hiring now: ${venues.length > shown.length ? `${shown.join(', ')} and ${venues.length - shown.length} more` : listWords(shown)}.`
     : ''
   const withPay = matching.filter(j => parseSalary(j)).length
   const pay = withPay ? ` ${withPay === matching.length ? (withPay === 1 ? 'Pay is listed up front' : 'All list pay up front') : `${withPay} of ${matching.length} list pay up front`}.` : ''
   const intro = count > 0
     ? `${lead}.${hiring}${pay} Every listing on HospoSearch is checked by our team and you apply directly to the venue — no recruiters in the middle.`
     : `There are no live ${g.plural} roles${where} right now. New hospitality jobs go up every evening — check back soon or browse all roles below.`
-  const at = venues.length ? ` at ${listWords(venues.slice(0, 3))}${venues.length > 3 ? ' and more' : ''}` : ''
+  // Name as many venues as fit in a full sentence (Google shows about 155 characters)
+  const describe = (k) => {
+    const at = !venues.length || !k ? '' : ` at ${venues.length > k ? `${venues.slice(0, k).join(', ')} and more` : listWords(venues.slice(0, k))}`
+    return `${count} ${g.plural} job${count === 1 ? '' : 's'}${where}${at}. Apply directly to the venue on HospoSearch — updated daily.`
+  }
+  const fit = [3, 2, 1, 0].map(describe).find(d => d.length <= 155)
   const description = count > 0
-    ? clip(`${count} ${g.plural} job${count === 1 ? '' : 's'}${where}${at}. Apply directly to the venue on HospoSearch — updated daily.`, 155)
+    ? (fit || clip(describe(0), 155))
     : `${g.label} jobs${where} on HospoSearch — hospitality roles updated daily across Australia and New Zealand.`
   return { title, h1, intro, description, place }
 }
