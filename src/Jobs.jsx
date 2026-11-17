@@ -792,11 +792,12 @@ function VenuesSection() {
         <div style={{ flex:'1 1 400px', minWidth:0 }}>
           <div style={{ fontSize:13, fontWeight:500, color:'#E3A27F' }}>For venues</div>
           <h2>Put your role in front of hospo people who want it</h2>
-          <p>Chefs, front of house and managers across Australia and New Zealand look for their next role here. Pay per listing or subscribe if you're always hiring.</p>
+          <p>Your role goes in front of hospitality professionals across Australia and New Zealand. Pay per listing or subscribe if you're always hiring.</p>
           <div className="jb-vbtns">
             <Link to={LINKS.post} className="p">Post my job from $9.95</Link>
             <Link to={LINKS.pricing} className="s">See pricing</Link>
           </div>
+          <div style={{ marginTop:16, display:'flex', alignItems:'flex-start', gap:8, fontSize:13, lineHeight:'20px', color:'#C9C0B3' }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex:'none', marginTop:2 }}><path d="M20 6 9 17l-5-5"/></svg>Start with your name, venue and email. Your listing saves to your account as you go and you pay on the last step</div>
         </div>
         <div className="jb-tiers">
           <Link to="/app?tier=shift&mode=listing" className="jb-tier"><span className="l">Shift cover</span><span className="pr">$9.95</span><span className="d">A 3-day listing for extra hands on a busy weekend or event</span><span className="go">Post a shift cover →</span></Link>
