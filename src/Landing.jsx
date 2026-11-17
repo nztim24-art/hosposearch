@@ -779,7 +779,7 @@ export default function Landing() {
               Browse thousands of jobs at the best restaurants, hotels, bars and cafés across Australia, New Zealand and beyond. Free to join. Apply in seconds.
             </p>
             <div className="hs-hero-actions fade-up-4" style={{marginBottom:18}}>
-              <Link to="/app" className="btn-primary">🔍 Find Jobs — Free</Link>
+              <Link to="/" className="btn-primary">🔍 Find Jobs — Free</Link>
               <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} style={{background:'transparent',color:'var(--ink)',padding:'14px 24px',borderRadius:'100px',fontSize:'15px',fontWeight:'600',border:'1.5px solid var(--border)',transition:'all 0.2s',display:'inline-flex',alignItems:'center',gap:'8px',cursor:'pointer'}}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--ink)';e.currentTarget.style.background='rgba(15,14,12,0.04)';}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--border)';e.currentTarget.style.background='transparent';}}>
@@ -1068,7 +1068,7 @@ export default function Landing() {
           </div>
 
           <div style={{textAlign:'center',marginTop:52}}>
-            <Link to="/app" style={{display:'inline-flex',alignItems:'center',gap:8,background:'var(--terra)',color:'white',padding:'14px 32px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(196,98,58,0.3)',transition:'all 0.2s'}}
+            <Link to="/" style={{display:'inline-flex',alignItems:'center',gap:8,background:'var(--terra)',color:'white',padding:'14px 32px',borderRadius:100,fontSize:15,fontWeight:700,textDecoration:'none',boxShadow:'0 4px 18px rgba(196,98,58,0.3)',transition:'all 0.2s'}}
               onMouseEnter={e=>e.currentTarget.style.background='var(--terra-d)'}
               onMouseLeave={e=>e.currentTarget.style.background='var(--terra)'}>
               🔍 Start browsing jobs →

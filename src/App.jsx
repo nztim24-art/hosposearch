@@ -8981,6 +8981,8 @@ export default function App() {
     sessionStorage.removeItem('hs_temp_session');
     sessionStorage.removeItem('hs_admin_session');
     setUser(null); setType(null);
+    // Signed out → the public homepage, not the old in-app browse screen
+    window.location.replace('/');
   };
 
   // New Google user picks Employer or Job Seeker → create their profile.
@@ -9117,7 +9119,14 @@ export default function App() {
   const _typeParam  = new URLSearchParams(window.location.search).get('type') || 'employee';
   if (screen.name === 'login-param') return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;
   // "Sign up free" from the homepage header → open the sign-up screen directly
-  if (screen.name === 'signup-param') return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  if (screen.name === 'public') return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""} initialApplyId={new URLSearchParams(window.location.search).get('apply')}/> ;
+  if (screen.name === 'signup-param') return <Login defaultScreen="signup" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;  // Logged-out visitors on plain /app go to the homepage. The old browse screen
+  // is only kept for apply links, ?search= links and while sign-in finishes.
+  if (screen.name === 'public') {
+    const _sp = new URLSearchParams(window.location.search);
+    const _authing = _sp.has('code') || _sp.has('error') || /access_token|error_description/.test(window.location.hash);
+    if (!_sp.get('apply') && !_sp.get('search') && !_authing) { window.location.replace('/'); return null; }
+  }
+  if (screen.name === 'public') return <PublicBrowse jobs={jobs} onLogin={()=>setShowLogin(true)} onSignup={()=>setShowSignup(true)} onRefresh={async()=>{ try{ const j=await fetchJobs(); if(Array.isArray(j)) setJobs(j); }catch(e){} }} initialSearch={new URLSearchParams(window.location.search).get('search')||""} initialApplyId={new URLSearchParams(window.location.search).get('apply')}/> ;
   if (screen.name === 'admin')    return <AdminDash jobs={jobs} setJobs={setJobs} codes={codes} setCodes={setCodes} onLogout={logout}/>;
   if (screen.name === 'employer') return <EmployerDash user={user} jobs={jobs} setJobs={setJobs} messages={messages} setMessages={setMessages} codes={codes} setCodes={setCodes} onLogout={logout} paymentStatus={paymentStatus} setPaymentStatus={setPaymentStatus} altAccount={altAccount} onSwitchAccount={switchAccount}/>;
   return <EmployeeApp user={user} jobs={jobs} setJobs={setJobs} profile={profile} setProfile={setProfile} following={following} setFollowing={setFollowing} messages={messages} setMessages={setMessages} notifs={notifs} setNotifs={setNotifs} notifPrefs={notifPrefs} setNotifPrefs={setNotifPrefs} onLogout={logout} altAccount={altAccount} onSwitchAccount={switchAccount} applyJobId={applyJobId} onApplyConsumed={()=>setApplyJobId(null)}/>;
