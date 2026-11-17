@@ -45,7 +45,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, shuffleFeed, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, shuffleFeed, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare, fetchBookmarks, toggleBookmark as sbToggleBookmark, consumeAfterLogin } from './supabase.js';
 
 // ─── Guest applications ────────────────────────────────────────────────────────
 // A logged-out visitor fills in the whole application (CV included) before they
@@ -5835,7 +5835,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       }
       // Notify followers. Non-blocking.
       try {
-        const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
+        const { data: followers } = await supabase.from('following').select('follower_id').eq('employer_id', user.id);
         if (followers?.length > 0) {
           await supabase.from('notifications').insert(followers.map(f=>({
             user_id: f.follower_id, type:'listing', text:`New listing from ${user.name}`,
@@ -7167,9 +7167,9 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     setFollowing(f => isFollowing ? f.filter(x=>x!==id) : [...f, id]);
     try {
       if (isFollowing) {
-        await supabase.from('following').delete().eq('follower_id', user.id).eq('following_id', id);
+        await supabase.from('following').delete().eq('follower_id', user.id).eq('employer_id', id);
       } else {
-        await supabase.from('following').insert({ follower_id: user.id, following_id: id });
+        await supabase.from('following').insert({ follower_id: user.id, employer_id: id });
         // Notify the employer that someone followed them
         await supabase.from('notifications').insert({
           user_id: id,
@@ -7182,7 +7182,23 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       }
     } catch(e) { console.warn('Follow error:', e); }
   };
-  const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
+  // Saved jobs live in the bookmarks table so they follow the person to every device.
+  useEffect(() => {
+    let cancelled = false;
+    // First finish any save/follow tapped on the homepage before logging in, then load.
+    consumeAfterLogin(user.id).catch(()=>{})
+      .then(() => fetchBookmarks(user.id))
+      .then(ids => { if (!cancelled && Array.isArray(ids)) setBookmarks(ids); })
+      .then(() => supabase.from('following').select('employer_id').eq('follower_id', user.id))
+      .then(r => { if (!cancelled && r?.data) setFollowing(r.data.map(x=>x.employer_id)); })
+      .catch(()=>{});
+    return () => { cancelled = true; };
+  }, [user.id]);
+  const toggleBookmark = id => {
+    const on = bookmarks.includes(id);
+    setBookmarks(b => on ? b.filter(x=>x!==id) : [...b, id]);
+    sbToggleBookmark(user.id, id, on).catch(e => console.warn('Bookmark save failed:', e));
+  };
   const handleApply = async (job, fd) => {
     // Save application to Supabase (includes document upload inside sbApplyForJob)
     let savedApp = null;
@@ -8724,8 +8740,8 @@ export default function App() {
   // Load following from Supabase
   useEffect(()=>{
     if (!user?.id) return;
-    supabase.from('following').select('following_id').eq('follower_id', user.id)
-      .then(({ data }) => { if (data) setFollowing(data.map(r=>r.following_id)); });
+    supabase.from('following').select('employer_id').eq('follower_id', user.id)
+      .then(({ data }) => { if (data) setFollowing(data.map(r=>r.employer_id)); });
   }, [user?.id]);
   const [messages, setMessages]   = useState(INIT_MESSAGES);
   const [notifs, setNotifs]       = useState(INIT_NOTIFS);

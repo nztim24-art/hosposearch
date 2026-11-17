@@ -665,10 +665,49 @@ export async function fetchBookmarks(userId) {
 }
 
 export async function toggleBookmark(userId, jobId, isBookmarked) {
-  if (isBookmarked) {
-    await supabase.from('bookmarks').delete().eq('user_id', userId).eq('job_id', jobId)
+  const { error } = isBookmarked
+    ? await supabase.from('bookmarks').delete().eq('user_id', userId).eq('job_id', jobId)
+    : await supabase.from('bookmarks').insert({ user_id: userId, job_id: jobId })
+  if (error) throw error
+}
+
+// ─── Following venues ─────────────────────────────────────────────────────────
+// following.employer_id is the venue's (employer's) profile id; follower_id is the
+// job seeker's profile id. Admin-posted listings have no employer account to follow.
+
+export async function fetchFollowing(profileId) {
+  const { data, error } = await supabase.from('following').select('employer_id').eq('follower_id', profileId)
+  if (error) throw error
+  return data.map(r => r.employer_id)
+}
+
+export async function setFollow(profileId, employerId, on) {
+  if (on) {
+    const { error } = await supabase.from('following').insert({ follower_id: profileId, employer_id: employerId })
+    if (error) throw error
   } else {
-    await supabase.from('bookmarks').insert({ user_id: userId, job_id: jobId })
+    const { error } = await supabase.from('following').delete().eq('follower_id', profileId).eq('employer_id', employerId)
+    if (error) throw error
+  }
+}
+
+// ─── Finish a homepage action after login ─────────────────────────────────────
+// A logged-out visitor who taps Save or Follow on the homepage is sent to log in;
+// we remember what they tapped and finish it once they're signed in.
+const AFTER_LOGIN = 'hs_after_login'
+export function stashAfterLogin(action) {
+  try { localStorage.setItem(AFTER_LOGIN, JSON.stringify({ ...action, ts: Date.now() })) } catch (e) {}
+}
+export async function consumeAfterLogin(profileId) {
+  let a = null
+  try { a = JSON.parse(localStorage.getItem(AFTER_LOGIN) || 'null'); localStorage.removeItem(AFTER_LOGIN) } catch (e) {}
+  if (!a || !profileId || Date.now() - (a.ts || 0) > 3600000) return
+  if (a.kind === 'save' && a.jobId) {
+    const saved = await fetchBookmarks(profileId).catch(() => [])
+    if (!saved.includes(a.jobId)) await toggleBookmark(profileId, a.jobId, false)
+  } else if (a.kind === 'follow' && a.employerId) {
+    const f = await fetchFollowing(profileId).catch(() => [])
+    if (!f.includes(a.employerId)) await setFollow(profileId, a.employerId, true)
   }
 }
 

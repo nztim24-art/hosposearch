@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, Fragment, lazy, Suspense } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd } from './supabase.js'
+import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd, getMyProfile, fetchBookmarks, toggleBookmark, fetchFollowing, setFollow, stashAfterLogin } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag, trackedLink, mapLinks } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -249,6 +249,187 @@ const styles = `
     .jb-post{width:100%;max-width:560px;font-size:16px;min-height:52px;padding:0 16px;}
   }
   @media(max-width:600px){.jb-grid{padding:20px 16px 40px;gap:14px;}.jb-nav{padding:10px 16px;}.jb-hero{padding:32px 20px 20px;}}
+  /* ── 2026-11 redesign: quieter chrome, venue photos carry the colour ── */
+  .jb-nav{padding:0 24px;height:64px;}
+  .jb-logo{font-weight:500;letter-spacing:-0.2px;}
+  .jb-links a{font-size:14px;}
+  .jb-acts{gap:12px;}
+  .jb-btn{min-height:40px;padding:0 16px;border-radius:10px;font-size:14px;font-weight:600;transition:background-color 140ms ease,border-color 140ms ease,color 140ms ease;}
+  .jb-btn-post{border:0;background:${C.terracottaD};color:#fff;}
+  .jb-btn-post:hover{background:#86401F;}
+  .jb-btn-login{border:1px solid ${C.borderMid};background:#fff;color:${C.textDark};gap:8px;}
+  .jb-btn-login:hover{border-color:${C.textMid};}
+  .jb-btn-dark{border:0;background:${C.textDark};color:#fff;}
+  .jb-btn-dark:hover{background:#2A2622;}
+  .jb-acts-div{width:1px;height:24px;background:${C.border};margin:0 2px;}
+  .jb-venues-link{color:${C.textSoft};font-size:14px;font-weight:500;text-decoration:none;}
+  .jb-venues-link:hover{color:${C.textDark};}
+  /* Photo hero (homepage, desktop) */
+  .jb-scene{position:relative;color:#F7F3EE;background:#1F1B16;overflow:hidden;}
+  .jb-scene>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:75% 40%;}
+  .jb-scene:before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(24,20,16,0.94) 0%,rgba(24,20,16,0.82) 36%,rgba(24,20,16,0.25) 66%,rgba(24,20,16,0.05) 100%);}
+  .jb-scene:after{content:"";position:absolute;left:0;right:0;bottom:0;height:180px;z-index:1;background:linear-gradient(180deg,rgba(250,248,244,0) 0%,${C.bg} 100%);}
+  .jb-scene-in{position:relative;z-index:2;max-width:1240px;margin:0 auto;padding:88px 32px 40px;}
+  .jb-live{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#D9D0C3;}
+  .jb-live i{width:8px;height:8px;border-radius:4px;background:#5DBB7E;}
+  .jb-scene h1{font-family:'Fraunces','Playfair Display',serif;font-weight:500;font-size:clamp(44px,6vw,76px);line-height:1.0;letter-spacing:-0.03em;margin:16px 0 0;max-width:620px;}
+  .jb-scene h1 span{color:#E3A27F;}
+  .jb-scene p.sub{margin:18px 0 0;font-size:19px;line-height:29px;color:#D9D0C3;max-width:34rem;}
+  .jb-hsearch{margin-top:28px;display:flex;align-items:center;gap:10px;height:56px;padding:0 6px 0 16px;background:#fff;border-radius:12px;max-width:560px;box-shadow:0 12px 32px rgba(0,0,0,0.25);}
+  .jb-hsearch input{flex:1;min-width:0;border:0;outline:none;background:transparent;font:inherit;font-size:16px;color:${C.textDark};}
+  .jb-hsearch button{height:44px;padding:0 20px;border:0;border-radius:8px;background:${C.terracottaD};color:#fff;font:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+  .jb-hsearch button:hover{background:#86401F;}
+  .jb-hiring{margin-top:16px;display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 12px 12px 16px;border-radius:12px;background:rgba(24,20,16,0.55);border:1px solid rgba(247,243,238,0.16);max-width:560px;font-size:14px;}
+  .jb-hiring span{color:#D9D0C3;} .jb-hiring strong{color:#F7F3EE;font-weight:600;}
+  .jb-hiring a{margin-left:auto;display:inline-flex;align-items:center;height:40px;padding:0 16px;border-radius:8px;background:#F7F3EE;color:${C.textDark};font-weight:600;text-decoration:none;}
+  .jb-hiring a:hover{background:#fff;}
+  .jb-cchips{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;}
+  .jb-cchips button{height:36px;padding:0 14px;border-radius:8px;border:1px solid rgba(247,243,238,0.24);background:transparent;color:#F7F3EE;font:inherit;font-size:14px;cursor:pointer;}
+  .jb-cchips button.on{background:#F7F3EE;color:${C.textDark};border-color:#F7F3EE;font-weight:600;}
+  .jb-cchips a{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 6px;color:#D9D0C3;font-size:14px;text-decoration:none;}
+  .jb-float{margin-top:56px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;}
+  .jb-float a{display:flex;gap:14px;padding:12px;background:#FDFBF8;border-radius:16px;box-shadow:0 12px 32px rgba(31,27,22,0.14);color:${C.textDark};text-decoration:none;min-width:0;}
+  .jb-float img{width:88px;height:88px;border-radius:10px;object-fit:cover;flex:none;}
+  .jb-float .v{font-size:14px;font-weight:600;} .jb-float .t{font-family:'Fraunces',serif;font-size:19px;line-height:1.2;} .jb-float .p{font-size:13px;color:${C.textSoft};}
+  .jb-venuerow{border-top:1px solid ${C.border};border-bottom:1px solid ${C.border};background:#F2EDE5;}
+  .jb-venuerow div{max-width:1240px;margin:0 auto;padding:18px 32px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 32px;}
+  .jb-venuerow small{font-size:13px;color:${C.textSoft};}
+  .jb-venuerow b{font-family:'Fraunces',serif;font-size:19px;font-weight:500;color:#3A332B;}
+  .jb-listhead{max-width:1240px;margin:0 auto;padding:40px 32px 0;display:flex;align-items:baseline;justify-content:space-between;gap:16px;}
+  .jb-listhead h2{margin:0;font-size:15px;font-weight:600;} .jb-listhead h2 span{color:${C.textSoft};font-weight:400;}
+  .jb-grid{max-width:1240px;padding:20px 32px 64px;gap:24px;}
+  /* Cards */
+  .jb-card{border:1px solid ${C.border};box-shadow:none;transition:border-color 160ms ease;}
+  .jb-card:hover{transform:none;box-shadow:none;border-color:${C.borderMid};}
+  .jb-card-body{padding:18px 20px 20px;gap:6px;}
+  .jb-venue{font-size:16px;font-weight:600;color:${C.textDark};margin:0;}
+  .jb-title{font-weight:500;font-size:22px;margin:0;}
+  .jb-short{color:${C.textSoft};font-size:14px;line-height:21px;margin:2px 0 0;}
+  .jb-line{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;font-size:14px;}
+  .jb-line i{flex:1 1 auto;min-width:16px;border-bottom:1px dotted rgba(31,27,22,0.28);margin:0 8px;transform:translateY(-4px);}
+  .jb-line b{font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;}
+  .jb-line .comp{font-weight:400;color:${C.textSoft};}
+  .jb-meta2{font-size:12px;color:${C.textSoft};}
+  .jb-badge{background:rgba(253,251,248,0.95);border:0;color:${C.textDark};font-size:12px;font-weight:600;padding:4px 8px;border-radius:6px;}
+  .jb-new{background:${C.textDark};border-radius:6px;font-weight:600;letter-spacing:0;font-size:11px;right:10px;}
+  .jb-login{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;align-items:center;gap:12px 24px;background:#EFE9DF;border:0;padding:24px;}
+  .jb-login .txt{flex:1 1 320px;}
+  .jb-login button,.jb-login a{min-height:44px;padding:0 18px;border-radius:10px;}
+  .jb-login button{border:1px solid #747775;color:#1F1F1F;}
+  .jb-login a.dark{background:${C.terracottaD};color:#fff;}
+  .jb-login a.plain{background:transparent;color:${C.textDark};text-decoration:underline;padding:0 4px;}
+  /* For venues */
+  .jb-venues{background:#1F1B16;color:#F7F3EE;}
+  .jb-venues-in{max-width:1240px;margin:0 auto;padding:80px 32px;display:flex;flex-wrap:wrap;align-items:center;gap:48px;}
+  .jb-venues h2{margin:12px 0 0;font-family:'Fraunces',serif;font-weight:500;font-size:46px;line-height:1.06;letter-spacing:-0.02em;}
+  .jb-venues p{margin:16px 0 0;font-size:17px;line-height:27px;color:#C9C0B3;max-width:32rem;}
+  .jb-tiers{flex:1 1 560px;min-width:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+  .jb-tier{display:flex;flex-direction:column;gap:8px;padding:24px 20px;border-radius:14px;background:#2A2520;border:1px solid rgba(247,243,238,0.08);color:#F7F3EE;text-decoration:none;transition:border-color 140ms ease;}
+  .jb-tier:hover{border-color:rgba(227,162,127,0.7);}
+  .jb-tier.pop{border-color:rgba(227,162,127,0.55);}
+  .jb-tier .l{font-size:13px;font-weight:500;color:#E3A27F;}
+  .jb-tier .pr{font-family:'Fraunces',serif;font-size:40px;line-height:1;font-variant-numeric:tabular-nums;}
+  .jb-tier .pr small{font-family:'DM Sans',sans-serif;font-size:13px;color:#C9C0B3;}
+  .jb-tier .d{font-size:13px;line-height:19px;color:#C9C0B3;flex:1;}
+  .jb-tier .go{margin-top:8px;font-size:14px;font-weight:600;}
+  .jb-vbtns{margin-top:28px;display:flex;flex-wrap:wrap;gap:12px;}
+  .jb-vbtns a{display:inline-flex;align-items:center;height:48px;padding:0 22px;border-radius:10px;font-size:15px;font-weight:600;text-decoration:none;}
+  .jb-vbtns a.p{background:${C.terracottaD};color:#fff;} .jb-vbtns a.p:hover{background:#86401F;}
+  .jb-vbtns a.s{border:1px solid rgba(247,243,238,0.24);color:#F7F3EE;}
+  .jb-footer{background:#1F1B16;color:#A39A8E;border-top:1px solid rgba(247,243,238,0.08);}
+  .jb-footer a{color:#E3A27F;}
+  @media(max-width:1000px){.jb-float{grid-template-columns:repeat(2,minmax(0,1fr));}.jb-float a:nth-child(3){display:none;}.jb-tiers{grid-template-columns:1fr;}}
+  /* ── Mobile homepage: an Instagram-style feed ── */
+  .m-wrap{font-family:'DM Sans',sans-serif;background:#FDFBF8;color:${C.textDark};min-height:100vh;padding-bottom:84px;}
+  .m-head{position:sticky;top:0;z-index:40;padding:0 14px;background:rgba(253,251,248,0.94);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(31,27,22,0.06);}
+  .m-bar{height:56px;display:flex;align-items:center;gap:8px;}
+  .m-logo{border:0;background:none;padding:0;font-family:'Fraunces',serif;font-size:24px;font-weight:500;color:${C.textDark};text-decoration:none;cursor:pointer;}
+  .m-logo span{color:${C.terracottaD};}
+  .m-pill{height:36px;padding:0 13px;display:inline-flex;align-items:center;border-radius:18px;font:inherit;font-size:13px;font-weight:600;text-decoration:none;cursor:pointer;white-space:nowrap;}
+  .m-pill.dark{border:0;background:${C.textDark};color:#F7F3EE;margin-left:auto;}
+  .m-pill.line{border:1px solid rgba(31,27,22,0.22);background:transparent;color:${C.textDark};}
+  .m-search{margin-bottom:10px;display:flex;align-items:center;gap:10px;height:44px;padding:0 12px;border-radius:12px;background:#F2EDE5;}
+  .m-search input{flex:1;min-width:0;border:0;background:transparent;outline:none;font:inherit;font-size:16px;color:${C.textDark};}
+  .m-search button{width:30px;height:30px;border:0;border-radius:15px;background:rgba(31,27,22,0.08);display:grid;place-items:center;cursor:pointer;color:${C.textDark};}
+  .m-rail{display:flex;gap:4px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain;}
+  .m-rail::-webkit-scrollbar{display:none;}
+  .m-stories{padding:12px 10px 10px;}
+  .m-story{flex:none;width:76px;display:flex;flex-direction:column;align-items:center;gap:6px;border:0;background:none;padding:0;font:inherit;cursor:pointer;scroll-snap-align:start;color:${C.textDark};text-decoration:none;}
+  .m-story .r{padding:3px;border-radius:40px;border:2px solid ${C.terracottaD};}
+  .m-story.on .r{border-color:${C.textDark};}
+  .m-story img,.m-story .plus{width:62px;height:62px;border-radius:31px;object-fit:cover;display:grid;place-items:center;background:#EFE9DF;}
+  .m-story .plus{background:${C.terracottaD};color:#fff;}
+  .m-story.post .r{border-style:dashed;border-color:rgba(176,79,42,0.55);}
+  .m-story .n{font-size:12px;font-weight:500;white-space:nowrap;}
+  .m-story.post .n{font-weight:600;color:${C.terracottaD};}
+  .m-chips{gap:8px;padding:4px 14px 12px;border-bottom:1px solid rgba(31,27,22,0.06);}
+  .m-chip{flex:none;scroll-snap-align:start;height:34px;padding:0 14px;border-radius:17px;border:1px solid rgba(31,27,22,0.14);background:transparent;color:${C.textDark};font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;text-decoration:none;}
+  .m-chip.on{border-color:${C.textDark};background:${C.textDark};color:#F7F3EE;font-weight:600;}
+  .m-count{padding:14px 14px 4px;font-size:13px;font-weight:500;color:${C.textSoft};}
+  .m-back{position:sticky;top:110px;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(253,251,248,0.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid rgba(31,27,22,0.06);}
+  .m-back button{height:34px;padding:0 12px 0 8px;display:inline-flex;align-items:center;gap:4px;border-radius:17px;border:1px solid rgba(31,27,22,0.16);background:#FDFBF8;color:${C.textDark};font:inherit;font-size:13px;font-weight:600;cursor:pointer;flex:none;}
+  .m-back span{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .m-post{padding-bottom:22px;}
+  .m-ph{display:flex;align-items:center;gap:10px;padding:10px 14px;}
+  .m-av{width:36px;height:36px;border-radius:18px;overflow:hidden;flex:none;background:#EFE9DF;display:grid;place-items:center;font-family:'Fraunces',serif;color:${C.terracottaD};}
+  .m-av img{width:36px;height:36px;object-fit:cover;display:block;}
+  .m-vn{flex:1;min-width:0;line-height:1.25;}
+  .m-vn b{display:block;font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .m-vn b em{font-style:normal;font-size:12px;font-weight:500;color:${C.textSoft};}
+  .m-vn small{font-size:12px;color:${C.textSoft};}
+  .m-follow{height:32px;padding:0 14px;border-radius:8px;border:0;background:${C.terracottaD};color:#fff;font:inherit;font-size:13px;font-weight:600;cursor:pointer;flex:none;}
+  .m-follow.on{background:transparent;border:1px solid rgba(31,27,22,0.16);color:${C.textDark};padding:0 12px;}
+  .m-img{position:relative;display:block;width:100%;aspect-ratio:4/5;background:#EFE9DF;overflow:hidden;}
+  .m-img>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+  .m-img .jb-card-track{position:absolute;inset:0;}
+  .m-noimg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#E9E1D5;color:#3A332B;text-align:center;padding:24px;}
+  .m-noimg b{font-family:'Fraunces',serif;font-size:30px;font-weight:500;line-height:1.1;}
+  .m-acts{display:flex;align-items:center;gap:16px;padding:12px 14px 0;}
+  .m-ico{border:0;background:none;padding:0;color:${C.textDark};cursor:pointer;display:flex;}
+  .m-ico.on{color:${C.terracottaD};}
+  .m-apply{margin-left:auto;height:38px;padding:0 20px;display:inline-flex;align-items:center;border-radius:10px;background:${C.terracottaD};color:#fff;font-size:14px;font-weight:600;text-decoration:none;}
+  .m-txt{padding:10px 14px 0;}
+  .m-txt .t{font-family:'Fraunces',serif;font-size:20px;font-weight:500;line-height:1.2;color:${C.textDark};text-decoration:none;display:block;}
+  .m-txt .p{margin-top:4px;font-size:14px;} .m-txt .p b{font-weight:600;font-variant-numeric:tabular-nums;} .m-txt .p span{color:${C.textSoft};}
+  .m-txt .c{margin-top:6px;font-size:14px;line-height:20px;color:#3A332B;}
+  .m-txt .c .cl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .m-txt .c a{color:${C.textSoft};text-decoration:none;font-size:14px;}
+  .m-sales{margin:4px 14px 24px;padding:18px;border-radius:18px;background:#1F1B16;color:#F7F3EE;}
+  .m-sales h3{margin:14px 0 0;font-family:'Fraunces',serif;font-size:24px;font-weight:500;line-height:1.1;}
+  .m-sales .rail{margin:16px -18px 0;padding:0 18px;display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;}
+  .m-sales .rail::-webkit-scrollbar{display:none;}
+  .m-sales .rail a{flex:none;width:58%;scroll-snap-align:start;padding:14px;border-radius:14px;background:#2A2520;color:#F7F3EE;text-decoration:none;}
+  .m-sales .rail a.pop{border:1px solid rgba(227,162,127,0.55);}
+  .m-sales .rail .l{font-size:12px;color:#E3A27F;font-weight:500;}
+  .m-sales .rail .pr{margin-top:6px;font-family:'Fraunces',serif;font-size:28px;}
+  .m-sales .rail .pr small{font-family:'DM Sans',sans-serif;font-size:12px;color:#C9C0B3;}
+  .m-sales .rail .d{margin-top:4px;font-size:12px;color:#C9C0B3;}
+  .m-sales .go{margin-top:14px;display:flex;align-items:center;justify-content:center;height:46px;border-radius:12px;background:#F7F3EE;color:${C.textDark};font-size:15px;font-weight:600;text-decoration:none;}
+  .m-signup{margin:4px 14px 24px;padding:18px;border-radius:18px;background:#EFE9DF;display:flex;flex-direction:column;gap:10px;}
+  .m-signup b{font-family:'Fraunces',serif;font-size:22px;font-weight:500;}
+  .m-signup button,.m-signup a.e{height:48px;border-radius:12px;font:inherit;font-size:15px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;text-decoration:none;}
+  .m-signup button{border:1px solid #747775;background:#fff;color:#1F1F1F;}
+  .m-signup a.e{border:0;background:${C.terracottaD};color:#fff;}
+  .m-signup .li{text-align:center;font-size:14px;color:${C.textSoft};} .m-signup .li a{color:${C.textDark};font-weight:600;}
+  .m-end{padding:8px 14px 24px;text-align:center;font-size:13px;color:${C.textSoft};}
+  .m-empty{margin:24px 14px;padding:24px;border-radius:16px;background:#F2EDE5;text-align:center;font-size:14px;color:${C.textSoft};}
+  .m-nav{position:fixed;left:0;right:0;bottom:0;z-index:45;height:72px;padding:6px 6px calc(8px + env(safe-area-inset-bottom));box-sizing:content-box;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:rgba(253,251,248,0.95);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid rgba(31,27,22,0.08);}
+  .m-nav a,.m-nav button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:0;background:none;font:inherit;font-size:10px;font-weight:600;color:${C.textDark};text-decoration:none;cursor:pointer;}
+  .m-nav .post{color:${C.terracottaD};}
+  .m-nav .dot{position:absolute;top:2px;left:calc(50% + 6px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:${C.terracottaD};color:#fff;font-size:10px;line-height:16px;text-align:center;}
+  .m-sheet{position:fixed;inset:0;z-index:60;}
+  .m-sheet .bd{position:absolute;inset:0;border:0;background:rgba(24,20,16,0.45);cursor:pointer;}
+  .m-sheet .pn{position:absolute;left:0;right:0;bottom:0;padding:12px 20px calc(28px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:#FDFBF8;display:flex;flex-direction:column;gap:12px;animation:m-up 260ms cubic-bezier(0.22,1,0.36,1);}
+  @keyframes m-up{from{transform:translateY(24px);opacity:0}to{transform:none;opacity:1}}
+  .m-sheet .grab{align-self:center;width:40px;height:4px;border-radius:2px;background:rgba(31,27,22,0.18);}
+  .m-sheet h3{margin:0;font-family:'Fraunces',serif;font-size:24px;font-weight:500;line-height:1.15;}
+  .m-sheet p{margin:0;font-size:14px;line-height:20px;color:${C.textSoft};}
+  .m-sheet button.g,.m-sheet a.e{height:50px;border-radius:12px;font:inherit;font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;text-decoration:none;cursor:pointer;}
+  .m-sheet button.g{border:1px solid #747775;background:#fff;color:#1F1F1F;font-weight:500;}
+  .m-sheet a.e{background:${C.terracottaD};color:#fff;}
+  .m-sheet .x{position:absolute;top:14px;right:14px;width:36px;height:36px;border:0;border-radius:18px;background:#EFE9DF;display:grid;place-items:center;cursor:pointer;color:${C.textDark};}
+  .m-toast{position:fixed;left:16px;right:16px;bottom:96px;z-index:55;padding:12px 16px;border-radius:12px;background:#1F1B16;color:#F7F3EE;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,0.2);}
+  .m-browse .jb-browse{padding:0 14px 24px;}
 `
 
 // Same Google sign-in the /app login screen uses; lands on /app signed in.
@@ -291,91 +472,6 @@ function AuthButtons() {
     <div className="jb-menu-auth">
       <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
       <Link to={LINKS.login}><MailIcon/> Log in with email</Link>
-      <StayLoggedIn/>
-    </div>
-  )
-}
-
-function SiteHeader({ signedIn, onHome }) {
-  // Which dropdown is open: null, 'menu' (hamburger) or 'login'
-  const [open, setOpen] = useState(null)
-  const toggle = (which) => setOpen(o => (o === which ? null : which))
-
-  // Close on Escape or a tap outside the header
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(null) }
-    const onDown = (e) => { if (!e.target.closest('.jb-nav')) setOpen(null) }
-    document.addEventListener('keydown', onKey)
-    document.addEventListener('pointerdown', onDown)
-    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
-  }, [open])
-
-  const loginBtn = (extra) => signedIn
-    ? <Link to={LINKS.account} className={`jb-btn jb-btn-solid ${extra}`}>My account</Link>
-    : <button type="button" className={`jb-btn jb-btn-ghost ${extra} ${open === 'login' ? 'is-open' : ''}`}
-        aria-expanded={open === 'login'} aria-controls="jb-login-panel" onClick={() => toggle('login')}>
-        Log in
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true" style={{ marginLeft:6, transform: open === 'login' ? 'rotate(180deg)' : 'none', transition:'transform 0.15s' }}><polyline points="6,9 12,15 18,9"/></svg>
-      </button>
-
-  return (
-    <nav className="jb-nav">
-      <Link to={LINKS.home} className="jb-logo"><span>Hospo</span>Search</Link>
-      <div className="jb-links">
-        <Link to={LINKS.home} className={onHome ? 'on' : ''} aria-current={onHome ? 'page' : undefined}>Jobs</Link>
-        <Link to={LINKS.pricing}>Pricing</Link>
-        <Link to={LINKS.about}>About</Link>
-      </div>
-      <div className="jb-acts">
-        <Link to={LINKS.post} className="jb-btn jb-btn-outline">+ Post a job</Link>
-        {loginBtn('')}
-        {!signedIn && <Link to={LINKS.signup} className="jb-btn jb-btn-solid">Sign up free</Link>}
-      </div>
-      {loginBtn('jb-mlogin')}
-      <button className="jb-menu-btn" aria-label={open === 'menu' ? 'Close menu' : 'Open menu'} aria-expanded={open === 'menu'} onClick={() => toggle('menu')}>
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDark} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          {open === 'menu' ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
-        </svg>
-      </button>
-
-      {/* Hamburger menu (mobile) */}
-      <div className={`jb-menu ${open === 'menu' ? 'open' : ''}`} onClick={() => setOpen(null)}>
-        <Link to={LINKS.home}>Jobs</Link>
-        <Link to={LINKS.pricing}>Pricing</Link>
-        <Link to={LINKS.about}>About</Link>
-        {signedIn && <Link to={LINKS.account}>My account</Link>}
-        <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
-      </div>
-
-      {/* Log in dropdown (mobile: full width like the menu; desktop: under the button) */}
-      {!signedIn && (
-        <div id="jb-login-panel" className={`jb-menu jb-login-panel ${open === 'login' ? 'open' : ''}`}>
-          <div className="jb-serif" style={{ fontSize:20, fontWeight:700, paddingTop:6 }}>Log in or sign up</div>
-          <span className="lbl">Free for job seekers — save jobs and apply in one tap.</span>
-          <AuthButtons/>
-          <div className="jb-login-foot">
-            <Link to={LINKS.signup} onClick={() => setOpen(null)}>New here? Create an account</Link>
-            <Link to="/app?login=1&type=employer" onClick={() => setOpen(null)}>Employer log in →</Link>
-          </div>
-        </div>
-      )}
-    </nav>
-  )
-}
-
-// Sign-in prompt that sits in the job list (after the first few jobs) instead of
-// at the top, so people see jobs first. Only shown to logged-out visitors.
-function SignInCard() {
-  return (
-    <div className="jb-login">
-      <div className="jb-serif" style={{ fontSize:22, fontWeight:700, lineHeight:1.2 }}>Save jobs &amp; apply in one tap</div>
-      <p>Free for job seekers. Log in or sign up in seconds.</p>
-      <button type="button" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
-      <Link to={LINKS.login}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>
-        Log in with email
-      </Link>
       <StayLoggedIn/>
     </div>
   )
@@ -440,52 +536,6 @@ function CardPhotos({ photos, alt }) {
   )
 }
 
-function JobCard({ job }) {
-  const [copied, setCopied] = useState(false)
-  const first = job.photos?.[0]
-  const hasImg = isData(first)
-  const pbg = PBG[typeof job.photos?.[0]==="number" ? job.photos[0]%PBG.length : 0]
-  return (
-    <Link to={`/jobs/${job.id}`} className="jb-card">
-      <div className="jb-card-img" style={{ background:pbg }}>
-        {hasImg
-          ? <CardPhotos photos={(job.photos||[]).filter(isData)} alt={`${job.title} at ${job.venue}`}/>
-          : <div style={{ width:"100%", height:"100%", background:"#fff", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:10, position:"relative", overflow:"hidden" }}>
-              <div style={{ position:"absolute", inset:0, backgroundImage:"radial-gradient(circle, #C9A96E 1px, transparent 1px)", backgroundSize:"22px 22px", opacity:0.1 }}/>
-              <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
-              <div className="jb-serif" style={{ fontSize:18, fontWeight:700, color:"#0F0E0C", textAlign:"center", padding:"0 18px", lineHeight:1.25, letterSpacing:"-0.3px", maxWidth:"90%", position:"relative" }}>{job.venue||"HospoSearch"}</div>
-              <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <div style={{ width:24, height:"0.5px", background:"#0F0E0C" }}/>
-                <div style={{ width:4, height:4, background:"#0F0E0C", transform:"rotate(45deg)" }}/>
-                <div style={{ width:24, height:"0.5px", background:"#0F0E0C" }}/>
-              </div>
-              {(job.loc||"").split(",")[0].trim() && <div style={{ fontSize:9, color:"#3A3733", letterSpacing:"2.5px", textTransform:"uppercase", fontWeight:500 }}>{(job.loc||"").split(",")[0].trim()}</div>}
-              <div style={{ width:44, height:1, background:"#0F0E0C" }}/>
-            </div>}
-        {job.tier === 'shift'
-            ? <div className="jb-badge" style={{ background:"#C0392B", borderColor:"#C0392B", color:"#fff" }}>⚡ Urgent</div>
-            : job.featured && <div className="jb-badge">★ Featured</div>}
-        {isNewListing(job) && <div className="jb-new">New listing</div>}
-        <button
-          className="jb-card-share"
-          title="Share this role"
-          onClick={(e) => { e.preventDefault(); e.stopPropagation(); shareJob(job, () => { setCopied(true); setTimeout(()=>setCopied(false), 1500) }) }}
-        >{copied ? "✓" : "↗"}</button>
-      </div>
-      <div className="jb-card-body">
-        <div className="jb-venue">{job.venue}</div>
-        <div className="jb-title jb-serif">{job.title}</div>
-        <div className="jb-salary">{fmtSalary(job)}</div>
-        <div className="jb-short">{stripTags(job.short)}</div>
-        <div className="jb-meta">
-          <span>{job.loc} · {ago(job.ts)} ago</span>
-          <span className="role">View role →</span>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
 // ─── List view ────────────────────────────────────────────────────────────────
 // Internal links to role / location pages — helps Google find them, helps people browse
 function BrowseLinks({ jobs, only }) {
@@ -530,27 +580,223 @@ function JobMap({ job }) {
   )
 }
 
+// ─── Shared helpers for the homepage ──────────────────────────────────────────
+// "Featured" means a venue paid for it. Listings HospoSearch adds itself are
+// never shown as Featured, even if the flag is set, so the badge always means paid.
+const isPaidFeatured = (j) => !!j?.featured && !!j?.empId && j.empId !== 'admin'
+// Only listings posted from a real employer account have a venue to follow.
+const canFollow = (j) => !!j?.empId && j.empId !== 'admin'
+const STATE_ABBR = { 'New South Wales':'NSW', 'Victoria':'VIC', 'Queensland':'QLD', 'Western Australia':'WA', 'South Australia':'SA', 'Tasmania':'TAS', 'Northern Territory':'NT', 'Australian Capital Territory':'ACT' }
+function placeOf(j) {
+  const city = (j.city || (j.loc || '').split(',')[0] || '').trim()
+  const tail = j.country === 'Australia' ? (STATE_ABBR[j.state] || j.state) : j.country === 'New Zealand' ? 'NZ' : j.country === 'United Kingdom' ? 'UK' : j.country
+  return [city, tail].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', ')
+}
+const isComp = (j) => !j.salary || /^competitive$/i.test(j.salary.trim()) || /^not stated$/i.test(j.salary.trim())
+const payOf = (j) => isComp(j) ? 'Competitive' : fmtSalary(j)
+const realPhotos = (j) => (j.photos || []).filter(isData)
+
+// Where Apply goes. Same rules as the job page: through HospoSearch whenever the
+// venue has an apply email; the venue's own site only when there's no other way.
+function applyLink(job, signedIn) {
+  const ext = job.link && job.link.trim() && job.link.trim() !== '#' && !(job.applyEmail && job.applyEmail.trim())
+  if (ext) return { href: trackedLink(job.link), external: true }
+  return { to: signedIn === false ? `/app?apply=${job.id}` : '/app', external: false }
+}
+const rememberApply = (job) => { try { localStorage.setItem('hs_apply_after_login', JSON.stringify({ id: job.id, ts: Date.now() })) } catch (e) {} }
+
+function ApplyButton({ job, signedIn, className, children }) {
+  const a = applyLink(job, signedIn)
+  if (a.external) return <a href={a.href} target="_blank" rel="noopener" className={className}>{children}</a>
+  return <Link to={a.to} className={className} onClick={() => rememberApply(job)}>{children}</Link>
+}
+
+const Ico = ({ d, size = 24, sw = 1.6, fill = 'none' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" dangerouslySetInnerHTML={{ __html: d }} />
+)
+const IC = {
+  search: '<circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path>',
+  book: '<path d="M19 21 12 16 5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>',
+  share: '<path d="M22 2 11 13"></path><path d="M22 2 15 22l-4-9-9-4z"></path>',
+  home: '<path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"></path>',
+  plus: '<rect x="3" y="3" width="18" height="18" rx="5"></rect><path d="M12 8v8M8 12h8"></path>',
+  user: '<circle cx="12" cy="8" r="4"></circle><path d="M4 20c1.5-3.5 4.5-5 8-5s6.5 1.5 8 5"></path>',
+  map: '<path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"></path><path d="M9 4v13.5M15 6.5V20"></path>',
+  x: '<path d="M18 6 6 18M6 6l12 12"></path>',
+  back: '<path d="m15 18-6-6 6-6"></path>',
+}
+
+// Distinct venues for the "Hiring now" row, paying venues first.
+function hiringVenues(jobs, n = 6) {
+  const seen = new Set(), out = []
+  for (const j of [...jobs].sort((a, b) => (isPaidFeatured(b) ? 1 : 0) - (isPaidFeatured(a) ? 1 : 0))) {
+    const v = (j.venue || '').trim()
+    if (!v || v === 'HospoSearch' || seen.has(v.toLowerCase())) continue
+    seen.add(v.toLowerCase()); out.push(v)
+    if (out.length >= n) break
+  }
+  return out
+}
+
+function SiteHeader({ signedIn, onHome }) {
+  // Which dropdown is open: null, 'menu' (hamburger) or 'login'
+  const [open, setOpen] = useState(null)
+  const toggle = (which) => setOpen(o => (o === which ? null : which))
+
+  // Close on Escape or a tap outside the header
+  useEffect(() => {
+    if (!open) return
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(null) }
+    const onDown = (e) => { if (!e.target.closest('.jb-nav')) setOpen(null) }
+    document.addEventListener('keydown', onKey)
+    document.addEventListener('pointerdown', onDown)
+    return () => { document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+  }, [open])
+
+  const loginBtn = (extra) => signedIn
+    ? <Link to={LINKS.account} className={`jb-btn jb-btn-dark ${extra}`}>My account</Link>
+    : <button type="button" className={`jb-btn jb-btn-login ${extra} ${open === 'login' ? 'is-open' : ''}`}
+        aria-expanded={open === 'login'} aria-controls="jb-login-panel" onClick={() => toggle('login')}>
+        <Ico d={IC.user} size={16} />
+        Log in
+      </button>
+
+  return (
+    <nav className="jb-nav">
+      <Link to={LINKS.home} className="jb-logo"><span>Hospo</span>Search</Link>
+      <div className="jb-links">
+        <Link to={LINKS.home} className={onHome ? 'on' : ''} aria-current={onHome ? 'page' : undefined}>Jobs</Link>
+        <Link to={LINKS.pricing}>Pricing</Link>
+        <Link to={LINKS.about}>About</Link>
+      </div>
+      <div className="jb-acts">
+        <Link to={LINKS.post} className="jb-btn jb-btn-post">Post a job</Link>
+        <span className="jb-acts-div" aria-hidden="true" />
+        {loginBtn('')}
+        {!signedIn && <Link to={LINKS.signup} className="jb-btn jb-btn-dark">Sign up free</Link>}
+      </div>
+      {loginBtn('jb-mlogin')}
+      <button className="jb-menu-btn" aria-label={open === 'menu' ? 'Close menu' : 'Open menu'} aria-expanded={open === 'menu'} onClick={() => toggle('menu')}>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={C.textDark} strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          {open === 'menu' ? <path d="M6 6l12 12M18 6 6 18"/> : <path d="M4 7h16M4 12h16M4 17h16"/>}
+        </svg>
+      </button>
+
+      {/* Hamburger menu (mobile) */}
+      <div className={`jb-menu ${open === 'menu' ? 'open' : ''}`} onClick={() => setOpen(null)}>
+        <Link to={LINKS.home}>Jobs</Link>
+        <Link to={LINKS.pricing}>Pricing</Link>
+        <Link to={LINKS.about}>About</Link>
+        {signedIn && <Link to={LINKS.account}>My account</Link>}
+        <Link to={LINKS.post} className="jb-menu-cta">Post a job</Link>
+      </div>
+
+      {/* Log in dropdown (mobile: full width like the menu; desktop: under the button) */}
+      {!signedIn && (
+        <div id="jb-login-panel" className={`jb-menu jb-login-panel ${open === 'login' ? 'open' : ''}`}>
+          <div className="jb-serif" style={{ fontSize:20, fontWeight:500, paddingTop:6 }}>Log in or sign up</div>
+          <span className="lbl">Free for job seekers. Save jobs and apply in one tap.</span>
+          <AuthButtons/>
+          <div className="jb-login-foot">
+            <Link to={LINKS.signup} onClick={() => setOpen(null)}>New here? Create an account</Link>
+            <Link to="/app?login=1&type=employer" onClick={() => setOpen(null)}>Employer log in →</Link>
+          </div>
+        </div>
+      )}
+    </nav>
+  )
+}
+
+// Sign-up panel that sits in the job list after the first row, so people see jobs first.
+// Only shown to logged-out visitors.
+function SignInCard() {
+  return (
+    <div className="jb-login">
+      <div className="txt">
+        <div className="jb-serif" style={{ fontSize:22, fontWeight:500, lineHeight:1.2 }}>Save roles and apply in one tap</div>
+        <p style={{ marginTop:4 }}>Free for job seekers. Already a member? <Link to={LINKS.login} style={{ color:C.textDark, fontWeight:600, textDecoration:'underline', minHeight:0, padding:0, display:'inline', background:'none' }}>Log in</Link></p>
+      </div>
+      <button type="button" onClick={signInWithGoogle}><GoogleG/> Sign up with Google</button>
+      <Link to={LINKS.signup} className="dark">Sign up free with email</Link>
+    </div>
+  )
+}
+
+function JobCard({ job }) {
+  const photos = realPhotos(job)
+  return (
+    <Link to={`/jobs/${job.id}`} className="jb-card">
+      <div className="jb-card-img">
+        {photos.length
+          ? <CardPhotos photos={photos} alt={`${job.title} at ${job.venue}`}/>
+          : <div className="m-noimg"><b>{job.venue || 'HospoSearch'}</b><span style={{ fontSize:13, color:C.textSoft }}>{placeOf(job)}</span></div>}
+        {job.tier === 'shift'
+          ? <div className="jb-badge">Shift cover</div>
+          : isPaidFeatured(job) && <div className="jb-badge">Featured</div>}
+        {isNewListing(job) && <div className="jb-new">New</div>}
+      </div>
+      <div className="jb-card-body">
+        <div className="jb-venue">{job.venue}</div>
+        <div className="jb-title jb-serif">{job.title}</div>
+        {stripTags(job.short) && <div className="jb-short">{stripTags(job.short)}</div>}
+        <div className="jb-line">
+          <span>{placeOf(job)}</span><i aria-hidden="true" />
+          <b className={isComp(job) ? 'comp' : ''}>{payOf(job)}</b>
+        </div>
+        <div className="jb-meta2">{[job.type, ago(job.ts) === 'today' ? 'Posted today' : `Posted ${ago(job.ts)} ago`].filter(Boolean).join(' · ')}</div>
+      </div>
+    </Link>
+  )
+}
+
+const COUNTRY_ORDER = ['Australia', 'New Zealand', 'United Kingdom', 'Ireland']
+const sortCountries = (list) => [...list].sort((a, b) => {
+  const ia = COUNTRY_ORDER.indexOf(a), ib = COUNTRY_ORDER.indexOf(b)
+  return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b)
+})
+const searchHay = (j) => `${j.title} ${j.venue} ${j.loc} ${j.city} ${j.state} ${j.country} ${j.address} ${j.sector} ${j.roleType} ${(j.tags||[]).join(" ")}`.toLowerCase()
+const matchesQuery = (j, q) => {
+  if (!q.trim()) return true
+  // Every word typed must appear somewhere. City and address are included so
+  // "gold coast" finds a Southport venue and "burleigh" finds one listed under Gold Coast.
+  const hay = searchHay(j)
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
+}
+// Paying venues first, then everyone else in the shuffled feed order.
+const paidFirst = (list) => [...list].sort((a, b) => (isPaidFeatured(b) ? 1 : 0) - (isPaidFeatured(a) ? 1 : 0))
+
+function VenuesSection() {
+  return (
+    <section className="jb-venues" aria-label="For venues">
+      <div className="jb-venues-in">
+        <div style={{ flex:'1 1 400px', minWidth:0 }}>
+          <div style={{ fontSize:13, fontWeight:500, color:'#E3A27F' }}>For venues</div>
+          <h2>Put your role in front of hospo people who want it</h2>
+          <p>Chefs, front of house and managers across Australia and New Zealand look for their next role here. Pay per listing or subscribe if you're always hiring.</p>
+          <div className="jb-vbtns">
+            <Link to={LINKS.post} className="p">Post my job from $9.95</Link>
+            <Link to={LINKS.pricing} className="s">See pricing</Link>
+          </div>
+        </div>
+        <div className="jb-tiers">
+          <Link to="/app?tier=shift&mode=listing" className="jb-tier"><span className="l">Shift cover</span><span className="pr">$9.95</span><span className="d">A 3-day listing for extra hands on a busy weekend or event</span><span className="go">Post a shift cover →</span></Link>
+          <Link to="/app?tier=bronze&mode=listing" className="jb-tier pop"><span className="l">Single role</span><span className="pr"><small>from </small>$50</span><span className="d">A full listing, live for 30 days</span><span className="go">Post a role →</span></Link>
+          <Link to="/app?tier=starter&mode=subscription" className="jb-tier"><span className="l">Hiring multiple roles</span><span className="pr"><small>from </small>$125<small>/mo</small></span><span className="d">A subscription for venues and groups always hiring</span><span className="go">See plans →</span></Link>
+        </div>
+      </div>
+    </section>
+  )
+}
+
 function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
   const jobs = useMemo(() => landing ? allJobs.filter(j => jobMatchesLanding(j, landing)) : allJobs, [allJobs, landing])
   const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
   const [q, setQ] = useState("")
   const [country, setCountry] = useState("All")
+  const listRef = useRef(null)
 
-  const countries = useMemo(() => {
-    const set = new Set(jobs.map(j=>j.country).filter(Boolean))
-    return ["All", ...Array.from(set)]
-  }, [jobs])
-
-  const filtered = useMemo(() => {
-    return jobs.filter(j => {
-      if (country!=="All" && j.country!==country) return false
-      if (!q.trim()) return true
-      // Every word typed must appear somewhere. City and address are included so
-      // "gold coast" finds a Southport venue and "burleigh" finds one listed under Gold Coast.
-      const hay = `${j.title} ${j.venue} ${j.loc} ${j.city} ${j.state} ${j.country} ${j.address} ${j.sector} ${j.roleType} ${(j.tags||[]).join(" ")}`.toLowerCase()
-      return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
-    })
-  }, [jobs, q, country])
+  const countries = useMemo(() => ["All", ...sortCountries(Array.from(new Set(jobs.map(j=>j.country).filter(Boolean))))], [jobs])
+  const filtered = useMemo(() => paidFirst(jobs.filter(j => (country === "All" || j.country === country) && matchesQuery(j, q))), [jobs, q, country])
 
   // Structured data for these pages is rendered server-side (api/seo.js)
   useSEO({
@@ -562,52 +808,371 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
     jsonLd: null,
   })
 
+  const showcase = useMemo(() => paidFirst(jobs.filter(j => realPhotos(j).length)).slice(0, 3), [jobs])
+  const venues = useMemo(() => hiringVenues(jobs), [jobs])
+  const toList = () => { try { listRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }) } catch (e) {} }
+
   return (
     <>
-      <div className="jb-hero">
-        {copy
-          ? <h1 className="jb-serif">{copy.h1}</h1>
-          : <h1 className="jb-serif">Find your next great <em>hospitality role</em></h1>}
-        <p>{loading ? "Loading roles…" : copy ? copy.intro : `${jobs.length} role${jobs.length!==1?"s":""} across Australia, New Zealand & beyond`}</p>
-        <div className="jb-search">
-          <span style={{ color:C.textSoft }}>🔍</span>
-          <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles — Chef, Sommelier, Floor Manager…" aria-label="Search roles" />
+      {copy ? (
+        <div className="jb-hero">
+          <h1 className="jb-serif" style={{ fontWeight:500 }}>{copy.h1}</h1>
+          <p>{loading ? "Loading roles…" : copy.intro}</p>
+          <div className="jb-search">
+            <Ico d={IC.search} size={18} />
+            <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search roles, venues or cities" aria-label="Search roles" />
+          </div>
         </div>
-      </div>
-      {countries.length>2 && (
+      ) : (
+        <section className="jb-scene">
+          <img src="/hero-cafe.jpg" alt="" fetchpriority="high" />
+          <div className="jb-scene-in">
+            <div style={{ maxWidth:600 }}>
+              <div className="jb-live"><i aria-hidden="true" />{loading ? 'Loading roles' : `${jobs.length} roles live today`}</div>
+              <h1>Your next venue is <span>hiring</span></h1>
+              <p className="sub">Chefs, sommeliers, waitstaff and managers. Roles at hatted, Michelin and neighbourhood venues across Australia and New Zealand</p>
+              <form className="jb-hsearch" role="search" onSubmit={e => { e.preventDefault(); toList() }}>
+                <Ico d={IC.search} size={18} />
+                <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Role, venue or city" aria-label="Search roles" />
+                <button type="submit">Search jobs</button>
+              </form>
+              <div className="jb-hiring">
+                <span><strong>Hiring?</strong> Reach hospo people across AU and NZ</span>
+                <Link to={LINKS.post}>Post my job from $9.95 →</Link>
+              </div>
+              {countries.length > 2 && (
+                <div className="jb-cchips" role="group" aria-label="Country">
+                  {countries.map(c => <button key={c} type="button" className={country===c ? 'on' : ''} aria-pressed={country===c} onClick={()=>{ setCountry(c); toList() }}>{c === 'All' ? 'All regions' : c}</button>)}
+                  <Link to="/map"><Ico d={IC.map} size={16} />Map</Link>
+                </div>
+              )}
+            </div>
+            {showcase.length >= 2 && (
+              <div className="jb-float">
+                {showcase.map(j => (
+                  <Link key={j.id} to={`/jobs/${j.id}`}>
+                    <img src={realPhotos(j)[0]} alt="" loading="lazy" />
+                    <div style={{ display:'flex', flexDirection:'column', justifyContent:'center', gap:4, minWidth:0 }}>
+                      <span className="v">{j.venue} · {(j.city || placeOf(j)).split(',')[0]}</span>
+                      <span className="t">{j.title}</span>
+                      <span className="p">{payOf(j)}</span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {!copy && venues.length > 0 && (
+        <section className="jb-venuerow" aria-label="Venues hiring">
+          <div><small>Hiring now on HospoSearch</small>{venues.map(v => <b key={v}>{v}</b>)}</div>
+        </section>
+      )}
+
+      {copy && countries.length > 2 && (
         <div className="jb-filters">
           {countries.map(c => (
             <button key={c} className={`jb-pill ${country===c?"active":""}`} aria-pressed={country===c} onClick={()=>setCountry(c)}>{c}</button>
           ))}
         </div>
       )}
-      <div style={{ textAlign:"center", padding:"0 20px" }}>
-        <Link to={LINKS.post} className="jb-post">Hiring? Post a job from $9.95 →</Link>
-        <div><Link to="/map" className="jb-maplink">📍 Browse jobs on a map</Link></div>
+
+      <div className="jb-listhead" ref={listRef} style={{ scrollMarginTop:72 }}>
+        <h2>{loading ? 'Loading roles' : `${filtered.length} ${filtered.length === 1 ? 'role' : 'roles'}`} <span>{q.trim() ? `· matching “${q.trim()}”` : country !== 'All' ? `· ${country}` : ''}</span></h2>
+        {(q || country !== 'All') && <button type="button" className="jb-btn jb-btn-login" onClick={() => { setQ(''); setCountry('All') }}>Clear filters</button>}
       </div>
       {loading ? (
         <div className="jb-empty">Loading hospitality roles…</div>
       ) : filtered.length===0 ? (
         <div className="jb-empty">
-          <div style={{ fontSize:40, marginBottom:12 }}>🔍</div>
-          <div>No roles match your search just yet.</div>
+          <div style={{ marginBottom:12 }}>No roles match your search just yet.</div>
+          <button type="button" className="jb-btn jb-btn-login" onClick={() => { setQ(''); setCountry('All') }}>Show all roles</button>
         </div>
       ) : (
         <div className="jb-grid">
           {filtered.map((j, i) => (
             <Fragment key={j.id}>
               <JobCard job={j} />
-              {signedIn === false && i === Math.min(3, filtered.length - 1) && <SignInCard />}
+              {signedIn === false && i === Math.min(5, filtered.length - 1) && <SignInCard />}
             </Fragment>
           ))}
         </div>
       )}
-      {landing && <div style={{ textAlign:"center", paddingBottom:8 }}><Link to="/" className="jb-nav-cta">See all hospitality jobs</Link></div>}
+      {landing && <div style={{ textAlign:"center", paddingBottom:24 }}><Link to="/" className="jb-btn jb-btn-dark">See all hospitality jobs</Link></div>}
       {!loading && <BrowseLinks jobs={allJobs} />}
+      <VenuesSection />
       <div className="jb-footer">
         Are you hiring? <Link to={LINKS.post}>Post a role on HospoSearch →</Link> · <Link to={LINKS.about}>About HospoSearch</Link>
       </div>
     </>
+  )
+}
+
+// ─── Mobile homepage: an Instagram-style feed ─────────────────────────────────
+const ROLE_STORIES = [
+  { key:'chef', label:'Chefs', words:['chef','cook','commis','cdp','kitchen'] },
+  { key:'foh', label:'Front of house', words:['waiter','waitstaff','wait staff','server','front of house','host','section','barista','bartender'] },
+  { key:'som', label:'Sommeliers', words:['sommelier','wine'] },
+  { key:'bar', label:'Bartenders', words:['bartender','bar manager','mixolog'] },
+  { key:'mgr', label:'Managers', words:['manager','supervisor','lead'] },
+  { key:'pastry', label:'Pastry', words:['pastry','baker','patiss'] },
+]
+const roleMatch = (j, story) => { const t = ` ${(j.title||'').toLowerCase()} `; return story.words.some(w => t.includes(w)) }
+
+function useIsMobile() {
+  const q = '(max-width: 860px)'
+  const [m, setM] = useState(() => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(q).matches)
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const mq = window.matchMedia(q)
+    const f = () => setM(mq.matches)
+    f()
+    mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f)
+    return () => { mq.removeEventListener ? mq.removeEventListener('change', f) : mq.removeListener(f) }
+  }, [])
+  return m
+}
+
+function MobilePost({ job, signedIn, saved, following, onSave, onFollow, onShare }) {
+  const photos = realPhotos(job)
+  const short = stripTags(job.short)
+  return (
+    <article className="m-post">
+      <div className="m-ph">
+        <span className="m-av">{photos[0] ? <img src={photos[0]} alt="" loading="lazy" /> : (job.venue || 'H').charAt(0)}</span>
+        <div className="m-vn">
+          <b>{job.venue}{isPaidFeatured(job) && <em> · Featured</em>}{job.tier === 'shift' && <em> · Shift cover</em>}</b>
+          <small>{placeOf(job)}</small>
+        </div>
+        {canFollow(job) && (
+          <button type="button" className={`m-follow ${following ? 'on' : ''}`} aria-pressed={following} onClick={() => onFollow(job)}>{following ? 'Following' : 'Follow'}</button>
+        )}
+      </div>
+      <Link to={`/jobs/${job.id}`} className="m-img" aria-label={`${job.title} at ${job.venue}`}>
+        {photos.length
+          ? (photos.length > 1 ? <CardPhotos photos={photos} alt={`${job.title} at ${job.venue}`} /> : <img src={photos[0]} alt={`${job.title} at ${job.venue}`} loading="lazy" />)
+          : <div className="m-noimg"><b>{job.venue || 'HospoSearch'}</b><span style={{ fontSize:13, color:C.textSoft }}>{placeOf(job)}</span></div>}
+      </Link>
+      <div className="m-acts">
+        <button type="button" className={`m-ico ${saved ? 'on' : ''}`} aria-label={saved ? 'Saved' : 'Save role'} aria-pressed={saved} onClick={() => onSave(job)}>
+          <Ico d={IC.book} fill={saved ? 'currentColor' : 'none'} />
+        </button>
+        <button type="button" className="m-ico" aria-label="Share role" onClick={() => onShare(job)}><Ico d={IC.share} /></button>
+        <ApplyButton job={job} signedIn={signedIn} className="m-apply">Apply</ApplyButton>
+      </div>
+      <div className="m-txt">
+        <Link to={`/jobs/${job.id}`} className="t">{job.title}</Link>
+        <div className="p"><b>{payOf(job)}</b><span>{[job.type, ago(job.ts) === 'today' ? 'today' : `${ago(job.ts)} ago`].filter(Boolean).map(x => ` · ${x}`).join('')}</span></div>
+        {short && <div className="c"><span className="cl"><b style={{ fontWeight:600, color:C.textDark }}>{job.venue}</b> {short}</span><Link to={`/jobs/${job.id}`}>more</Link></div>}
+      </div>
+    </article>
+  )
+}
+
+function MobileSales() {
+  return (
+    <section className="m-sales" aria-label="For venues">
+      <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+        <span style={{ width:36, height:36, borderRadius:18, display:'grid', placeItems:'center', background:C.terracottaD, color:'#fff' }}><Ico d={IC.plus} size={20} /></span>
+        <div style={{ lineHeight:1.25 }}><div style={{ fontSize:15, fontWeight:600 }}>Hiring?</div><div style={{ fontSize:12, color:'#C9C0B3' }}>Reach hospo people across AU and NZ</div></div>
+      </div>
+      <h3>Put your role in front of hospo people who want it</h3>
+      <div className="rail">
+        <Link to="/app?tier=shift&mode=listing"><div className="l">Shift cover</div><div className="pr">$9.95</div><div className="d">3-day listing</div></Link>
+        <Link to="/app?tier=bronze&mode=listing" className="pop"><div className="l">Single role</div><div className="pr"><small>from </small>$50</div><div className="d">Live for 30 days</div></Link>
+        <Link to="/app?tier=starter&mode=subscription"><div className="l">Multiple roles</div><div className="pr"><small>from </small>$125<small>/mo</small></div><div className="d">Subscription</div></Link>
+        <span style={{ flex:'none', width:4 }} />
+      </div>
+      <Link to={LINKS.post} className="go">Post my job</Link>
+    </section>
+  )
+}
+
+function MobileSignup() {
+  return (
+    <section className="m-signup">
+      <b>Save roles and apply in one tap</b>
+      <span style={{ fontSize:14, color:C.textSoft }}>Free for job seekers</span>
+      <button type="button" onClick={signInWithGoogle}><GoogleG/> Sign up with Google</button>
+      <Link to={LINKS.signup} className="e">Sign up free with email</Link>
+      <div className="li">Already a member? <Link to={LINKS.login}>Log in</Link></div>
+    </section>
+  )
+}
+
+function MobileHome({ jobs: allJobs, loading, landing, signedIn, home }) {
+  const jobs = useMemo(() => landing ? allJobs.filter(j => jobMatchesLanding(j, landing)) : allJobs, [allJobs, landing])
+  const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
+  const [q, setQ] = useState('')
+  const [country, setCountry] = useState('All')
+  const [role, setRole] = useState(null)
+  const [onlySaved, setOnlySaved] = useState(false)
+  const [profile, setProfile] = useState(null)
+  const [saved, setSaved] = useState([])
+  const [following, setFollowing] = useState([])
+  const [sheet, setSheet] = useState(null)
+  const [toast, setToast] = useState('')
+  const searchRef = useRef(null)
+  const toastTimer = useRef(null)
+
+  useSEO({
+    title: copy ? copy.title : home ? "HospoSearch — Hospitality Jobs in Australia & New Zealand" : "Hospitality Jobs in Australia, New Zealand & Beyond | HospoSearch",
+    description: copy ? copy.description : "Browse chef, sommelier, venue manager and front-of-house roles across Australia, New Zealand and the world's best restaurants. Updated daily on HospoSearch.",
+    canonical: landing ? `https://www.hosposearch.com/jobs/${landing.group}-jobs${landing.place ? "-"+landing.place : ""}` : "https://www.hosposearch.com/",
+    jsonLd: null,
+  })
+
+  // Signed-in job seekers: load their profile, saved roles and followed venues.
+  useEffect(() => {
+    if (!signedIn) { setProfile(null); return }
+    let alive = true
+    getMyProfile().then(p => {
+      if (!alive || !p?.id) return
+      setProfile(p)
+      fetchBookmarks(p.id).then(ids => { if (alive) setSaved(ids.map(String)) }).catch(() => {})
+      fetchFollowing(p.id).then(ids => { if (alive) setFollowing(ids.map(String)) }).catch(() => {})
+    }).catch(() => {})
+    return () => { alive = false }
+  }, [signedIn])
+
+  const flash = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(''), 2400) }
+  const top = () => { try { window.scrollTo({ top: 0, behavior: 'smooth' }) } catch (e) { window.scrollTo(0, 0) } }
+
+  const onSave = async (job) => {
+    const id = String(job.id)
+    if (!signedIn || !profile?.id) {
+      stashAfterLogin({ kind: 'save', jobId: job.id })
+      setSheet({ title: 'Log in to save this role' }); return
+    }
+    const on = saved.includes(id)
+    setSaved(s => on ? s.filter(x => x !== id) : [...s, id])
+    try { await toggleBookmark(profile.id, job.id, on); flash(on ? 'Removed from your saved roles' : 'Saved to your profile') }
+    catch (e) { setSaved(s => on ? [...s, id] : s.filter(x => x !== id)); flash("Couldn't save that. Try again") }
+  }
+  const onFollow = async (job) => {
+    const emp = String(job.empId)
+    if (!signedIn || !profile?.id) {
+      stashAfterLogin({ kind: 'follow', employerId: job.empId })
+      setSheet({ title: `Log in to follow ${job.venue}` }); return
+    }
+    const on = following.includes(emp)
+    setFollowing(f => on ? f.filter(x => x !== emp) : [...f, emp])
+    try { await setFollow(profile.id, job.empId, !on); if (!on) flash(`Following ${job.venue}`) }
+    catch (e) { setFollowing(f => on ? [...f, emp] : f.filter(x => x !== emp)); flash("Couldn't follow. Try again") }
+  }
+  const onShare = (job) => shareJob(job, () => flash('Link copied'))
+
+  const story = ROLE_STORIES.find(s => s.key === role)
+  const countries = useMemo(() => ["All", ...sortCountries(Array.from(new Set(jobs.map(j=>j.country).filter(Boolean))))], [jobs])
+  const list = useMemo(() => paidFirst(jobs.filter(j =>
+    (!onlySaved || saved.includes(String(j.id))) &&
+    (country === 'All' || j.country === country) &&
+    (!story || roleMatch(j, story)) &&
+    matchesQuery(j, q)
+  )), [jobs, onlySaved, saved, country, story, q])
+  const storyImg = (s) => { const j = jobs.find(x => roleMatch(x, s) && realPhotos(x).length); return j ? realPhotos(j)[0] : null }
+
+  const filtered = !!(q.trim() || role || onlySaved || country !== 'All')
+  let what = onlySaved ? 'Saved roles' : story ? story.label : q.trim() ? `“${q.trim()}”` : country !== 'All' ? country : ''
+  if (!onlySaved && story && country !== 'All') what += ` in ${country}`
+  if (!onlySaved && story && q.trim()) what += ` · “${q.trim()}”`
+  const heading = filtered ? `${what} · ${list.length} ${list.length === 1 ? 'role' : 'roles'}` : (loading ? 'Loading roles' : copy ? copy.h1 : `${jobs.length} roles live today`)
+  const reset = () => { setQ(''); setRole(null); setCountry('All'); setOnlySaved(false); top() }
+
+  return (
+    <div className="m-wrap">
+      <header className="m-head">
+        <div className="m-bar">
+          <Link to="/" className="m-logo" onClick={reset}><span>Hospo</span>Search</Link>
+          <Link to={LINKS.post} className="m-pill dark">Post a job</Link>
+          {signedIn
+            ? <Link to={LINKS.account} className="m-pill line">Account</Link>
+            : <Link to={LINKS.login} className="m-pill line">Log in</Link>}
+        </div>
+        <label className="m-search">
+          <Ico d={IC.search} size={18} />
+          <input ref={searchRef} type="search" value={q} onChange={e => { setQ(e.target.value); setOnlySaved(false) }} placeholder="Search roles, venues or cities" aria-label="Search roles, venues or cities" />
+          {filtered && <button type="button" aria-label="Clear search and filters" onClick={reset}><Ico d={IC.x} size={14} sw={2} /></button>}
+        </label>
+      </header>
+
+      <div className="m-rail m-stories">
+        <Link to={LINKS.post} className="m-story post"><span className="r"><span className="plus"><Ico d={IC.plus} size={26} /></span></span><span className="n">Post a job</span></Link>
+        {ROLE_STORIES.map(s => {
+          const img = storyImg(s)
+          if (!img) return null
+          return (
+            <button key={s.key} type="button" className={`m-story ${role === s.key ? 'on' : ''}`} aria-pressed={role === s.key}
+              onClick={() => { setRole(r => r === s.key ? null : s.key); setOnlySaved(false); top() }}>
+              <span className="r"><img src={img} alt="" loading="lazy" /></span><span className="n">{s.label}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {countries.length > 2 && (
+        <div className="m-rail m-chips" role="group" aria-label="Country">
+          {countries.map(c => (
+            <button key={c} type="button" className={`m-chip ${country === c && !onlySaved ? 'on' : ''}`} aria-pressed={country === c} onClick={() => { setCountry(c); setOnlySaved(false); top() }}>
+              {c === 'All' ? 'All' : c === 'United Kingdom' ? 'UK' : c}
+            </button>
+          ))}
+          <Link to="/map" className="m-chip"><Ico d={IC.map} size={14} />Map</Link>
+        </div>
+      )}
+
+      {filtered
+        ? <div className="m-back"><button type="button" onClick={reset}><Ico d={IC.back} size={18} sw={1.8} />All roles</button><span>{heading}</span></div>
+        : <div className="m-count">{heading}</div>}
+
+      {loading ? <div className="m-empty">Loading hospitality roles…</div>
+        : list.length === 0 ? (
+          <div className="m-empty">
+            {onlySaved ? 'No saved roles yet. Tap the bookmark on any role to save it.' : 'No roles match yet. Try a role, a venue or a city.'}
+            <div style={{ marginTop:12 }}><button type="button" className="m-pill line" onClick={reset}>Show all roles</button></div>
+          </div>
+        ) : list.map((j, i) => (
+          <Fragment key={j.id}>
+            <MobilePost job={j} signedIn={signedIn} saved={saved.includes(String(j.id))} following={following.includes(String(j.empId))} onSave={onSave} onFollow={onFollow} onShare={onShare} />
+            {!filtered && i === 1 && <MobileSales />}
+            {!filtered && signedIn === false && i === 5 && <MobileSignup />}
+          </Fragment>
+        ))}
+      {!loading && list.length > 0 && <div className="m-end">You're all caught up</div>}
+      {!loading && <div className="m-browse"><BrowseLinks jobs={allJobs} /></div>}
+
+      <nav className="m-nav" aria-label="Main">
+        <button type="button" onClick={reset}><Ico d={IC.home} sw={1.8} />Home</button>
+        <button type="button" onClick={() => { top(); setTimeout(() => searchRef.current?.focus(), 250) }}><Ico d={IC.search} sw={1.8} />Search</button>
+        <Link to={LINKS.post} className="post"><Ico d={IC.plus} size={26} sw={1.8} />Post a job</Link>
+        <button type="button" onClick={() => {
+          if (!signedIn) { setSheet({ title: 'Log in to see your saved roles' }); return }
+          setOnlySaved(true); setRole(null); setQ(''); setCountry('All'); top()
+        }}>
+          <Ico d={IC.book} sw={1.8} />Saved
+          {saved.length > 0 && <span className="dot">{saved.length}</span>}
+        </button>
+        <Link to={signedIn ? LINKS.account : LINKS.login}><Ico d={IC.user} sw={1.8} />Profile</Link>
+      </nav>
+
+      {sheet && (
+        <div className="m-sheet">
+          <button type="button" className="bd" aria-label="Close" onClick={() => setSheet(null)} />
+          <div className="pn" role="dialog" aria-label={sheet.title}>
+            <span className="grab" aria-hidden="true" />
+            <button type="button" className="x" aria-label="Close" onClick={() => setSheet(null)}><Ico d={IC.x} size={18} sw={2} /></button>
+            <h3 style={{ paddingRight:40 }}>{sheet.title}</h3>
+            <p>Saved roles and venues you follow live in your profile on every device. It's free and takes a few seconds.</p>
+            <button type="button" className="g" onClick={signInWithGoogle}><GoogleG/> Continue with Google</button>
+            <Link to={LINKS.signup} className="e">Sign up free with email</Link>
+            <div style={{ textAlign:'center', fontSize:14, color:C.textSoft }}>Already a member? <Link to={LINKS.login} style={{ color:C.textDark, fontWeight:600 }}>Log in</Link></div>
+          </div>
+        </div>
+      )}
+      {toast && <div className="m-toast" role="status">{toast}</div>}
+    </div>
   )
 }
 
@@ -704,6 +1269,7 @@ export default function Jobs({ detail=false, home=false, map=false }) {
   const [jobs, setJobs] = useState([])
   const [loading, setLoading] = useState(true)
   const [signedIn, setSignedIn] = useState(null) // null = still checking
+  const isMobile = useIsMobile()
 
   // Old homepage links (hosposearch.com/#pricing etc.) now live on /about.
   useEffect(() => {
@@ -726,6 +1292,16 @@ export default function Jobs({ detail=false, home=false, map=false }) {
       .catch(() => { if (alive) setSignedIn(false) })
     return () => { alive = false }
   }, [])
+
+  // Phones get the Instagram-style feed for the job lists (home, /jobs and landing pages).
+  if (isMobile && !map && !(detail && !landing)) {
+    return (
+      <>
+        <style>{styles}</style>
+        <MobileHome key={id || "all"} jobs={jobs} loading={loading} landing={landing} signedIn={signedIn} home={home} />
+      </>
+    )
+  }
 
   return (
     <div className="jb-wrap">
