@@ -292,9 +292,13 @@ const styles = `
   .jb-float img{width:88px;height:88px;border-radius:10px;object-fit:cover;flex:none;}
   .jb-float .v{font-size:14px;font-weight:600;} .jb-float .t{font-family:'Fraunces',serif;font-size:19px;line-height:1.2;} .jb-float .p{font-size:13px;color:${C.textSoft};}
   .jb-venuerow{border-top:1px solid ${C.border};border-bottom:1px solid ${C.border};background:#F2EDE5;}
-  .jb-venuerow div{max-width:1240px;margin:0 auto;padding:18px 32px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 32px;}
-  .jb-venuerow small{font-size:13px;color:${C.textSoft};}
-  .jb-venuerow b{font-family:'Fraunces',serif;font-size:19px;font-weight:500;color:#3A332B;}
+  .jb-venuerow .in{max-width:1240px;margin:0 auto;padding:16px 32px 18px;text-align:center;}
+  .jb-venuerow small{display:block;font-size:12px;font-weight:500;color:${C.textSoft};margin-bottom:6px;}
+  .jb-venuerow .names{display:flex;justify-content:center;align-items:center;gap:4px 8px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}
+  .jb-venuerow .names::-webkit-scrollbar{display:none;}
+  .jb-venuerow button{flex:none;border:0;background:none;padding:6px 10px;border-radius:8px;font-family:'Fraunces',serif;font-size:19px;font-weight:500;color:#3A332B;cursor:pointer;white-space:nowrap;transition:background-color 140ms ease,color 140ms ease;}
+  .jb-venuerow button:hover{background:rgba(31,27,22,0.06);color:${C.terracottaD};}
+  .jb-venuerow .sep{flex:none;color:${C.textFaint};}
   .jb-listhead{max-width:1240px;margin:0 auto;padding:40px 32px 0;display:flex;align-items:baseline;justify-content:space-between;gap:16px;}
   .jb-listhead h2{margin:0;font-size:15px;font-weight:600;} .jb-listhead h2 span{color:${C.textSoft};font-weight:400;}
   .jb-grid{max-width:1240px;padding:20px 32px 64px;gap:24px;}
@@ -809,7 +813,7 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
   })
 
   const showcase = useMemo(() => paidFirst(jobs.filter(j => realPhotos(j).length)).slice(0, 3), [jobs])
-  const venues = useMemo(() => hiringVenues(jobs), [jobs])
+  const venues = useMemo(() => hiringVenues(jobs, 5), [jobs])
   const toList = () => { try { listRef.current?.scrollIntoView({ behavior:'smooth', block:'start' }) } catch (e) {} }
 
   return (
@@ -867,7 +871,17 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
 
       {!copy && venues.length > 0 && (
         <section className="jb-venuerow" aria-label="Venues hiring">
-          <div><small>Hiring now on HospoSearch</small>{venues.map(v => <b key={v}>{v}</b>)}</div>
+          <div className="in">
+            <small>Hiring now on HospoSearch</small>
+            <div className="names">
+              {venues.map((v, i) => (
+                <Fragment key={v}>
+                  {i > 0 && <span className="sep" aria-hidden="true">·</span>}
+                  <button type="button" onClick={() => { setCountry('All'); setQ(v); toList() }} title={`See roles at ${v}`}>{v}</button>
+                </Fragment>
+              ))}
+            </div>
+          </div>
         </section>
       )}
 
