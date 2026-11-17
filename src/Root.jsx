@@ -1,5 +1,5 @@
-import { lazy, Suspense } from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect } from 'react'
+import { Routes, Route, Navigate, useLocation, useNavigationType } from 'react-router-dom'
 import Jobs from './Jobs.jsx'
 
 // The public job pages (/, /jobs, /jobs/:id) are what Google and most visitors
@@ -22,9 +22,21 @@ const Loading = () => (
   <div style={{ minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'#fff', color:'#7A7570', fontFamily:"'Montserrat',system-ui,sans-serif", fontSize:14 }}>Loading…</div>
 )
 
+// Opening a new page (a job from the feed, say) starts at the top. Going back
+// leaves the browser to restore where you were in the feed.
+function ScrollToTop() {
+  const { pathname } = useLocation()
+  const nav = useNavigationType()
+  useEffect(() => {
+    if (nav !== 'POP') window.scrollTo(0, 0)
+  }, [pathname, nav])
+  return null
+}
+
 export default function Root() {
   return (
     <Suspense fallback={<Loading />}>
+      <ScrollToTop />
       <Routes>
         <Route path="/"          element={<Jobs home />} />
         <Route path="/about"     element={<Landing />} />

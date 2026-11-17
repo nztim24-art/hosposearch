@@ -45,7 +45,7 @@ async function createSubscriptionSession(plan, userEmail, userId) {
   const { url } = await res.json();
   return url;
 }
-import { supabase, compressImage, signIn, signUp as sbSignUp, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, shuffleFeed, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare } from './supabase.js';
+import { supabase, compressImage, signIn, signUp as sbSignUp, setStayLoggedIn, signOut, sendPasswordReset, updatePassword, getSession, getAuthSessionWithoutProfile, createOAuthProfile, fetchJobs, shuffleFeed, fetchMyJobs, createJob as sbCreateJob, updateJobFull as sbUpdateJobFull, incrementViews, fetchCodes, applyForJob as sbApplyForJob, updateApplicationStatus as sbUpdateAppStatus, uploadDocument, fetchPublicProfiles, updateProfile as sbUpdateProfile, fetchAlerts as sbFetchAlerts, createAlert as sbCreateAlert, deleteAlert as sbDeleteAlert, adminCreateJob as sbAdminCreateJob, fetchAdminData, isAdminSession, apiPost, getMyAltProfile, checkDiscountCode, signDocUrl, isPrivateDocUrl, recordJobShare, fetchBookmarks, toggleBookmark as sbToggleBookmark, consumeAfterLogin } from './supabase.js';
 
 // ─── Guest applications ────────────────────────────────────────────────────────
 // A logged-out visitor fills in the whole application (CV included) before they
@@ -3928,6 +3928,123 @@ function ResetPasswordScreen({ onDone }) {
   );
 }
 
+// ─── Start a listing (logged-out venue) ───────────────────────────────────────
+// The first step of Post a job. Name, venue, email and password; tapping Continue
+// creates the employer account straight away and drops them into the listing
+// form, so everything they type from then on is saved to their account.
+const START_TIERS = {
+  shift:   { label:'Shift cover', price:'$9.95', note:'3-day listing' },
+  bronze:  { label:'Single role', price:'$50', note:'Live for 30 days' },
+  silver:  { label:'Single role, featured', price:'$70', note:'Featured for 30 days' },
+  gold:    { label:'Single role, premium', price:'$100', note:'Premium for 30 days' },
+  starter: { label:'Hiring multiple roles', price:'$125/mo', note:'Subscription' },
+  growth:  { label:'Hiring multiple roles', price:'$225/mo', note:'Subscription' },
+  pro:     { label:'Hiring multiple roles', price:'$350/mo', note:'Subscription' },
+};
+function StartListing({ onLogin }) {
+  const params = new URLSearchParams(window.location.search);
+  const tierKey = params.get('tier') || 'bronze';
+  const tier = START_TIERS[tierKey] || START_TIERS.bronze;
+  const [mode, setMode] = useState('new'); // new | login
+  const [f, setF] = useState({ name:'', venue:'', email:'', pass:'' });
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const set = (k) => (e) => { setF(p => ({ ...p, [k]: e.target.value })); setErr(''); };
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(f.email.trim());
+
+  const go = async (e) => {
+    e && e.preventDefault();
+    if (busy) return;
+    if (mode === 'new') {
+      if (!f.name.trim()) return setErr('Add your name');
+      if (!f.venue.trim()) return setErr('Add your venue name');
+      if (!emailOk) return setErr('Add a valid email');
+      if (f.pass.length < 6) return setErr('Choose a password of at least 6 characters');
+    } else {
+      if (!emailOk) return setErr('Add your email');
+      if (!f.pass) return setErr('Add your password');
+    }
+    setBusy(true); setErr('');
+    try {
+      setStayLoggedIn(true, true);
+      if (mode === 'new') {
+        // The employer profile is named after the venue (that's what shows on listings)
+        const { profile } = await sbSignUp(f.email.trim(), f.pass, f.venue.trim(), 'employer');
+        supabase.auth.updateUser({ data: { full_name: f.name.trim() } }).catch(()=>{});
+        if (!profile) throw new Error('no profile');
+        onLogin(profile, 'employer');
+      } else {
+        const { profile } = await signIn(f.email.trim(), f.pass);
+        if (!profile) throw new Error('no profile');
+        onLogin(profile, profile.type === 'employer' ? 'employer' : (profile.type || 'employee'));
+      }
+    } catch (e2) {
+      const m = String(e2?.message || '');
+      if (mode === 'new' && /already|registered|exists/i.test(m)) { setMode('login'); setErr('You already have an account with this email. Enter your password to carry on.'); }
+      else if (mode === 'login' && /invalid|credentials/i.test(m)) setErr("That email and password don't match. Try again or reset your password from the log in page.");
+      else setErr("We couldn't do that just now. Check your connection and try again.");
+      setBusy(false);
+    }
+  };
+  const google = async () => {
+    try {
+      setStayLoggedIn(true, true);
+      await supabase.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: window.location.origin + '/app' + window.location.search, queryParams:{ prompt:'select_account' } } });
+    } catch (e) { setErr('Google sign-in failed. Try email instead.'); }
+  };
+
+  const IS = { width:'100%', boxSizing:'border-box', height:50, padding:'0 14px', borderRadius:12, border:`1px solid ${C.border}`, background:'#fff', fontSize:16, color:C.textDark, fontFamily:'inherit', outline:'none' };
+  const L = { display:'flex', flexDirection:'column', gap:6, fontSize:13, fontWeight:600, color:C.textMid };
+  return (
+    <div style={{ minHeight:'100vh', background:'#FDFBF8', display:'flex', flexDirection:'column', alignItems:'center', fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+      <div style={{ width:'100%', maxWidth:480, padding:'12px 20px 40px', boxSizing:'border-box' }}>
+        <div style={{ display:'flex', alignItems:'center', height:52 }}>
+          <a href="/" aria-label="Back to HospoSearch" style={{ display:'inline-flex', alignItems:'center', gap:6, color:C.textMid, fontSize:14, fontWeight:600, textDecoration:'none' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>Back
+          </a>
+          <span style={{ marginLeft:'auto', fontFamily:"'Fraunces',serif", fontSize:20 }}><span style={{ color:C.terracotta }}>Hospo</span>Search</span>
+        </div>
+        <div aria-hidden="true" style={{ height:3, background:'#EFE9DF', borderRadius:2, marginTop:4 }}><div style={{ width:'33%', height:3, background:C.terracotta, borderRadius:2 }}/></div>
+        <div style={{ marginTop:22, fontSize:13, fontWeight:600, color:C.textSoft }}>Step 1 of 3 · Your venue</div>
+        <h1 style={{ margin:'6px 0 0', fontFamily:"'Fraunces',serif", fontWeight:500, fontSize:30, lineHeight:1.1, letterSpacing:'-0.01em' }}>{mode === 'new' ? 'Post a job' : 'Welcome back'}</h1>
+        <p style={{ margin:'8px 0 0', fontSize:15, lineHeight:'22px', color:C.textSoft }}>
+          {mode === 'new' ? "Start with your details. Your listing saves as you go, and you'll pay on the last step." : 'Log in and carry on with your listing.'}
+        </p>
+        <div style={{ marginTop:16, display:'flex', alignItems:'center', gap:12, padding:'12px 14px', borderRadius:12, background:'#F2EDE5' }}>
+          <div style={{ flex:1 }}><div style={{ fontSize:15, fontWeight:600 }}>{tier.label}</div><div style={{ fontSize:13, color:C.textSoft }}>{tier.note}</div></div>
+          <div style={{ fontFamily:"'Fraunces',serif", fontSize:22 }}>{tier.price}</div>
+        </div>
+        <form onSubmit={go} style={{ marginTop:18, display:'flex', flexDirection:'column', gap:14 }}>
+          {mode === 'new' && <label style={L}>Your name<input style={IS} value={f.name} onChange={set('name')} autoComplete="name" placeholder="e.g. Sam Lee"/></label>}
+          {mode === 'new' && <label style={L}>Venue name<input style={IS} value={f.venue} onChange={set('venue')} autoComplete="organization" placeholder="e.g. River House 4215"/></label>}
+          <label style={L}>Email<input style={IS} type="email" value={f.email} onChange={set('email')} autoComplete="email" placeholder="you@yourvenue.com.au"/></label>
+          <label style={L}>{mode === 'new' ? 'Create a password' : 'Password'}
+            <div style={{ position:'relative' }}>
+              <input style={{ ...IS, paddingRight:64 }} type={show ? 'text' : 'password'} value={f.pass} onChange={set('pass')} autoComplete={mode === 'new' ? 'new-password' : 'current-password'} placeholder={mode === 'new' ? 'At least 6 characters' : ''}/>
+              <button type="button" onClick={() => setShow(s => !s)} style={{ position:'absolute', right:6, top:7, height:36, padding:'0 10px', border:0, background:'none', color:C.textMid, fontSize:13, fontWeight:600, cursor:'pointer' }}>{show ? 'Hide' : 'Show'}</button>
+            </div>
+          </label>
+          {err && <div role="alert" style={{ fontSize:14, color:'#B42318' }}>{err}</div>}
+          <button type="submit" disabled={busy} style={{ height:52, border:0, borderRadius:14, background:'#9E4B2A', color:'#fff', fontSize:16, fontWeight:600, cursor:busy?'default':'pointer', opacity:busy?0.7:1, fontFamily:'inherit' }}>
+            {busy ? 'One moment…' : mode === 'new' ? 'Continue to your listing' : 'Log in and continue'}
+          </button>
+        </form>
+        <div style={{ display:'flex', alignItems:'center', gap:10, margin:'16px 0' }}><div style={{ flex:1, height:1, background:C.border }}/><span style={{ color:C.textSoft, fontSize:12 }}>or</span><div style={{ flex:1, height:1, background:C.border }}/></div>
+        <button type="button" onClick={google} style={{ width:'100%', height:50, display:'flex', alignItems:'center', justifyContent:'center', gap:10, borderRadius:12, border:'1px solid #747775', background:'#fff', color:'#1F1F1F', fontSize:15, fontWeight:500, cursor:'pointer', fontFamily:'inherit' }}>
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+          Continue with Google
+        </button>
+        <div style={{ marginTop:18, textAlign:'center', fontSize:14, color:C.textSoft }}>
+          {mode === 'new'
+            ? <>Already have an account? <button type="button" onClick={() => { setMode('login'); setErr(''); }} style={{ border:0, background:'none', padding:0, color:C.textDark, fontWeight:600, textDecoration:'underline', cursor:'pointer', fontSize:14, fontFamily:'inherit' }}>Log in</button></>
+            : <>New to HospoSearch? <button type="button" onClick={() => { setMode('new'); setErr(''); }} style={{ border:0, background:'none', padding:0, color:C.textDark, fontWeight:600, textDecoration:'underline', cursor:'pointer', fontSize:14, fontFamily:'inherit' }}>Create an account</button></>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Login({ onLogin, onClose, defaultScreen="login", defaultMode="employee" }) {
   useEffect(()=>{
     const handler = () => {};
@@ -5835,7 +5952,7 @@ function EmployerDash({ user, jobs, setJobs, messages, setMessages, codes, setCo
       }
       // Notify followers. Non-blocking.
       try {
-        const { data: followers } = await supabase.from('following').select('follower_id').eq('following_id', user.id);
+        const { data: followers } = await supabase.from('following').select('follower_id').eq('employer_id', user.id);
         if (followers?.length > 0) {
           await supabase.from('notifications').insert(followers.map(f=>({
             user_id: f.follower_id, type:'listing', text:`New listing from ${user.name}`,
@@ -7167,9 +7284,9 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
     setFollowing(f => isFollowing ? f.filter(x=>x!==id) : [...f, id]);
     try {
       if (isFollowing) {
-        await supabase.from('following').delete().eq('follower_id', user.id).eq('following_id', id);
+        await supabase.from('following').delete().eq('follower_id', user.id).eq('employer_id', id);
       } else {
-        await supabase.from('following').insert({ follower_id: user.id, following_id: id });
+        await supabase.from('following').insert({ follower_id: user.id, employer_id: id });
         // Notify the employer that someone followed them
         await supabase.from('notifications').insert({
           user_id: id,
@@ -7182,7 +7299,23 @@ function EmployeeApp({ user, jobs, setJobs, profile, setProfile, following, setF
       }
     } catch(e) { console.warn('Follow error:', e); }
   };
-  const toggleBookmark = id => setBookmarks(b=>b.includes(id)?b.filter(x=>x!==id):[...b,id]);
+  // Saved jobs live in the bookmarks table so they follow the person to every device.
+  useEffect(() => {
+    let cancelled = false;
+    // First finish any save/follow tapped on the homepage before logging in, then load.
+    consumeAfterLogin(user.id).catch(()=>{})
+      .then(() => fetchBookmarks(user.id))
+      .then(ids => { if (!cancelled && Array.isArray(ids)) setBookmarks(ids); })
+      .then(() => supabase.from('following').select('employer_id').eq('follower_id', user.id))
+      .then(r => { if (!cancelled && r?.data) setFollowing(r.data.map(x=>x.employer_id)); })
+      .catch(()=>{});
+    return () => { cancelled = true; };
+  }, [user.id]);
+  const toggleBookmark = id => {
+    const on = bookmarks.includes(id);
+    setBookmarks(b => on ? b.filter(x=>x!==id) : [...b, id]);
+    sbToggleBookmark(user.id, id, on).catch(e => console.warn('Bookmark save failed:', e));
+  };
   const handleApply = async (job, fd) => {
     // Save application to Supabase (includes document upload inside sbApplyForJob)
     let savedApp = null;
@@ -8724,8 +8857,8 @@ export default function App() {
   // Load following from Supabase
   useEffect(()=>{
     if (!user?.id) return;
-    supabase.from('following').select('following_id').eq('follower_id', user.id)
-      .then(({ data }) => { if (data) setFollowing(data.map(r=>r.following_id)); });
+    supabase.from('following').select('employer_id').eq('follower_id', user.id)
+      .then(({ data }) => { if (data) setFollowing(data.map(r=>r.employer_id)); });
   }, [user?.id]);
   const [messages, setMessages]   = useState(INIT_MESSAGES);
   const [notifs, setNotifs]       = useState(INIT_NOTIFS);
@@ -8980,7 +9113,7 @@ export default function App() {
       </div>
     </div>
   );
-  if (screen.name === 'signup-employer') return <Login defaultScreen="signup" defaultMode="employer" onLogin={(u,t)=>{ handleLogin(u,t); }} onClose={()=>{ window.history.replaceState({},'','/app'); }}/>;
+  if (screen.name === 'signup-employer') return <StartListing onLogin={(u,t)=>{ handleLogin(u,t); }}/>;
   const _typeParam  = new URLSearchParams(window.location.search).get('type') || 'employee';
   if (screen.name === 'login-param') return <Login defaultScreen="login" defaultMode={_typeParam} onLogin={(u,t)=>{ window.history.replaceState({},'','/app'); handleLogin(u,t); }} onClose={()=>{ window.location.replace('/app'); }}/>;
   // "Sign up free" from the homepage header → open the sign-up screen directly
