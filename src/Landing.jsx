@@ -461,9 +461,12 @@ function PricingModal({ onClose, defaultTab='listing' }) {
           {tiers.map(tier=>{
             const isSel = selectedTier===tier.key
             const isFeatured = !!tier.popular
+            // The orange outline follows the plan you tap. Before you tap one,
+            // the most popular plan carries it.
+            const lit = isSel || (!selectedTier && isFeatured)
             return (
               <div key={tier.key} onClick={()=>setSelectedTier(tier.key)}
-                style={{background:'#fff',border:`${isSel||isFeatured?'2':'1'}px solid ${isSel?'#C4623A':isFeatured?'#C4623A':'#E8E2D8'}`,borderRadius:18,padding:'22px 18px',cursor:'pointer',transition:'all 0.2s',position:'relative',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:isSel?'0 8px 24px rgba(196,98,58,0.18)':isFeatured?'0 8px 24px rgba(196,98,58,0.10)':'0 2px 8px rgba(0,0,0,0.04)'}}>
+                style={{background:'#fff',border:`${lit?'2':'1'}px solid ${lit?'#C4623A':'#E8E2D8'}`,borderRadius:18,padding:'22px 18px',cursor:'pointer',transition:'all 0.2s',position:'relative',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:isSel?'0 8px 24px rgba(196,98,58,0.18)':lit?'0 8px 24px rgba(196,98,58,0.10)':'0 2px 8px rgba(0,0,0,0.04)'}}>
                 {isFeatured && (
                   <div style={{position:'absolute',top:-11,left:'50%',transform:'translateX(-50%)',background:'#C4623A',color:'#fff',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 14px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>
                 )}

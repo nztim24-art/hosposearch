@@ -363,6 +363,7 @@ const styles = `
   .m-story.on .r{border-color:${C.textDark};}
   .m-story img,.m-story .plus{width:62px;height:62px;border-radius:31px;object-fit:cover;display:grid;place-items:center;background:#EFE9DF;}
   .m-story .plus{background:${C.terracottaD};color:#fff;}
+  .m-story .plus.all{background:#F2EDE5;color:${C.textDark};font-size:15px;font-weight:600;}
   .m-story.post .r{border-style:dashed;border-color:rgba(176,79,42,0.55);}
   .m-story .n{font-size:12px;font-weight:500;white-space:nowrap;}
   .m-story.post .n{font-weight:600;color:${C.terracottaD};}
@@ -863,8 +864,8 @@ function JobsList({ jobs: allJobs, loading, landing, signedIn, home }) {
               </div>
               {countries.length > 2 && (
                 <div className="jb-cchips" role="group" aria-label="Country">
-                  {countries.map(c => <button key={c} type="button" className={country===c ? 'on' : ''} aria-pressed={country===c} onClick={()=>{ setCountry(c); toList() }}>{c === 'All' ? 'All regions' : c}</button>)}
                   <Link to="/map"><Ico d={IC.map} size={16} />Map</Link>
+                  {countries.map(c => <button key={c} type="button" className={country===c ? 'on' : ''} aria-pressed={country===c} onClick={()=>{ setCountry(c); toList() }}>{c === 'All' ? 'All regions' : c}</button>)}
                 </div>
               )}
             </div>
@@ -1038,8 +1039,29 @@ function MobileHome({ jobs: allJobs, loading, landing, signedIn, home }) {
   const copy = landing ? landingCopy(landing, allJobs, jobs.length) : null
   const [q, setQ] = useState('')
   const [country, setCountry] = useState('All')
-  const [role, setRole] = useState(null)
+  const location = useLocation()
+  const navigate = useNavigate()
+  const role = new URLSearchParams(location.search).get('role')
+  // Picking a story adds ?role= to the address, so the phone's Back gesture
+  // (or the All roles button) takes you back to every listing.
+  const setRole = (next) => {
+    const sp = new URLSearchParams(location.search)
+    if (next) sp.set('role', next); else sp.delete('role')
+    const search = sp.toString() ? `?${sp}` : ''
+    if (!next && !role) return
+    if (!next && location.state?.roleFromFeed) { navigate(-1); return }
+    navigate({ search }, { replace: !!role, state: next ? { roleFromFeed: role ? location.state?.roleFromFeed : true } : null })
+  }
   const [onlySaved, setOnlySaved] = useState(false)
+  const headRef = useRef(null)
+  const [headH, setHeadH] = useState(110)
+  useEffect(() => {
+    const el = headRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setHeadH(el.offsetHeight))
+    ro.observe(el); setHeadH(el.offsetHeight)
+    return () => ro.disconnect()
+  }, [])
   const [profile, setProfile] = useState(null)
   const [saved, setSaved] = useState([])
   const [following, setFollowing] = useState([])
@@ -1114,9 +1136,9 @@ function MobileHome({ jobs: allJobs, loading, landing, signedIn, home }) {
 
   return (
     <div className="m-wrap">
-      <header className="m-head">
+      <header className="m-head" ref={headRef}>
         <div className="m-bar">
-          <Link to="/" className="m-logo" onClick={reset}><span>Hospo</span>Search</Link>
+          <Link to="/" className="m-logo" onClick={e => { if (role) e.preventDefault(); reset() }}><span>Hospo</span>Search</Link>
           <Link to={LINKS.post} className="m-pill dark">Post a job</Link>
           {signedIn
             ? <Link to={LINKS.account} className="m-pill line">Account</Link>
@@ -1131,12 +1153,17 @@ function MobileHome({ jobs: allJobs, loading, landing, signedIn, home }) {
 
       <div className="m-rail m-stories">
         <Link to={LINKS.post} className="m-story post"><span className="r"><span className="plus"><Ico d={IC.plus} size={26} /></span></span><span className="n">Post a job</span></Link>
+        {jobs.length > 0 && (
+          <button type="button" className={`m-story ${!role ? 'on' : ''}`} aria-pressed={!role} onClick={() => { setRole(null); setOnlySaved(false); top() }}>
+            <span className="r"><span className="plus all">All</span></span><span className="n">All roles</span>
+          </button>
+        )}
         {ROLE_STORIES.map(s => {
           const img = storyImg(s)
           if (!img) return null
           return (
             <button key={s.key} type="button" className={`m-story ${role === s.key ? 'on' : ''}`} aria-pressed={role === s.key}
-              onClick={() => { setRole(r => r === s.key ? null : s.key); setOnlySaved(false); top() }}>
+              onClick={() => { setRole(role === s.key ? null : s.key); setOnlySaved(false); top() }}>
               <span className="r"><img src={img} alt="" loading="lazy" /></span><span className="n">{s.label}</span>
             </button>
           )
@@ -1145,17 +1172,17 @@ function MobileHome({ jobs: allJobs, loading, landing, signedIn, home }) {
 
       {countries.length > 2 && (
         <div className="m-rail m-chips" role="group" aria-label="Country">
+          <Link to="/map" className="m-chip"><Ico d={IC.map} size={14} />Map</Link>
           {countries.map(c => (
             <button key={c} type="button" className={`m-chip ${country === c && !onlySaved ? 'on' : ''}`} aria-pressed={country === c} onClick={() => { setCountry(c); setOnlySaved(false); top() }}>
               {c === 'All' ? 'All' : c === 'United Kingdom' ? 'UK' : c}
             </button>
           ))}
-          <Link to="/map" className="m-chip"><Ico d={IC.map} size={14} />Map</Link>
         </div>
       )}
 
       {filtered
-        ? <div className="m-back"><button type="button" onClick={reset}><Ico d={IC.back} size={18} sw={1.8} />All roles</button><span>{heading}</span></div>
+        ? <div className="m-back" style={{ top: headH }}><button type="button" onClick={reset}><Ico d={IC.back} size={18} sw={1.8} />All roles</button><span>{heading}</span></div>
         : <div className="m-count">{heading}</div>}
 
       {loading ? <div className="m-empty">Loading hospitality roles…</div>
