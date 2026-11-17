@@ -953,16 +953,29 @@ const ROLE_STORIES = [
 ]
 const roleMatch = (j, story) => { const t = ` ${(j.title||'').toLowerCase()} `; return story.words.some(w => t.includes(w)) }
 
+// Phones get the feed. Some in-app browsers report a desktop-width window for a
+// moment on reload, so a touch screen that is phone-sized counts as mobile too.
+function detectMobile() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false
+  if (window.matchMedia('(max-width: 860px)').matches) return true
+  const sw = window.screen ? Math.min(window.screen.width || 9999, window.screen.height || 9999) : 9999
+  return window.matchMedia('(pointer: coarse)').matches && sw <= 600
+}
 function useIsMobile() {
-  const q = '(max-width: 860px)'
-  const [m, setM] = useState(() => typeof window !== 'undefined' && !!window.matchMedia && window.matchMedia(q).matches)
+  const [m, setM] = useState(detectMobile)
   useEffect(() => {
     if (!window.matchMedia) return
-    const mq = window.matchMedia(q)
-    const f = () => setM(mq.matches)
+    const mq = window.matchMedia('(max-width: 860px)')
+    const f = () => setM(detectMobile())
     f()
     mq.addEventListener ? mq.addEventListener('change', f) : mq.addListener(f)
-    return () => { mq.removeEventListener ? mq.removeEventListener('change', f) : mq.removeListener(f) }
+    window.addEventListener('resize', f)
+    window.addEventListener('pageshow', f)
+    window.addEventListener('orientationchange', f)
+    return () => {
+      mq.removeEventListener ? mq.removeEventListener('change', f) : mq.removeListener(f)
+      window.removeEventListener('resize', f); window.removeEventListener('pageshow', f); window.removeEventListener('orientationchange', f)
+    }
   }, [])
   return m
 }
