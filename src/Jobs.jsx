@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, Fragment, lazy, Suspense } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
-import { supabase, fetchJobs, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd, getMyProfile, fetchBookmarks, toggleBookmark, fetchFollowing, setFollow, stashAfterLogin } from './supabase.js'
+import { supabase, fetchJobs, feedRank, recordJobShare, incrementViews, getStayLoggedIn, setStayLoggedIn, sessionShouldEnd, getMyProfile, fetchBookmarks, toggleBookmark, fetchFollowing, setFollow, stashAfterLogin } from './supabase.js'
 import { parseLandingSlug, jobMatchesLanding, landingCopy, landingIndex, relatedLandings, isLive, jobTitleTag, jobDescriptionTag, trackedLink, mapLinks } from './seo/shared.js'
 
 // ─── Palette (matches App.jsx / Landing.jsx) ──────────────────────────────────
@@ -647,10 +647,10 @@ const IC = {
   back: '<path d="m15 18-6-6 6-6"></path>',
 }
 
-// Distinct venues for the "Hiring now" row, paying venues first.
+// Distinct venues for the "Hiring now" row, in the same fresh order as the feed.
 function hiringVenues(jobs, n = 6) {
   const seen = new Set(), out = []
-  for (const j of [...jobs].sort((a, b) => (isPaidFeatured(b) ? 1 : 0) - (isPaidFeatured(a) ? 1 : 0))) {
+  for (const j of paidFirst(jobs)) {
     const v = (j.venue || '').trim()
     if (!v || v === 'HospoSearch' || seen.has(v.toLowerCase())) continue
     seen.add(v.toLowerCase()); out.push(v)
@@ -783,8 +783,30 @@ const matchesQuery = (j, q) => {
   const hay = searchHay(j)
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
 }
-// Paying venues first, then everyone else in the shuffled feed order.
-const paidFirst = (list) => [...list].sort((a, b) => (isPaidFeatured(b) ? 1 : 0) - (isPaidFeatured(a) ? 1 : 0))
+// Every refresh shows a fresh order. Paying venues always land somewhere in the
+// first six places, in a different spot each time; everyone else is fully
+// shuffled. Positions come from feedRank, which is fixed for the life of the
+// page, so filtering or searching doesn't reshuffle what you're looking at.
+const paidFirst = (list) => {
+  const paid = list.filter(isPaidFeatured).sort((a, b) => feedRank(a.id) - feedRank(b.id))
+  const rest = list.filter(j => !isPaidFeatured(j)).sort((a, b) => feedRank(a.id) - feedRank(b.id))
+  const slots = Math.max(6, paid.length)
+  const pos = new Map()
+  paid.forEach(j => {
+    let p = Math.floor(feedRank(`slot:${j.id}`) * slots)
+    while ([...pos.values()].includes(p)) p = (p + 1) % slots
+    pos.set(String(j.id), p)
+  })
+  const out = []
+  let r = 0
+  const byPos = [...paid].sort((a, b) => pos.get(String(a.id)) - pos.get(String(b.id)))
+  for (const j of byPos) {
+    while (out.length < pos.get(String(j.id)) && r < rest.length) out.push(rest[r++])
+    out.push(j)
+  }
+  while (r < rest.length) out.push(rest[r++])
+  return out
+}
 
 function VenuesSection() {
   return (
@@ -953,13 +975,11 @@ const ROLE_STORIES = [
 ]
 const roleMatch = (j, story) => { const t = ` ${(j.title||'').toLowerCase()} `; return story.words.some(w => t.includes(w)) }
 
-// Phones get the feed. Some in-app browsers report a desktop-width window for a
-// moment on reload, so a touch screen that is phone-sized counts as mobile too.
+// Phones get the feed. If someone ticks "Desktop site" in their browser they
+// get the desktop layout, as they asked.
 function detectMobile() {
   if (typeof window === 'undefined' || !window.matchMedia) return false
-  if (window.matchMedia('(max-width: 860px)').matches) return true
-  const sw = window.screen ? Math.min(window.screen.width || 9999, window.screen.height || 9999) : 9999
-  return window.matchMedia('(pointer: coarse)').matches && sw <= 600
+  return window.matchMedia('(max-width: 860px)').matches
 }
 function useIsMobile() {
   const [m, setM] = useState(detectMobile)
