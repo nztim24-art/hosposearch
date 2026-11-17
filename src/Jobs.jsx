@@ -306,7 +306,7 @@ const styles = `
   .jb-card{border:1px solid ${C.border};box-shadow:none;transition:border-color 160ms ease;}
   .jb-card:hover{transform:none;box-shadow:none;border-color:${C.borderMid};}
   .jb-card-body{padding:18px 20px 20px;gap:6px;}
-  .jb-venue{font-size:16px;font-weight:600;color:${C.textDark};margin:0;}
+  .jb-venue{font-size:16px;font-weight:500;color:${C.textDark};margin:0;}
   .jb-title{font-weight:500;font-size:22px;margin:0;}
   .jb-short{color:${C.textSoft};font-size:14px;line-height:21px;margin:2px 0 0;}
   .jb-line{margin-top:auto;padding-top:12px;display:flex;align-items:baseline;font-size:14px;}
@@ -597,7 +597,23 @@ function placeOf(j) {
   return [city, tail].filter(Boolean).filter((x, i, a) => a.indexOf(x) === i).join(', ')
 }
 const isComp = (j) => !j.salary || /^competitive$/i.test(j.salary.trim()) || /^not stated$/i.test(j.salary.trim())
-const payOf = (j) => isComp(j) ? 'Competitive' : fmtSalary(j)
+// Pay in one short format, like a menu price: "$70–80k", "$30–35/hr", "From $65k".
+function payOf(j) {
+  if (isComp(j)) return 'Competitive'
+  const raw = String(j.salary).trim()
+  const cur = /£/.test(raw) ? '£' : (/\bNZ\$|NZD/i.test(raw) ? 'NZ$' : '$')
+  const nums = (raw.replace(/(\d),(\d{3})/g, '$1$2').match(/\d+(?:\.\d+)?/g) || []).map(Number).filter(n => n > 0).slice(0, 2)
+  if (!nums.length) return /award/i.test(raw) ? 'Award rate' : raw.length > 28 ? 'Competitive' : raw
+  const hourly = /hour|\/hr|p\/h|ph\b/i.test(raw) || j.payType === 'Hourly' || Math.max(...nums) < 300
+  const extra = /(\+|plus)\s*super/i.test(raw) ? ' + super' : /\+\s*tips/i.test(raw) ? ' + tips' : ''
+  const from = /^from\b/i.test(raw) && nums.length === 1 ? 'From ' : ''
+  if (hourly) {
+    const f = (n) => (Number.isInteger(n) ? String(n) : n.toFixed(2))
+    return from + cur + (nums.length === 2 ? `${f(nums[0])}–${f(nums[1])}` : f(nums[0])) + '/hr' + extra
+  }
+  const k = (n) => n >= 1000 ? `${Math.round(n / 100) / 10}`.replace(/\.0$/, '') : String(n)
+  return from + cur + (nums.length === 2 ? `${k(nums[0])}–${k(nums[1])}k` : `${k(nums[0])}k`) + extra
+}
 const realPhotos = (j) => (j.photos || []).filter(isData)
 
 // Where Apply goes. Same rules as the job page: through HospoSearch whenever the
@@ -732,7 +748,7 @@ function JobCard({ job }) {
     <Link to={`/jobs/${job.id}`} className="jb-card">
       <div className="jb-card-img">
         {photos.length
-          ? <CardPhotos photos={photos} alt={`${job.title} at ${job.venue}`}/>
+          ? <img src={photos[0]} alt={`${job.title} at ${job.venue}`} loading="lazy" className="jb-main"/>
           : <div className="m-noimg"><b>{job.venue || 'HospoSearch'}</b><span style={{ fontSize:13, color:C.textSoft }}>{placeOf(job)}</span></div>}
         {job.tier === 'shift'
           ? <div className="jb-badge">Shift cover</div>
