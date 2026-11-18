@@ -465,8 +465,8 @@ function PricingModal({ onClose, defaultTab='listing' }) {
             // the most popular plan carries it.
             const lit = isSel || (!selectedTier && isFeatured)
             return (
-              <div key={tier.key} onClick={()=>setSelectedTier(tier.key)}
-                style={{background:'#fff',border:`${lit?'2':'1'}px solid ${lit?'#C4623A':'#E8E2D8'}`,borderRadius:18,padding:'22px 18px',cursor:'pointer',transition:'all 0.2s',position:'relative',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:isSel?'0 8px 24px rgba(196,98,58,0.18)':lit?'0 8px 24px rgba(196,98,58,0.10)':'0 2px 8px rgba(0,0,0,0.04)'}}>
+              <div key={tier.key} onClick={()=>{ if (isSel) { window.location.href=`/app?tier=${tier.key}&mode=${tab}`; return } setSelectedTier(tier.key) }} onDoubleClick={()=>{ window.location.href=`/app?tier=${tier.key}&mode=${tab}` }}
+                style={{background:'#fff',border:`${lit?'2':'1'}px solid ${lit?'#C4623A':'#E8E2D8'}`,borderRadius:18,padding:'22px 18px',cursor:'pointer',transition:'all 0.2s',position:'relative',touchAction:'manipulation',userSelect:'none',display:'flex',flexDirection:'column',alignItems:'center',textAlign:'center',boxShadow:isSel?'0 8px 24px rgba(196,98,58,0.18)':lit?'0 8px 24px rgba(196,98,58,0.10)':'0 2px 8px rgba(0,0,0,0.04)'}}>
                 {isFeatured && (
                   <div style={{position:'absolute',top:-11,left:'50%',transform:'translateX(-50%)',background:'#C4623A',color:'#fff',fontSize:10,fontWeight:700,letterSpacing:1,textTransform:'uppercase',padding:'4px 14px',borderRadius:100,whiteSpace:'nowrap'}}>Most Popular</div>
                 )}
@@ -510,6 +510,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
                     </li>
                   ))}
                 </ul>
+                {isSel && <div style={{marginTop:14,width:'100%',boxSizing:'border-box',background:'#C4623A',color:'#fff',borderRadius:100,padding:'11px 0',fontSize:14,fontWeight:700}}>Tap again to continue →</div>}
               </div>
             )
           })}
@@ -523,7 +524,7 @@ function PricingModal({ onClose, defaultTab='listing' }) {
           </a>
           <div style={{color:'#A8A29A',fontSize:13}}>
             Already have an account?{' '}
-            <a href="/app" style={{color:'#C4623A',textDecoration:'none',fontWeight:600}}>Log in here →</a>
+            <a href="/app?login=1&type=employer" style={{color:'#C4623A',textDecoration:'none',fontWeight:600}}>Log in here →</a>
           </div>
           {tab==='subscription' && (
             <div style={{marginTop:16,padding:'12px 16px',background:'#F5F0E8',borderRadius:10,fontSize:11,color:'#7A7570',lineHeight:1.6,textAlign:'left',maxWidth:480,margin:'16px auto 0'}}>
@@ -1094,7 +1095,7 @@ export default function Landing() {
               <ul className="hs-feat-list">
                 {['Swipe through roles like an Instagram feed','Filter by country, state, city, sector and role type','Save résumé & cover letter to auto-attach','Track every application and its status','Get job alerts for matching roles','Build a portfolio with work history and photos','Verified work history and references'].map(f=><li key={f}>{f}</li>)}
               </ul>
-              <Link to="/app" className="btn-cand">Browse Jobs — Free →</Link>
+              <Link to="/" className="btn-cand">Browse Jobs — Free →</Link>
             </div>
             <div className="hs-split-panel emp" id="for-employers">
               <div className="hs-split-icon emp">🍽️</div>
@@ -1120,7 +1121,7 @@ export default function Landing() {
           </div>
           <div className="hs-cats reveal">
             {[['🍽️','Restaurants','Fine dining to casual'],['🏨','Hotels','Luxury to boutique'],['🍸','Bars','Cocktail bars & pubs'],['☕','Cafés','Specialty & espresso'],['🏝️','Resorts','ANZ & international'],['🎉','Events','Functions & catering'],['🍷','Wineries','Cellar door & estates'],['🍰','Bakeries','Pastry & artisan']].map(([icon,name,sub])=>(
-              <Link to="/app" className="hs-cat" key={name}>
+              <Link to="/" className="hs-cat" key={name}>
                 <div className="hs-cat-icon">{icon}</div>
                 <div className="hs-cat-name">{name}</div>
                 <div className="hs-cat-sub">{sub}</div>
@@ -1168,7 +1169,7 @@ export default function Landing() {
           </div>
           <div className="hs-locs-grid reveal">
             {[['🇦🇺','Australia'],['🇳🇿','New Zealand'],['🇬🇧','United Kingdom'],['🇺🇸','United States'],['🇦🇪','UAE'],['🇸🇬','Singapore'],['🇯🇵','Japan'],['🇫🇷','France'],['🇮🇹','Italy'],['🇹🇭','Thailand'],['🇭🇰','Hong Kong'],['🇨🇳','China'],['🇩🇪','Germany'],['🇪🇸','Spain'],['🇨🇦','Canada'],['🌏','+ more']].map(([flag,country])=>(
-              <Link to="/app" className="hs-loc" key={country}><span>{flag}</span>{country}</Link>
+              <Link to="/" className="hs-loc" key={country}><span>{flag}</span>{country}</Link>
             ))}
           </div>
         </div>
@@ -1209,7 +1210,7 @@ export default function Landing() {
         <h2 className="hs-final-title">Your next role is<br/>waiting for you</h2>
         <p className="hs-final-sub">The hospitality industry's home for talent. Browse roles, discover venues, and take your career further.</p>
         <div className="hs-final-actions">
-          <Link to="/app" className="btn-white">🔍 Find Jobs — Free</Link>
+          <Link to="/" className="btn-white">🔍 Find Jobs — Free</Link>
           <button onClick={()=>{setModalDefaultTab('listing');setShowPricingModal(true)}} className="btn-ghost" style={{background:'rgba(255,255,255,0.15)',color:'white',padding:'14px 28px',borderRadius:100,fontSize:15,fontWeight:600,textDecoration:'none',border:'1.5px solid rgba(255,255,255,0.3)',transition:'all 0.2s',cursor:'pointer'}}>Hiring? Post a job →</button>
         </div>
         {/* Employer email capture */}
@@ -1261,8 +1262,8 @@ export default function Landing() {
             <div>
               <div className="hs-footer-col-title">Platform</div>
               <ul className="hs-footer-links">
-                <li><Link to="/app">Browse Jobs</Link></li>
-                <li><Link to="/app">Post a Job</Link></li>
+                <li><Link to="/">Browse Jobs</Link></li>
+                <li><Link to="/about?post=1">Post a Job</Link></li>
                 <li><a href="#how-it-works">For Employers</a></li>
                 <li><a href="#pricing">Pricing</a></li>
               </ul>
