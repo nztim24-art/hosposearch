@@ -783,29 +783,14 @@ const matchesQuery = (j, q) => {
   const hay = searchHay(j)
   return q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))
 }
-// Every refresh shows a fresh order. Paying venues always land somewhere in the
-// first six places, in a different spot each time; everyone else is fully
-// shuffled. Positions come from feedRank, which is fixed for the life of the
-// page, so filtering or searching doesn't reshuffle what you're looking at.
+// Paying venues always sit at the very top, newest paid listing first. Everyone
+// else is shuffled into a fresh order on every refresh. Positions come from
+// feedRank, which is fixed for the life of the page, so filtering or searching
+// doesn't reshuffle what you're looking at.
 const paidFirst = (list) => {
-  const paid = list.filter(isPaidFeatured).sort((a, b) => feedRank(a.id) - feedRank(b.id))
+  const paid = list.filter(isPaidFeatured).sort((a, b) => (b.ts || 0) - (a.ts || 0))
   const rest = list.filter(j => !isPaidFeatured(j)).sort((a, b) => feedRank(a.id) - feedRank(b.id))
-  const slots = Math.max(6, paid.length)
-  const pos = new Map()
-  paid.forEach(j => {
-    let p = Math.floor(feedRank(`slot:${j.id}`) * slots)
-    while ([...pos.values()].includes(p)) p = (p + 1) % slots
-    pos.set(String(j.id), p)
-  })
-  const out = []
-  let r = 0
-  const byPos = [...paid].sort((a, b) => pos.get(String(a.id)) - pos.get(String(b.id)))
-  for (const j of byPos) {
-    while (out.length < pos.get(String(j.id)) && r < rest.length) out.push(rest[r++])
-    out.push(j)
-  }
-  while (r < rest.length) out.push(rest[r++])
-  return out
+  return [...paid, ...rest]
 }
 
 function VenuesSection() {

@@ -293,9 +293,14 @@ export function feedRank(id) {
   if (!_feedRank.has(k)) _feedRank.set(k, Math.random())
   return _feedRank.get(k)
 }
+// Paid featured listings (from a real employer account) always come first,
+// newest paid listing on top; everything else is shuffled.
+const isPaidPin = (j) => !!j?.featured && !!j?.empId && j.empId !== 'admin'
 export function shuffleFeed(list) {
   return [...list].sort((a, b) =>
-    ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || (feedRank(a.id) - feedRank(b.id)))
+    ((isPaidPin(b) ? 1 : 0) - (isPaidPin(a) ? 1 : 0)) ||
+    (isPaidPin(a) && isPaidPin(b) ? (b.ts || 0) - (a.ts || 0) : 0) ||
+    (feedRank(a.id) - feedRank(b.id)))
 }
 
 export async function fetchJobs() {
