@@ -299,16 +299,9 @@ export function shuffleFeed(list) {
 }
 
 export async function fetchJobs() {
-  // Auto-expire: any active listing whose expires_at has passed becomes inactive.
-  const now = new Date().toISOString();
-  try {
-    await supabase.from('jobs')
-      .update({ active: false })
-      .eq('active', true)
-      .not('expires_at', 'is', null)
-      .lt('expires_at', now);
-  } catch(e) { /* non-critical */ }
-
+  // Expired listings are switched off by the hourly expire-old-jobs database
+  // job, and isLive() hides any that expired since, so the feed doesn't wait on
+  // an update round trip before it loads.
   const { data, error } = await supabase
     .from('jobs')
     .select('*')

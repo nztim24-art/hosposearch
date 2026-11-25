@@ -1,29 +1,13 @@
-// Browse live roles on a map (/map). Leaflet and the OpenStreetMap tiles are
-// loaded from a CDN only when this page is opened.
+// Browse live roles on a map (/map). Leaflet and the clustering plugin are
+// bundled into this page's own chunk, so they only download when the map opens
+// and come from our own CDN rather than unpkg.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
 import { jobGeo } from './seo/shared.js'
-
-const LEAFLET = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet'
-
-let leafletPromise = null
-function loadLeaflet() {
-  if (window.L) return Promise.resolve(window.L)
-  if (leafletPromise) return leafletPromise
-  leafletPromise = new Promise((resolve, reject) => {
-    const css = document.createElement('link')
-    css.rel = 'stylesheet'
-    css.href = `${LEAFLET}.css`
-    document.head.appendChild(css)
-    const js = document.createElement('script')
-    js.src = `${LEAFLET}.js`
-    js.async = true
-    js.onload = () => (window.L ? resolve(window.L) : reject(new Error('Leaflet missing')))
-    js.onerror = () => { leafletPromise = null; reject(new Error('Leaflet failed to load')) }
-    document.head.appendChild(js)
-  })
-  return leafletPromise
-}
 
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
 
@@ -53,7 +37,6 @@ export default function JobsMap({ jobs, loading }) {
   const map = useRef(null)
   const layer = useRef(null)
   const [ready, setReady] = useState(false)
-  const [failed, setFailed] = useState(false)
   const [region, setRegion] = useState('All')
 
   const shown = useMemo(() => jobs.filter(REGIONS.find(r => r.label === region).match), [jobs, region])
@@ -68,35 +51,44 @@ export default function JobsMap({ jobs, loading }) {
   }, [])
 
   useEffect(() => {
-    let alive = true
-    loadLeaflet().then(L => {
-      if (!alive || !el.current || map.current) return
-      map.current = L.map(el.current, { scrollWheelZoom: false }).setView([-30, 150], 4)
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      }).addTo(map.current)
-      // Scroll-to-zoom only after a click, so the page still scrolls past the map on a phone or trackpad
-      map.current.on('click', () => map.current.scrollWheelZoom.enable())
-      layer.current = L.layerGroup().addTo(map.current)
-      setReady(true)
-    }).catch(() => { if (alive) setFailed(true) })
-    return () => { alive = false; if (map.current) { map.current.remove(); map.current = null } }
+    if (!el.current || map.current) return
+    map.current = L.map(el.current, { scrollWheelZoom: false, preferCanvas: true }).setView([-30, 150], 4)
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      updateWhenIdle: true,
+      keepBuffer: 1,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    }).addTo(map.current)
+    // Scroll-to-zoom only after a click, so the page still scrolls past the map on a phone or trackpad
+    map.current.on('click', () => map.current.scrollWheelZoom.enable())
+    // Nearby pins merge into one numbered bubble until you zoom in, so the map
+    // draws a handful of markers instead of 150+ overlapping ones.
+    layer.current = L.markerClusterGroup({
+      chunkedLoading: true,
+      showCoverageOnHover: false,
+      maxClusterRadius: 50,
+      iconCreateFunction: c => L.divIcon({ className: '', html: `<div class="jm-cl">${c.getAllChildMarkers().reduce((n, m) => n + (m.jobCount || 1), 0)}</div>`, iconSize: [38, 38] }),
+    }).addTo(map.current)
+    setReady(true)
+    return () => { if (map.current) { map.current.remove(); map.current = null } }
   }, [])
 
   useEffect(() => {
-    const L = window.L
-    if (!ready || !L || !map.current) return
+    if (!ready || !map.current) return
     layer.current.clearLayers()
+    const markers = []
     for (const p of pins) {
       const html = `<div class="jm-pop">${p.jobs.slice(0, 8).map(j =>
         `<a href="/jobs/${esc(j.id)}"><strong>${esc(j.title)}</strong><span>${esc(j.venue)}${j.loc ? ' · ' + esc(j.loc) : ''}</span></a>`).join('')}${
         p.jobs.length > 8 ? `<em>+ ${p.jobs.length - 8} more here</em>` : ''}</div>`
-      L.marker([p.lat, p.lng], {
+      const m = L.marker([p.lat, p.lng], {
         title: p.jobs.length === 1 ? `${p.jobs[0].title} at ${p.jobs[0].venue}` : `${p.jobs.length} roles`,
         icon: L.divIcon({ className: '', html: `<div class="jm-pin"><b>${p.jobs.length > 1 ? p.jobs.length : ''}</b></div>`, iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -28] }),
-      }).bindPopup(html, { maxWidth: 280 }).addTo(layer.current)
+      }).bindPopup(html, { maxWidth: 280 })
+      m.jobCount = p.jobs.length
+      markers.push(m)
     }
+    layer.current.addLayers(markers)
     if (pins.length === 1) map.current.setView([pins[0].lat, pins[0].lng], 13)
     else if (pins.length > 1) map.current.fitBounds(pins.map(p => [p.lat, p.lng]), { padding: [40, 40], maxZoom: 13 })
   }, [ready, pins])
@@ -111,6 +103,7 @@ export default function JobsMap({ jobs, loading }) {
         .jm-note{font-size:13px;color:#7A7570;margin-top:10px;}
         .jm-pin{width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:#C4623A;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.35);color:#fff;font:700 12px/26px system-ui,sans-serif;text-align:center;}
         .jm-pin b{display:block;transform:rotate(45deg);}
+        .jm-cl{width:38px;height:38px;border-radius:50%;background:#C4623A;border:3px solid rgba(255,255,255,.9);box-shadow:0 2px 6px rgba(0,0,0,.3);color:#fff;font:700 13px/32px system-ui,sans-serif;text-align:center;}
         .jm-pop a{display:block;padding:7px 0;border-bottom:1px solid #EEE8DE;text-decoration:none;color:#0F0E0C;}
         .jm-pop a:last-of-type{border-bottom:0;}
         .jm-pop strong{display:block;font-size:14px;color:#C4623A;}
@@ -130,8 +123,7 @@ export default function JobsMap({ jobs, loading }) {
         </div>
       )}
       <div ref={el} className="jm-map" role="application" aria-label="Map of live hospitality roles" />
-      {failed && <div className="jm-note">The map couldn't load. <Link to="/">Browse the list of roles instead →</Link></div>}
-      {!failed && !loading && pinned < shown.length && (
+      {!loading && pinned < shown.length && (
         <div className="jm-note">Roles without a street address are shown in their suburb or city, or left off the map. <Link to="/">See every role in the list →</Link></div>
       )}
     </div>
