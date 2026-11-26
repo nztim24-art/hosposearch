@@ -3158,6 +3158,10 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
 
   const IS = { width:"100%", background:C.bgSoft, border:`1px solid ${C.border}`, borderRadius:10, padding:"12px 13px", color:C.textDark, fontSize:14 };
   const openForm = () => { setResume(profile?.resume||null); setCover(profile?.coverLetter||null); setShowForm(true); };
+  // Short form for HospoSearch-sourced (free) listings: name, email, CV and right to work.
+  // A paid listing posted by an employer shows every question the employer set
+  // (availability, notice period and their screening questions).
+  const fullForm = !!(job.empId && job.empId !== 'admin' && job.paid);
   const submit = async () => {
     if (submitting) return;
     if (!fd.name.trim() || !fd.email.trim() || !fd.email.includes("@")) return;
@@ -3177,8 +3181,8 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
         return;
       }
     }
-    // Validate all screening questions are answered
-    if (job.screeningQ) {
+    // Validate all screening questions are answered (only shown on employers' paid listings)
+    if (fullForm && job.screeningQ) {
       const activeQ = Object.keys(job.screeningQ).filter(k=>k!=="custom"&&job.screeningQ[k]&&!NON_EXTRA_Q.includes(k));
       const customQ = job.screeningQ.custom||[];
       const answers = fd.screeningAnswers||{};
@@ -3421,7 +3425,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 </div>)}
 
                 {/* Availability */}
-                {job.screeningQ?.availability !== false && (
+                {fullForm && job.screeningQ?.availability !== false && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>📅 Availability</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>Which days are you available to work?</div>
@@ -3451,7 +3455,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 </div>)}
 
                 {/* Screening questions from employer */}
-                {job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&k!=="localOnly"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
+                {fullForm && job.screeningQ && (Object.keys(job.screeningQ).filter(k=>k!=="custom"&&k!=="localOnly"&&job.screeningQ[k]).length > 0 || (job.screeningQ.custom||[]).length > 0) && (() => {
                   const SCREENING_LABELS = {
                     rightToWork:        'Right to work in this country?',
                     yearsExperience:    'Years of hospitality experience?',
@@ -3541,7 +3545,7 @@ function JobDetail({ job, currentUser, profile, following, bookmarks, onClose, o
                 })()}
 
                 {/* Notice period */}
-                {job.screeningQ?.noticePeriod !== false && (
+                {fullForm && job.screeningQ?.noticePeriod !== false && (
                 <div style={{ borderTop:`1px solid ${C.border}`, paddingTop:14 }}>
                   <div style={{ color:C.textDark, fontSize:13, fontWeight:600, marginBottom:5 }}>⏱️ Notice Period</div>
                   <div style={{ color:C.textSoft, fontSize:12, marginBottom:9 }}>How much notice do you need to give your current employer?</div>
